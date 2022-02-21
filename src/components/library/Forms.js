@@ -4,9 +4,11 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
 import AsyncPaginate, {
-  reduceGroupedOptions
+  reduceGroupedOptions,
 } from "react-select-async-paginate";
-import l10n from "../../lib/helpers/l10n";
+import l10n from "lib/helpers/l10n";
+
+const menuPortalEl = document.getElementById("MenuPortal");
 
 reduceGroupedOptions([], []);
 
@@ -16,7 +18,7 @@ export const Textarea = ({ small, large, borderless, fixedSize, ...props }) => (
       "Textarea--FixedSize": fixedSize,
       "Textarea--Large": large,
       "Textarea--Small": small,
-      "Textarea--Borderless": borderless
+      "Textarea--Borderless": borderless,
     })}
     {...props}
   />
@@ -26,35 +28,41 @@ Textarea.propTypes = {
   fixedSize: PropTypes.bool,
   small: PropTypes.bool,
   large: PropTypes.bool,
-  borderless: PropTypes.bool
+  borderless: PropTypes.bool,
 };
 
 Textarea.defaultProps = {
   fixedSize: false,
   small: false,
   large: false,
-  borderless: false
+  borderless: false,
 };
 
 export const FormField = ({
   halfWidth,
   thirdWidth,
   quarterWidth,
-  children
+  alignCheckbox,
+  children,
+  style,
 }) => (
   <div
     className={cx(
       "FormField",
       {
-        "FormField--HalfWidth": halfWidth
+        "FormField--HalfWidth": halfWidth,
       },
       {
-        "FormField--ThirdWidth": thirdWidth
+        "FormField--ThirdWidth": thirdWidth,
       },
       {
-        "FormField--QuarterWidth": quarterWidth
+        "FormField--QuarterWidth": quarterWidth,
+      },
+      {
+        "FormField--AlignCheckbox": alignCheckbox,
       }
     )}
+    style={style}
   >
     {children}
   </div>
@@ -64,21 +72,23 @@ FormField.propTypes = {
   halfWidth: PropTypes.bool,
   thirdWidth: PropTypes.bool,
   quarterWidth: PropTypes.bool,
-  children: PropTypes.node
+  alignCheckbox: PropTypes.bool,
+  children: PropTypes.node,
 };
 
 FormField.defaultProps = {
   halfWidth: false,
   thirdWidth: false,
   quarterWidth: false,
-  children: null
+  alignCheckbox: false,
+  children: null,
 };
 
 export class ToggleableFormField extends Component {
   constructor() {
     super();
     this.state = {
-      open: false
+      open: false,
     };
   }
 
@@ -93,7 +103,7 @@ export class ToggleableFormField extends Component {
       label,
       closedLabel,
       children,
-      open: propsOpen
+      open: propsOpen,
     } = this.props;
     const { open: stateOpen } = this.state;
     const open = stateOpen || propsOpen;
@@ -101,7 +111,7 @@ export class ToggleableFormField extends Component {
       <div
         className={cx("FormField", "FormField--Toggleable", {
           "FormField--HalfWidth": halfWidth,
-          "FormField--ToggleableClosed": !open
+          "FormField--ToggleableClosed": !open,
         })}
       >
         <label onClick={this.onOpen} htmlFor={htmlFor}>
@@ -119,7 +129,7 @@ ToggleableFormField.propTypes = {
   htmlFor: PropTypes.string,
   label: PropTypes.node,
   closedLabel: PropTypes.node,
-  open: PropTypes.bool
+  open: PropTypes.bool,
 };
 
 ToggleableFormField.defaultProps = {
@@ -128,14 +138,12 @@ ToggleableFormField.defaultProps = {
   htmlFor: "",
   label: null,
   closedLabel: null,
-  open: false
+  open: false,
 };
 
 export class ToggleableCheckBoxField extends Component {
   componentWillMount() {
-    this.id = `toggle_${Math.random()
-      .toString()
-      .replace(/0\./, "")}`;
+    this.id = `toggle_${Math.random().toString().replace(/0\./, "")}`;
   }
 
   toggleOpen = () => {
@@ -148,7 +156,7 @@ export class ToggleableCheckBoxField extends Component {
     return (
       <div
         className={cx("FormField", "FormField--Toggleable", {
-          "FormField--HalfWidth": halfWidth
+          "FormField--HalfWidth": halfWidth,
         })}
       >
         <label htmlFor={this.id}>
@@ -172,14 +180,14 @@ ToggleableCheckBoxField.propTypes = {
   children: PropTypes.node,
   label: PropTypes.node,
   open: PropTypes.bool,
-  onToggle: PropTypes.func.isRequired
+  onToggle: PropTypes.func.isRequired,
 };
 
 ToggleableCheckBoxField.defaultProps = {
   halfWidth: false,
   children: null,
   label: null,
-  open: false
+  open: false,
 };
 
 export class SelectRenamable extends Component {
@@ -187,7 +195,7 @@ export class SelectRenamable extends Component {
     super();
     this.state = {
       edit: false,
-      editValue: ""
+      editValue: "",
     };
   }
 
@@ -196,15 +204,15 @@ export class SelectRenamable extends Component {
     this.setState({ edit: true, editValue: editDefaultValue });
   };
 
-  onKeyDown = e => {
+  onKeyDown = (e) => {
     if (e.key === "Enter") {
       this.onSave();
     }
   };
 
-  onChangeName = e => {
+  onChangeName = (e) => {
     this.setState({
-      editValue: e.currentTarget.value
+      editValue: e.currentTarget.value,
     });
   };
 
@@ -217,7 +225,7 @@ export class SelectRenamable extends Component {
     }
   };
 
-  onFocus = e => {
+  onFocus = (e) => {
     e.target.select();
   };
 
@@ -235,7 +243,7 @@ export class SelectRenamable extends Component {
           ...group,
           options: group.options
             .filter(({ label }) => label.toLowerCase().includes(searchLower))
-            .slice(currentLength, currentLength + PER_PAGE)
+            .slice(currentLength, currentLength + PER_PAGE),
         };
       });
 
@@ -245,7 +253,7 @@ export class SelectRenamable extends Component {
 
       return {
         options: pageGroupedOptions,
-        hasMore: pageGroupedTotal > 0
+        hasMore: pageGroupedTotal > 0,
       };
     }
 
@@ -255,7 +263,7 @@ export class SelectRenamable extends Component {
     const pageTotal = pageOptions.length;
     return {
       options: pageOptions,
-      hasMore: pageTotal > 0
+      hasMore: pageTotal > 0,
     };
   };
 
@@ -266,7 +274,8 @@ export class SelectRenamable extends Component {
       id,
       value,
       onChange,
-      grouped
+      grouped,
+      allowRename,
     } = this.props;
     const { edit, editValue } = this.state;
 
@@ -290,27 +299,32 @@ export class SelectRenamable extends Component {
             classNamePrefix="ReactSelect"
             value={value}
             onChange={onChange}
+            options={this.loadOptions("", []).options}
             loadOptions={this.loadOptions}
             reduceOptions={grouped ? reduceGroupedOptions : undefined}
+            menuPlacement="auto"
+            menuPortalTarget={menuPortalEl}
+            blurInputOnSelect
           />
         )}
-        {edit ? (
-          <div
-            key="save"
-            className="SelectRenamable__EditBtn SelectRenamable__SaveBtn"
-            onClick={this.onSave}
-          >
-            {l10n("FIELD_SAVE")}
-          </div>
-        ) : (
-          <div
-            key="edit"
-            className="SelectRenamable__EditBtn"
-            onClick={this.onStartEdit}
-          >
-            {l10n("FIELD_RENAME")}
-          </div>
-        )}
+        {allowRename &&
+          (edit ? (
+            <div
+              key="save"
+              className="SelectRenamable__EditBtn SelectRenamable__SaveBtn"
+              onClick={this.onSave}
+            >
+              {l10n("FIELD_SAVE")}
+            </div>
+          ) : (
+            <div
+              key="edit"
+              className="SelectRenamable__EditBtn"
+              onClick={this.onStartEdit}
+            >
+              {l10n("FIELD_RENAME")}
+            </div>
+          ))}
       </div>
     );
   }
@@ -324,7 +338,7 @@ SelectRenamable.propTypes = {
   editDefaultValue: PropTypes.string,
   editPlaceholder: PropTypes.string,
   onRename: PropTypes.func.isRequired,
-  grouped: PropTypes.bool
+  grouped: PropTypes.bool,
 };
 
 SelectRenamable.defaultProps = {
@@ -332,5 +346,5 @@ SelectRenamable.defaultProps = {
   value: undefined,
   editDefaultValue: "",
   editPlaceholder: "",
-  grouped: false
+  grouped: false,
 };

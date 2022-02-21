@@ -2,11 +2,13 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import cx from "classnames";
-import { PlusIcon } from "../library/Icons";
 import Button from "../library/Button";
-import * as actions from "../../actions";
-import l10n from "../../lib/helpers/l10n";
-import { groupBy } from "../../lib/helpers/array";
+import { HelpIcon } from "ui/icons/Icons";
+import l10n from "lib/helpers/l10n";
+import { groupBy } from "lib/helpers/array";
+import editorActions from "store/features/editor/editorActions";
+import navigationActions from "store/features/navigation/navigationActions";
+import { clampSidebarWidth } from "lib/helpers/window/sidebar";
 
 const groupByPlugin = groupBy("plugin");
 
@@ -14,7 +16,7 @@ class FilesSidebar extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      dragging: false
+      dragging: false,
     };
     this.dragHandler = React.createRef();
   }
@@ -31,7 +33,7 @@ class FilesSidebar extends Component {
 
   onMouseDown = () => {
     this.setState({
-      dragging: true
+      dragging: true,
     });
   };
 
@@ -39,32 +41,32 @@ class FilesSidebar extends Component {
     const { dragging } = this.state;
     if (dragging) {
       this.setState({
-        dragging: false
+        dragging: false,
       });
     }
   };
 
-  onMouseMove = event => {
+  onMouseMove = (event) => {
     const { resizeFilesSidebar } = this.props;
     const { dragging } = this.state;
     if (dragging) {
-      resizeFilesSidebar(window.innerWidth - event.pageX);
+      resizeFilesSidebar(clampSidebarWidth(window.innerWidth - event.pageX));
     }
   };
 
-  onSearch = e => {
+  onSearch = (e) => {
     const { onSearch } = this.props;
     onSearch(e.currentTarget.value);
   };
 
-  renderFile = file => {
+  renderFile = (file) => {
     const { selectedFile, setNavigationId } = this.props;
     return (
       <div
         key={file.id}
         onClick={() => setNavigationId(file.id)}
         className={cx("FilesSidebar__ListItem", {
-          "FilesSidebar__ListItem--Active": file.id === selectedFile.id
+          "FilesSidebar__ListItem--Active": file.id === selectedFile.id,
         })}
       >
         {file.name}
@@ -94,14 +96,14 @@ class FilesSidebar extends Component {
               value={query}
             />
             {onAdd && (
-              <Button onClick={onAdd} title={l10n("ASSET_ADD")}>
-                <PlusIcon />
+              <Button onClick={onAdd} title={l10n("MENU_DOCUMENTATION")}>
+                <HelpIcon />
               </Button>
             )}
           </div>
           {Object.keys(groupedFiles)
             .sort()
-            .map(plugin => {
+            .map((plugin) => {
               if (!plugin) {
                 return groupedFiles[plugin].map(this.renderFile);
               }
@@ -126,39 +128,36 @@ FilesSidebar.propTypes = {
   files: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
-      name: PropTypes.string.isRequired
+      name: PropTypes.string.isRequired,
     })
   ).isRequired,
   selectedFile: PropTypes.shape({
     id: PropTypes.string,
-    name: PropTypes.string
+    name: PropTypes.string,
   }),
   onAdd: PropTypes.func,
-  query: PropTypes.string.isRequired
+  query: PropTypes.string.isRequired,
 };
 
 FilesSidebar.defaultProps = {
   width: 300,
   selectedFile: {
     id: "",
-    name: ""
+    name: "",
   },
-  onAdd: undefined
+  onAdd: undefined,
 };
 
 function mapStateToProps(state) {
-  const { filesSidebarWidth: width } = state.settings;
+  const { filesSidebarWidth: width } = state.editor;
   return {
-    width
+    width,
   };
 }
 
 const mapDispatchToProps = {
-  setNavigationId: actions.setNavigationId,
-  resizeFilesSidebar: actions.resizeFilesSidebar
+  setNavigationId: navigationActions.setNavigationId,
+  resizeFilesSidebar: editorActions.resizeFilesSidebar,
 };
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(FilesSidebar);
+export default connect(mapStateToProps, mapDispatchToProps)(FilesSidebar);

@@ -1,8 +1,9 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_OVERLAY_MOVE_TO";
+const id = "EVENT_OVERLAY_MOVE_TO";
+const groups = ["EVENT_GROUP_SCREEN"];
 
-export const fields = [
+const fields = [
   {
     key: "x",
     label: l10n("FIELD_X"),
@@ -10,7 +11,7 @@ export const fields = [
     min: 0,
     max: 20,
     defaultValue: 0,
-    width: "50%"
+    width: "50%",
   },
   {
     key: "y",
@@ -19,16 +20,24 @@ export const fields = [
     min: 0,
     max: 18,
     defaultValue: 0,
-    width: "50%"
+    width: "50%",
   },
   {
     key: "speed",
     type: "cameraSpeed",
-    defaultValue: "0"
-  }
+    defaultValue: "0",
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { overlayMoveTo } = helpers;
   overlayMoveTo(input.x, input.y, input.speed);
+};
+
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
+  waitUntilAfterInitFade: true,
 };

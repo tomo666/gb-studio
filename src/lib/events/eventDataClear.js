@@ -1,14 +1,46 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_CLEAR_DATA";
+const id = "EVENT_CLEAR_DATA";
+const groups = ["EVENT_GROUP_SAVE_DATA"];
 
-export const fields = [
+const fields = [
   {
-    label: l10n("FIELD_CLEAR_DATA")
-  }
+    label: l10n("FIELD_CLEAR_DATA"),
+  },
+  {
+    key: "saveSlot",
+    label: l10n("FIELD_SAVE_SLOT"),
+    type: "togglebuttons",
+    options: [
+      [
+        0,
+        l10n("FIELD_SLOT_N", { slot: 1 }),
+        l10n("FIELD_SAVE_SLOT_N", { slot: 1 }),
+      ],
+      [
+        1,
+        l10n("FIELD_SLOT_N", { slot: 2 }),
+        l10n("FIELD_SAVE_SLOT_N", { slot: 2 }),
+      ],
+      [
+        2,
+        l10n("FIELD_SLOT_N", { slot: 3 }),
+        l10n("FIELD_SAVE_SLOT_N", { slot: 3 }),
+      ],
+    ],
+    allowNone: false,
+    defaultValue: 0,
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { dataClear } = helpers;
-  dataClear();
+  dataClear(input.saveSlot);
+};
+
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
 };

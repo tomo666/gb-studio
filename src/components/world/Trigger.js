@@ -2,19 +2,21 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
 import { connect } from "react-redux";
-import * as actions from "../../actions";
+import editorActions from "store/features/editor/editorActions";
+import { triggerSelectors } from "store/features/entities/entitiesState";
+import { MIDDLE_MOUSE } from "../../consts";
 
 class Trigger extends Component {
-  onMouseDown = e => {
-    e.stopPropagation();
-    e.preventDefault();
-    const { id, sceneId, dragTriggerStart, setTool } = this.props;
-    dragTriggerStart(sceneId, id);
-    setTool("select");
-    window.addEventListener("mouseup", this.onMouseUp);
+  onMouseDown = (e) => {
+    const { id, sceneId, dragTriggerStart, setTool, editable } = this.props;
+    if (editable && e.nativeEvent.which !== MIDDLE_MOUSE) {
+      dragTriggerStart({ sceneId, triggerId: id });
+      setTool({ tool: "select" });
+      window.addEventListener("mouseup", this.onMouseUp);
+    }
   };
 
-  onMouseUp = e => {
+  onMouseUp = (_e) => {
     const { dragTriggerStop } = this.props;
     dragTriggerStop();
     window.removeEventListener("mouseup", this.onMouseUp);
@@ -30,7 +32,7 @@ class Trigger extends Component {
           top: y * 8,
           left: x * 8,
           width: Math.max(width, 1) * 8,
-          height: Math.max(height, 1) * 8
+          height: Math.max(height, 1) * 8,
         }}
       />
     );
@@ -47,19 +49,22 @@ Trigger.propTypes = {
   sceneId: PropTypes.string.isRequired,
   setTool: PropTypes.func.isRequired,
   dragTriggerStart: PropTypes.func.isRequired,
-  dragTriggerStop: PropTypes.func.isRequired
+  dragTriggerStop: PropTypes.func.isRequired,
+  editable: PropTypes.bool.isRequired,
 };
 
 Trigger.defaultProps = {
-  selected: false
+  selected: false,
 };
 
 function mapStateToProps(state, props) {
   const { type: editorType, entityId, scene: sceneId } = state.editor;
-  const trigger = state.entities.present.entities.triggers[props.id];
+
+  const trigger = triggerSelectors.selectById(state, props.id);
+
   const { x, y, width, height } = trigger;
   const selected =
-    editorType === "triggers" &&
+    editorType === "trigger" &&
     sceneId === props.sceneId &&
     entityId === props.id;
   return {
@@ -67,17 +72,14 @@ function mapStateToProps(state, props) {
     y: y || 0,
     width: width || 1,
     height: height || 1,
-    selected
+    selected,
   };
 }
 
 const mapDispatchToProps = {
-  dragTriggerStart: actions.dragTriggerStart,
-  dragTriggerStop: actions.dragTriggerStop,
-  setTool: actions.setTool
+  dragTriggerStart: editorActions.dragTriggerStart,
+  dragTriggerStop: editorActions.dragTriggerStop,
+  setTool: editorActions.setTool,
 };
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Trigger);
+export default connect(mapStateToProps, mapDispatchToProps)(Trigger);

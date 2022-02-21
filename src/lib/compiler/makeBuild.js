@@ -1,180 +1,165 @@
-import childProcess from "child_process";
-import { remote } from "electron";
 import fs from "fs-extra";
-import { buildToolsRoot } from "../../consts";
-import copy from "../helpers/fsCopy";
-import buildMakeBat from "./buildMakeBat";
-import { hexDec } from "../helpers/8bit";
-import getTmp from "../helpers/getTmp";
-import { isMBC1 } from "./helpers"
+import os from "os";
 
-const HEADER_TITLE = 0x134;
-const HEADER_CHECKSUM = 0x14d;
-const GLOBAL_CHECKSUM = 0x14e;
+import {
+  buildLinkFile,
+  buildLinkFlags,
+  getBuildCommands,
+  getPackFiles,
+} from "./buildMakeScript";
+import { cacheObjData, fetchCachedObjData } from "./objCache";
+import ensureBuildTools from "./ensureBuildTools";
+import spawn from "../helpers/cli/spawn";
+import l10n from "../helpers/l10n";
+import { gbspack } from "./gbspack";
 
-const filterLogs = str => {
-  return str.replace(/.*:\\.*>/g, "").replace(/.*:\\.*music/g, "");
-};
+const cpuCount = os.cpus().length;
 
-const setROMTitle = async (filename, title) => {
-  const romData = await fs.readFile(filename);
-  for (let i = 0; i < 15; i++) {
-    const charCode = title.charCodeAt(i) < 256 ? title.charCodeAt(i) || 0 : 0;
-    romData[HEADER_TITLE + i] = charCode;
-  }
-  await fs.writeFile(filename, await patchROM(romData));
-};
-
-const convertHexTo15BitRGB = hex => {
-  const r = Math.floor(hexDec(hex.substring(0, 2)) * (32 / 256));
-  const g = Math.floor(hexDec(hex.substring(2, 4)) * (32 / 256));
-  const b = Math.max(1, Math.floor(hexDec(hex.substring(4, 6)) * (32 / 256)));
-  return `RGB(${r}, ${g}, ${b})`;
-};
-
-const patchROM = romData => {
-  let checksum = 0;
-  let headerChecksum = 0;
-  const view = new DataView(romData.buffer);
-
-  // Recalculate header checksum
-  for (let i = HEADER_TITLE; i < HEADER_CHECKSUM; i++) {
-    headerChecksum = headerChecksum - view.getUint8(i) - 1;
-  }
-
-  view.setUint8(HEADER_CHECKSUM, headerChecksum);
-
-  // Recalculate cart checksum
-  for (let i = 0; i < romData.length; i++) {
-    if (i !== GLOBAL_CHECKSUM && i !== GLOBAL_CHECKSUM + 1) {
-      checksum += view.getUint8(i);
-    }
-  }
-
-  view.setUint16(GLOBAL_CHECKSUM, checksum, false);
-
-  return romData;
-};
-
-let firstBuild = true;
-
-const makeBuild = ({
-  buildType = "rom",
+const makeBuild = async ({
   buildRoot = "/tmp",
+  tmpPath = "/tmp",
   data = {},
-  cartSize = 64,
-  progress = () => {},
-  warnings = () => {}
+  profile = false,
+  buildType = "rom",
+  progress = (_msg) => {},
+  warnings = (_msg) => {},
 } = {}) => {
-  return new Promise(async (resolve, reject) => {
-    const env = Object.create(process.env);
-    const { settings } = data;
+  const env = Object.create(process.env);
+  const { settings } = data;
 
-    const buildToolsPath = `${buildToolsRoot}/${process.platform}-${
-      process.arch
-    }`;
+  const targetPlatform = buildType === "pocket" ? "pocket" : "gb";
 
-    const tmpPath = getTmp();
-    const tmpBuildToolsPath = `${tmpPath}/_gbs`;
+  const buildToolsPath = await ensureBuildTools(tmpPath);
+  const buildToolsVersion = await fs.readFile(
+    `${buildToolsPath}/tools_version`,
+    "utf8"
+  );
 
-    // Symlink build tools so that path doesn't contain any spaces
-    // GBDKDIR doesn't work if path has spaces :-(
-    try {
-      await fs.unlink(tmpBuildToolsPath);
-      await fs.ensureSymlink(buildToolsPath, tmpBuildToolsPath);
-    } catch (e) {
-      await copy(buildToolsPath, tmpBuildToolsPath, {
-        overwrite: firstBuild
-      });
-    }
-    
-    firstBuild = false;
+  env.PATH = [`${buildToolsPath}/gbdk/bin`, env.PATH].join(":");
+  env.GBDKDIR = `${buildToolsPath}/gbdk/`;
+  env.GBS_TOOLS_VERSION = buildToolsVersion;
+  env.TARGET_PLATFORM = targetPlatform;
 
-    env.PATH = [`${tmpBuildToolsPath}/gbdk/bin`, env.PATH].join(":");
-    env.GBDKDIR = `${tmpBuildToolsPath}/gbdk/`;
+  env.CART_TYPE = settings.cartType || "mbc5";
+  env.TMP = tmpPath;
+  env.TEMP = tmpPath;
+  if (settings.customColorsEnabled) {
+    env.COLOR = true;
+  }
+  if (settings.sgbEnabled) {
+    env.SGB = true;
+  }
+  if (settings.batterylessEnabled) {
+    env.BATTERYLESS = true;
+  }
+  env.MUSIC_DRIVER = settings.musicDriver;
+  if (profile) {
+    env.PROFILE = true;
+  }
+  if (settings.musicDriver === "huge") {
+    env.MUSIC_DRIVER = "HUGE_TRACKER";
+  } else {
+    env.MUSIC_DRIVER = "GBT_PLAYER";
+  }
 
-    env.CART_TYPE = parseInt(settings.cartType || "1B", 16);
-    env.CART_SIZE = cartSize;
-    env.TMP = getTmp();
-    env.TEMP = getTmp();
-    
-    // Modify game.h to overide color palette
-    let gameHeader = await fs.readFile(`${buildRoot}/include/game.h`, "utf8");
-    if (settings.customColorsEnabled) {
-      gameHeader = gameHeader
-        .replace(/RGB\(29, 31, 28\)/g, convertHexTo15BitRGB(settings.customColorsWhite))
-        .replace(/RGB\(22, 30, 17\)/g, convertHexTo15BitRGB(settings.customColorsLight))
-        .replace(/RGB\(10, 19, 15\)/g, convertHexTo15BitRGB(settings.customColorsDark))
-        .replace(/RGB\(4, 5, 10\)/g, convertHexTo15BitRGB(settings.customColorsBlack));
-    }
-    if (!(settings.customColorsEnabled || settings.gbcFastCPUEnabled)) {
-      gameHeader = gameHeader.replace(/#define CUSTOM_COLORS/g, '');
-    }
-    if (!settings.gbcFastCPUEnabled) {
-      gameHeader = gameHeader.replace(/#define FAST_CPU/g, '');
-    }
-    if(isMBC1(settings.cartType)) {
-      gameHeader = gameHeader.replace(/_MBC5/g, '_MBC1');
-    }
-    await fs.writeFile(`${buildRoot}/include/game.h`, gameHeader, "utf8");
+  // Populate /obj with cached data
+  await fetchCachedObjData(buildRoot, tmpPath, env);
 
-    // Remove GBC Rombyte Offset from Makefile (OSX/Linux) if custom colors and fast CPU are not enabled
-    if (process.platform !== "win32" && !settings.customColorsEnabled && !settings.gbcFastCPUEnabled)
-    {
-      let makeFile = await fs.readFile(`${buildRoot}/Makefile`, "utf8");
-      makeFile = makeFile.replace("-Wl-yp0x143=0x80", "");
-      await fs.writeFile(`${buildRoot}/Makefile`, makeFile, "utf8");
-    }
-
-    const makeBat = await buildMakeBat(buildRoot, {
-      CART_TYPE: env.CART_TYPE,
-      CART_SIZE: env.CART_SIZE,
-      customColorsEnabled: settings.customColorsEnabled,
-      gbcFastCPUEnabled: settings.gbcFastCPUEnabled
-    });
-    await fs.writeFile(`${buildRoot}/make.bat`, makeBat);
-
-    const command = process.platform === "win32" ? "make.bat" : "make";
-    const args = ["rom"];
-
-    const options = {
-      cwd: buildRoot,
-      env,
-      shell: true
-    };
-
-    const child = childProcess.spawn(command, args, options, {
-      encoding: "utf8"
-    });
-
-    child.on("error", err => {
-      warnings(err.toString());
-    });
-
-    child.stdout.on("data", childData => {
-      const lines = childData.toString().split("\n");
-      lines.forEach(line => {
-        progress(filterLogs(line));
-      });
-    });
-
-    child.stderr.on("data", childData => {
-      const lines = childData.toString().split("\n");
-      lines.forEach(line => {
-        warnings(line);
-      });
-    });
-
-    child.on("close", async code => {
-      if (code === 0) {
-        await setROMTitle(
-          `${buildRoot}/build/rom/game.gb`,
-          data.name.toUpperCase()
-        );
-        resolve();
-      } else reject(code);
-    });
+  // Compile Source Files
+  const makeCommands = await getBuildCommands(buildRoot, {
+    CART_TYPE: env.CART_TYPE,
+    CART_SIZE: env.CART_SIZE,
+    customColorsEnabled: settings.customColorsEnabled,
+    sgb: settings.sgbEnabled,
+    gbcFastCPUEnabled: settings.gbcFastCPUEnabled,
+    musicDriver: settings.musicDriver,
+    batteryless: settings.batterylessEnabled,
+    profile,
+    platform: process.platform,
+    targetPlatform,
   });
+
+  const options = {
+    cwd: buildRoot,
+    env,
+    shell: true,
+  };
+
+  // Build source files in parallel
+  const childSet = new Set();
+  const concurrency = cpuCount;
+  await Promise.all(
+    Array(concurrency)
+      .fill(makeCommands.entries())
+      .map(async (cursor) => {
+        for (let [_, makeCommand] of cursor) {
+          try {
+            progress(makeCommand.label);
+          } catch (e) {
+            for (let child of childSet) {
+              child.kill();
+            }
+            throw e;
+          }
+          const { child, completed } = spawn(
+            makeCommand.command,
+            makeCommand.args,
+            options,
+            {
+              onError: (msg) => warnings(msg),
+            }
+          );
+          childSet.add(child);
+          await completed;
+          childSet.delete(child);
+        }
+      })
+  );
+
+  // GBSPack ---
+
+  progress(`${l10n("COMPILER_PACKING")}...`);
+  const { cartSize } = await gbspack(await getPackFiles(buildRoot), {
+    bankOffset: 5,
+    filter: 255,
+    extension: "rel",
+    additional: settings.batterylessEnabled ? 4 : 0,
+  });
+
+  // Link ROM ---
+
+  progress(`${l10n("COMPILER_LINKING")}...`);
+  const linkFile = await buildLinkFile(buildRoot, parseInt(cartSize, 10));
+  const linkFilePath = `${buildRoot}/obj/linkfile.lk`;
+  await fs.writeFile(linkFilePath, linkFile);
+
+  const linkCommand =
+    process.platform === "win32"
+      ? `..\\_gbstools\\gbdk\\bin\\lcc.exe`
+      : `../_gbstools/gbdk/bin/lcc`;
+  const linkArgs = buildLinkFlags(
+    linkFilePath,
+    data.name || "GBStudio",
+    settings.cartType,
+    settings.customColorsEnabled,
+    settings.sgbEnabled,
+    settings.musicDriver,
+    targetPlatform
+  );
+
+  const { completed: linkCompleted } = spawn(linkCommand, linkArgs, options, {
+    onLog: (msg) => progress(msg),
+    onError: (msg) => {
+      if (msg.indexOf("Converted build") > -1) {
+        return;
+      }
+      warnings(msg);
+    },
+  });
+  await linkCompleted;
+
+  // Store /obj in cache
+  await cacheObjData(buildRoot, tmpPath, env);
 };
 
 export default makeBuild;

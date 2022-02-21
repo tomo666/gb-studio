@@ -1,8 +1,17 @@
-import { remote } from "electron";
 import fs from "fs-extra";
+import os from "os";
+import isElectron from "./isElectron";
 
-export default () => {
-  let tmpPath = remote.app.getPath("temp");
+export default (create = true) => {
+  let tmpPath = os.tmpdir();
+  if (isElectron()) {
+    // eslint-disable-next-line global-require
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const settings = require("electron-settings");
+    if (settings.get("tmpDir")) {
+      tmpPath = settings.get("tmpDir");
+    }
+  }
   if (
     tmpPath.indexOf(" ") === -1 &&
     tmpPath.indexOf(".itch") === -1 &&
@@ -12,6 +21,8 @@ export default () => {
   } else if (process.platform === "win32") {
     tmpPath = "C:\\tmp";
   } else tmpPath = "/tmp";
-  fs.ensureDirSync(tmpPath);
+  if (create) {
+    fs.ensureDirSync(tmpPath);
+  }
   return tmpPath;
 };

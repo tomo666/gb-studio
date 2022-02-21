@@ -2,20 +2,21 @@ import React from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import SpriteSheetCanvas from "./SpriteSheetCanvas";
-import { framesPerDirection } from "../../lib/helpers/gbstudio";
+import { PaletteShape } from "store/stateShape";
+import { getCachedObject } from "lib/helpers/cache";
+import { DMG_PALETTE } from "../../consts";
+import { paletteSelectors } from "store/features/entities/entitiesState";
+import { getSettings } from "store/features/settings/settingsState";
 
 const ActorCanvas = ({
   spriteSheetId,
-  movementType,
   direction,
   overrideDirection,
   frame,
-  totalFrames
+  palette,
 }) => {
   let spriteFrame = frame || 0;
-  if (movementType !== "static") {
-    spriteFrame = frame % totalFrames;
-  } else if (overrideDirection) {
+  if (overrideDirection) {
     spriteFrame = 0;
   }
 
@@ -24,40 +25,47 @@ const ActorCanvas = ({
       spriteSheetId={spriteSheetId}
       direction={direction}
       frame={spriteFrame}
+      palette={palette}
     />
   );
 };
 
 ActorCanvas.propTypes = {
   spriteSheetId: PropTypes.string.isRequired,
-  movementType: PropTypes.string.isRequired,
   direction: PropTypes.string,
   overrideDirection: PropTypes.string,
   frame: PropTypes.number,
-  totalFrames: PropTypes.number
+  totalFrames: PropTypes.number,
+  palette: PaletteShape,
 };
 
 ActorCanvas.defaultProps = {
   direction: undefined,
   overrideDirection: undefined,
   frame: undefined,
-  totalFrames: 1
+  totalFrames: 1,
+  palette: undefined,
 };
 
 function mapStateToProps(state, props) {
-  const { spriteSheetId, movementType, direction, frame } = props.actor;
-  const spriteSheet =
-    state.entities.present.entities.spriteSheets[spriteSheetId];
-  const spriteFrames = spriteSheet ? spriteSheet.numFrames : 0;
-  const totalFrames = framesPerDirection(movementType, spriteFrames);
+  const { spriteSheetId, direction, frame, paletteId } = props.actor;
+
+  const settings = getSettings(state);
+  const palettesLookup = paletteSelectors.selectEntities(state);
+  const gbcEnabled = settings.customColorsEnabled;
+  const palette = gbcEnabled
+    ? getCachedObject(
+        palettesLookup[paletteId] ||
+          palettesLookup[settings.defaultSpritePaletteId]
+      )
+    : DMG_PALETTE;
 
   return {
     spriteSheetId,
-    movementType,
     direction: props.direction !== undefined ? props.direction : direction,
     overrideDirection: props.direction,
-    frame: props.frame !== undefined ? props.frame % totalFrames : frame,
-    totalFrames
+    frame: props.frame !== undefined ? props.frame : frame,
+    palette,
   };
 }
 

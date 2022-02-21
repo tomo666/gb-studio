@@ -1,17 +1,17 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import l10n from "../../lib/helpers/l10n";
+import l10n from "lib/helpers/l10n";
 import Button from "./Button";
-import * as actions from "../../actions";
-import { ErrorShape } from "../../reducers/stateShape";
-import { SadIcon } from "./Icons";
+import { ErrorShape } from "store/stateShape";
+import { SadIcon } from "ui/icons/Icons";
+import electronActions from "store/features/electron/electronActions";
 
 class GlobalError extends Component {
   constructor() {
     super();
     this.state = {
-      viewTrace: false
+      viewTrace: false,
     };
   }
 
@@ -39,7 +39,7 @@ class GlobalError extends Component {
               </p>
             )}
             <div className="GlobalError__StackTrace">
-              {stackTrace.split("\n").map(line => (
+              {stackTrace.split("\n").map((line) => (
                 <div>{line}</div>
               ))}
             </div>
@@ -82,18 +82,15 @@ class GlobalError extends Component {
 
 GlobalError.propTypes = {
   error: ErrorShape.isRequired,
-  openHelp: PropTypes.func.isRequired
+  openHelp: PropTypes.func.isRequired,
 };
 
-function mapStateToProps(state, props) {
+function mapStateToProps(_state) {
   return {};
 }
 
 const mapDispatchToProps = {
-  openHelp: actions.openHelp
+  openHelp: electronActions.openHelp,
 };
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(GlobalError);
+export default connect(mapStateToProps, mapDispatchToProps)(GlobalError);

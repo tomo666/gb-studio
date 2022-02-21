@@ -1,12 +1,13 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_SOUND_PLAY_EFFECT";
+const id = "EVENT_SOUND_PLAY_EFFECT";
+const groups = ["EVENT_GROUP_MUSIC"];
 
-export const fields = [
+const fields = [
   {
     key: "type",
     type: "soundEffect",
-    defaultValue: "beep"
+    defaultValue: "beep",
   },
   {
     key: "pitch",
@@ -15,13 +16,13 @@ export const fields = [
     conditions: [
       {
         key: "type",
-        eq: "beep"
-      }
+        eq: "beep",
+      },
     ],
     min: 1,
     max: 8,
     step: 1,
-    defaultValue: 4
+    defaultValue: 4,
   },
   {
     key: "frequency",
@@ -30,13 +31,13 @@ export const fields = [
     conditions: [
       {
         key: "type",
-        eq: "tone"
-      }
+        eq: "tone",
+      },
     ],
     min: 0,
     max: 20000,
     step: 1,
-    defaultValue: 200
+    defaultValue: 200,
   },
   {
     key: "duration",
@@ -45,18 +46,20 @@ export const fields = [
     min: 0,
     max: 4.25,
     step: 0.01,
-    defaultValue: 0.5
-  }
+    defaultValue: 0.5,
+  },
+  {
+    key: "wait",
+    type: "checkbox",
+    label: l10n("FIELD_WAIT_UNTIL_FINISHED"),
+    defaultValue: true,
+  },
 ];
 
-export const compile = (input, helpers) => {
-  const {
-    soundPlayBeep,
-    soundStartTone,
-    soundStopTone,
-    soundPlayCrash,
-    wait
-  } = helpers;
+const compile = (input, helpers) => {
+  const { soundPlayBeep, soundStartTone, soundPlayCrash, wait } = helpers;
+
+  let seconds = typeof input.duration === "number" ? input.duration : 0.5;
 
   if (input.type === "beep" || !input.type) {
     const pitch = typeof input.pitch === "number" ? input.pitch : 4;
@@ -70,20 +73,25 @@ export const compile = (input, helpers) => {
     if (period < 0) {
       period = 0;
     }
-    soundStartTone(period);
+    const toneFrames = Math.min(255, Math.ceil(seconds * 60));
+    soundStartTone(period, toneFrames);
   } else if (input.type === "crash") {
     soundPlayCrash();
   }
 
   // Convert seconds into frames (60fps)
-  let seconds = typeof input.duration === "number" ? input.duration : 0.5;
-  while (seconds > 0) {
-    const time = Math.min(seconds, 1);
-    wait(Math.ceil(60 * time));
-    seconds -= time;
+  if (input.wait) {
+    while (seconds > 0) {
+      const time = Math.min(seconds, 1);
+      wait(Math.ceil(60 * time));
+      seconds -= time;
+    }
   }
+};
 
-  if (input.type === "tone") {
-    soundStopTone();
-  }
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
 };

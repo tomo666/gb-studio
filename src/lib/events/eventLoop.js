@@ -1,23 +1,24 @@
-export const id = "EVENT_LOOP";
+const id = "EVENT_LOOP";
+const groups = ["EVENT_GROUP_CONTROL_FLOW"];
 
-export const fields = [
+const fields = [
   {
     key: "true",
-    type: "events"
-  }
+    type: "events",
+  },
 ];
 
-export const compile = (input, helpers) => {
-  const {
-    labelDefine,
-    labelGoto,
-    nextFrameAwait,
-    compileEvents,
-    event
-  } = helpers;
-  const loopId = `loop_start_${event.id}`;
+const compile = (input, helpers) => {
+  const { labelDefine, labelGoto, getNextLabel, compileEvents } = helpers;
+  const loopId = getNextLabel();
   labelDefine(loopId);
   compileEvents(input.true);
-  nextFrameAwait();
   labelGoto(loopId);
+};
+
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
 };

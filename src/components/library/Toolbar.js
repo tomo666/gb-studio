@@ -1,35 +1,39 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import { Menu, MenuOverlay } from "./Menu";
-import { TriangleIcon } from "./Icons";
+import { TriangleIcon } from "ui/icons/Icons";
 
-export const Toolbar = props => <div className="Toolbar" {...props} />;
-export const ToolbarButton = props => (
+export const Toolbar = (props) => <div className="Toolbar" {...props} />;
+export const ToolbarButton = (props) => (
   <div className="Toolbar__Button" {...props} />
 );
-export const ToolbarSpacer = props => (
+export const ToolbarSpacer = (props) => (
   <div className="Toolbar__Spacer" {...props} />
 );
-export const ToolbarFixedSpacer = props => (
+export const ToolbarFixedSpacer = (props) => (
   <div className="Toolbar__FixedSpacer" {...props} />
 );
 
-export const ToolbarTitle = props => (
+export const ToolbarTitle = (props) => (
   <div className="Toolbar__Title" {...props} />
+);
+
+export const ToolbarSearch = (props) => (
+  <input type="search" className="Toolbar__Search" {...props} />
 );
 
 export class ToolbarDropdownButton extends Component {
   constructor() {
     super();
     this.state = {
-      open: false
+      open: false,
     };
   }
 
   toggleOpen = () => {
-    this.setState(prevState => {
+    this.setState((prevState) => {
       return {
-        open: !prevState.open
+        open: !prevState.open,
       };
     });
   };
@@ -63,12 +67,12 @@ ToolbarDropdownButton.propTypes = {
   children: PropTypes.node,
   label: PropTypes.node,
   showArrow: PropTypes.bool,
-  right: PropTypes.bool
+  right: PropTypes.bool,
 };
 
 ToolbarDropdownButton.defaultProps = {
   children: undefined,
   label: "",
   showArrow: true,
-  right: false
+  right: false,
 };

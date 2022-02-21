@@ -1,16 +1,9 @@
 import ScriptBuilder from "./scriptBuilder";
-import events from "../events";
 
 const STRING_NOT_FOUND = "STRING_NOT_FOUND";
 const VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND";
 
-// @todo
-// Maybe have list of script commands
-// Mark which ones can appear in ui dropdowns
-// and what the args are for each (to build forms)
-// and what the command code is?
-
-const compileEntityEvents = (input = [], options = {}) => {
+const compileEntityEvents = (scriptName, input = [], options = {}) => {
   const {
     output = [],
     branch = false,
@@ -19,121 +12,124 @@ const compileEntityEvents = (input = [], options = {}) => {
     entity,
     entityType,
     entityIndex,
-    warnings
+    warnings,
+    loop,
+    lock,
+    isFunction,
   } = options;
-  const helpers = {
-    ...options,
-    compileEvents: (childInput, eventOutput = null, eventBranch = true) =>
-      compileEntityEvents(childInput, {
-        ...options,
-        output: eventOutput || output,
-        branch: eventBranch
-      })
+
+  const location = {
+    ...(scene && {
+      scene: scene.name || `Scene ${sceneIndex + 1}`,
+    }),
+    ...(entityType && {
+      scriptType: entityType,
+    }),
+    ...(entityType === "actor" && {
+      actor: entity.name || `Actor ${entityIndex + 1}`,
+    }),
+    ...(entityType === "trigger" && {
+      actor: entity.name || `Trigger ${entityIndex + 1}`,
+    }),
   };
-  const location = Object.assign(
-    {},
-    scene && {
-      scene: scene.name || `Scene ${sceneIndex + 1}`
-    },
-    entityType && {
-      scriptType: entityType
-    },
-    entityType === "actor" && {
-      actor: entity.name || `Actor ${entityIndex + 1}`
-    },
-    entityType === "trigger" && {
-      actor: entity.name || `Trigger ${entityIndex + 1}`
-    }
-  );
 
-  const scriptBuilder = new ScriptBuilder(output, helpers);
+  let hasInit = false;
 
-  for (let i = 0; i < input.length; i++) {
-    const command = input[i].command;
-    if (input[i].args && input[i].args.__comment) {
-      // Skip commented events
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-    if (events[command]) {
-      if (command === "EVENT_PLAYER_SET_SPRITE") {
-        if (input[i].args && input[i].args.spriteSheetId) {
-          const sprite = options.sprites.find(
-            (s) => s.id === input[i].args.spriteSheetId
+  const compileEventsWithScriptBuilder = (
+    scriptBuilder,
+    subInput = [],
+    isBranch = false
+  ) => {
+    // eslint-disable-next-line global-require
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const events = require("../events").default;
+    for (let i = 0; i < subInput.length; i++) {
+      const command = subInput[i].command;
+      if (subInput[i].args && subInput[i].args.__comment) {
+        // Skip commented events
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      if (events[command]) {
+        try {
+          events[command].compile(
+            { ...subInput[i].args, ...subInput[i].children },
+            {
+              ...options,
+              ...scriptBuilder,
+              event: subInput[i],
+            }
           );
-          if (sprite && sprite.numFrames > 6) {
-            warnings(
-              `Used "Set Player Sprite Sheet" event with a sprite sheet containing more than 6 frames. This may cause graphics corruption. ${JSON.stringify({
-                ...location,
-                filename: sprite.filename
-              })}`
-            );
-          }
-        }
-      }
-      try {
-        events[command].compile(
-          { ...input[i].args, ...input[i].children },
-          {
-            ...helpers,
-            ...scriptBuilder,
-            event: input[i]
-          }
-        );
-      } catch (e) {
-        throw new Error(
-          `Compiling "${command}" failed with error "${e}". ${JSON.stringify(
-            location
-          )}`
-        );
-      }
-    } else if (command !== "EVENT_END") {
-      warnings(
-        `No compiler for command "${command}". Are you missing a plugin? ${JSON.stringify(
-          location
-        )}`
-      );
-    }
-  }
-
-  if (!branch) {
-    output.push(0); // End script
-
-    if (output.length > 16383) {
-      warnings(
-        `This script is too big for 1 bank, was ${output.length} bytes, must be under 16384.
-        ${JSON.stringify( location )}
-        `
-      );
-      warnings(
-        'Try splitting this script across multiple actors with *Actor invoke*.'
-      );
-    }
-
-    for (let oi = 0; oi < output.length; oi++) {
-      if (typeof output[oi] === "string" || output[oi] < 0) {
-        const intCmd = Number(output[oi]);
-        if (Number.isInteger(intCmd) && intCmd >= 0) {
-          // If string was equivent to position integer then replace it
-          // in output otherwise
-          output[oi] = intCmd;
-        } else if(!(typeof output[oi] === "string" && output[oi].startsWith("__REPLACE:"))) {
-          let reason = "";
-          if (String(output[oi]).startsWith("goto:")) {
-            reason = "Did you remember to define a label in the script?";
-          }
-
+        } catch (e) {
+          console.error(e);
           throw new Error(
-            `Found invalid command "${output[oi]}". ${reason} ${JSON.stringify(
+            `Compiling "${command}" failed with error "${e}". ${JSON.stringify(
               location
             )}`
           );
         }
+      } else if (command === "INTERNAL_SET_CONTEXT") {
+        const args = subInput[i].args;
+        scriptBuilder.options.entity = args.entity;
+        scriptBuilder.options.entityType = args.entityType;
+        scriptBuilder.options.entityId = args.entityId;
+      } else if (command === "INTERNAL_IF_PARAM") {
+        const args = subInput[i].args;
+        scriptBuilder.ifParamValue(
+          args.parameter,
+          args.value,
+          subInput[i].children.true
+        );
+      } else if (command !== "EVENT_END") {
+        warnings(
+          `No compiler for command "${command}". Are you missing a plugin? ${JSON.stringify(
+            location
+          )}`
+        );
       }
     }
+  };
+
+  const helpers = {
+    ...options,
+    compileEvents: (scriptBuilder, childInput) => {
+      compileEventsWithScriptBuilder(scriptBuilder, childInput, true);
+    },
+  };
+
+  const scriptBuilder = new ScriptBuilder(output, helpers);
+
+  const loopId = loop ? scriptBuilder.getNextLabel() : "";
+
+  if (loop && input.length > 0) {
+    scriptBuilder._label(loopId);
   }
 
-  return output;
+  compileEventsWithScriptBuilder(scriptBuilder, input, branch);
+
+  try {
+    if (!branch) {
+      if (loop && input.length > 0) {
+        scriptBuilder.nextFrameAwait();
+        scriptBuilder._jump(loopId);
+      }
+      if (isFunction) {
+        if (scriptBuilder.includeActor) {
+          scriptBuilder.stackPtr += 4;
+          scriptBuilder._stackPop(4);
+        }
+        scriptBuilder.returnFar();
+      } else {
+        scriptBuilder.scriptEnd();
+      }
+    }
+
+    return scriptBuilder.toScriptString(scriptName, lock);
+  } catch (e) {
+    throw new Error(
+      `Compiling failed with error "${e}". ${JSON.stringify(location)}`
+    );
+  }
 };
 
 export default compileEntityEvents;

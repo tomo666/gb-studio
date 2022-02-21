@@ -1,67 +1,87 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_IF_ACTOR_AT_POSITION";
+const id = "EVENT_IF_ACTOR_AT_POSITION";
+const groups = ["EVENT_GROUP_CONTROL_FLOW", "EVENT_GROUP_ACTOR"];
 
-export const fields = [
+const autoLabel = (fetchArg) => {
+  return l10n("EVENT_IF_ACTOR_AT_POSITION_LABEL", {
+    actor: fetchArg("actorId"),
+    x: fetchArg("x"),
+    y: fetchArg("y"),
+  });
+};
+
+const fields = [
   {
     key: "actorId",
+    label: l10n("ACTOR"),
     type: "actor",
-    defaultValue: "player"
+    defaultValue: "$self$",
   },
   {
     key: "x",
     label: l10n("FIELD_X"),
     type: "number",
     min: 0,
-    max: 30,
+    max: 255,
     width: "50%",
-    defaultValue: 0
+    defaultValue: 0,
   },
   {
     key: "y",
     label: l10n("FIELD_Y"),
     type: "number",
     min: 0,
-    max: 31,
+    max: 255,
     width: "50%",
-    defaultValue: 0
+    defaultValue: 0,
   },
   {
     key: "true",
-    type: "events"
+    label: l10n("FIELD_TRUE"),
+    type: "events",
   },
   {
     key: "__collapseElse",
     label: l10n("FIELD_ELSE"),
     type: "collapsable",
-    defaultValue: false,
+    defaultValue: true,
     conditions: [
       {
         key: "__disableElse",
-        ne: true
-      }
-    ]
+        ne: true,
+      },
+    ],
   },
   {
     key: "false",
+    label: l10n("FIELD_FALSE"),
     conditions: [
       {
         key: "__collapseElse",
-        ne: true
+        ne: true,
       },
       {
         key: "__disableElse",
-        ne: true
-      }
+        ne: true,
+      },
     ],
-    type: "events"
-  }
+    type: "events",
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { actorSetActive, ifActorAtPosition } = helpers;
   const truePath = input.true;
   const falsePath = input.__disableElse ? [] : input.false;
   actorSetActive(input.actorId);
   ifActorAtPosition(input.x, input.y, truePath, falsePath);
+};
+
+module.exports = {
+  id,
+  autoLabel,
+  groups,
+  fields,
+  compile,
 };

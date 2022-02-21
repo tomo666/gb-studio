@@ -1,5 +1,5 @@
-export default event => {
-  const el = event.currentTarget;
+export default (event) => {
+  const el = event && event.currentTarget;
   let value = el ? el.value : event;
   if (value !== undefined && el && el.type === "number") {
     value = parseFloat(value);

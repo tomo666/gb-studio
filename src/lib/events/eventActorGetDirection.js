@@ -1,44 +1,38 @@
-export const id = "EVENT_ACTOR_GET_DIRECTION";
+const l10n = require("../helpers/l10n").default;
 
-export const fields = [
+const id = "EVENT_ACTOR_GET_DIRECTION";
+const groups = ["EVENT_GROUP_ACTOR"];
+
+const autoLabel = (fetchArg) => {
+  return l10n("EVENT_ACTOR_GET_DIRECTION_LABEL", {
+    actor: fetchArg("actorId"),
+    variable: fetchArg("direction"),
+  });
+};
+
+const fields = [
   {
     key: "actorId",
     type: "actor",
-    defaultValue: "player"
+    defaultValue: "$self$",
   },
   {
     key: "direction",
     type: "variable",
-    defaultValue: "LAST_VARIABLE"
-  }
+    defaultValue: "LAST_VARIABLE",
+  },
 ];
 
-export const compile = (input, helpers) => {
-  const { actorSetActive, ifActorDirection, variableSetToValue } = helpers;
+const compile = (input, helpers) => {
+  const { actorSetActive, actorGetDirection } = helpers;
   actorSetActive(input.actorId);
-  ifActorDirection(
-    "down",
-    () => {
-      variableSetToValue(input.direction, 1);
-    },
-    () => {
-      ifActorDirection(
-        "left",
-        () => {
-          variableSetToValue(input.direction, 2);
-        },
-        () => {
-          ifActorDirection(
-            "right",
-            () => {
-              variableSetToValue(input.direction, 4);
-            },
-            () => {
-              variableSetToValue(input.direction, 8);
-            }
-          );
-        }
-      );
-    }
-  );
+  actorGetDirection(input.direction);
+};
+
+module.exports = {
+  id,
+  autoLabel,
+  groups,
+  fields,
+  compile,
 };

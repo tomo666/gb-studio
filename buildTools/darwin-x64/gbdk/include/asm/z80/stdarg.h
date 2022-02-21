@@ -9,12 +9,10 @@
    the correct order.
  */
 
-typedef char * va_list;
-#define va_start(list, last)	list = (char *)&last + sizeof(last)
-#ifdef STDIO_INCLUDE
-#define va_arg(list, type)	*(type *)list; list + sizeof(type)
-#else
-#define va_arg(list, type)	(list + sizeof(type), *(type *)(list - sizeof(type)))
-#endif
+typedef unsigned char * va_list;
+#define va_start(list, last)	list = (unsigned char *)&last + sizeof(last)
+#define va_arg(list, type)	*((type *)((list += sizeof(type)) - sizeof(type)))
+
+#define va_end(list)
 
 #endif

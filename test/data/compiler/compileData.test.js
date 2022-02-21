@@ -1,15 +1,13 @@
 import compile, {
-  precompileVariables,
   precompileStrings,
   precompileBackgrounds,
-  precompileSprites,
-  precompileScenes
+  precompileScenes,
 } from "../../../src/lib/compiler/compileData";
 import {
   EVENT_TEXT,
   EVENT_IF_TRUE,
   EVENT_SET_TRUE,
-  EVENT_END
+  EVENT_END,
 } from "../../../src/lib/compiler/eventTypes";
 
 test("should compile simple project into files object", async () => {
@@ -19,7 +17,8 @@ test("should compile simple project into files object", async () => {
     startY: 6,
     startDirection: "down",
     settings: {
-      playerSpriteSheetId: "SPRITE_1"
+      playerSpriteSheetId: "SPRITE_1",
+      defaultPlayerSprites: {},
     },
     scenes: [
       {
@@ -44,16 +43,16 @@ test("should compile simple project into files object", async () => {
               {
                 command: EVENT_TEXT,
                 args: {
-                  text: 'HELLO "WORLD'
-                }
+                  text: 'HELLO "WORLD',
+                },
               },
               {
                 command: EVENT_TEXT,
                 args: {
-                  text: "LOREM IPSUM"
-                }
-              }
-            ]
+                  text: "LOREM IPSUM",
+                },
+              },
+            ],
           },
           {
             id: "12",
@@ -62,11 +61,11 @@ test("should compile simple project into files object", async () => {
               {
                 command: EVENT_TEXT,
                 args: {
-                  text: 'HELLO "WORLD'
-                }
-              }
-            ]
-          }
+                  text: 'HELLO "WORLD',
+                },
+              },
+            ],
+          },
         ],
         triggers: [
           {
@@ -80,12 +79,17 @@ test("should compile simple project into files object", async () => {
               {
                 command: EVENT_TEXT,
                 args: {
-                  text: "TRIGGER TEST"
-                }
-              }
-            ]
-          }
-        ]
+                  text: "TRIGGER TEST",
+                },
+              },
+            ],
+            leaveScript: [],
+          },
+        ],
+        script: [],
+        playerHit1Script: [],
+        playerHit2Script: [],
+        playerHit3Script: [],
       },
       {
         id: "5",
@@ -109,37 +113,41 @@ test("should compile simple project into files object", async () => {
               {
                 command: EVENT_IF_TRUE,
                 args: {
-                  variable: "1"
+                  variable: "1",
                 },
                 children: {
                   true: [
                     {
                       command: EVENT_TEXT,
                       args: {
-                        text: "LOREM IPSUM"
-                      }
-                    }
+                        text: "LOREM IPSUM",
+                      },
+                    },
                   ],
                   false: [
                     {
                       command: EVENT_TEXT,
                       args: {
-                        text: "NOT YET"
-                      }
+                        text: "NOT YET",
+                      },
                     },
                     {
                       command: EVENT_SET_TRUE,
                       args: {
-                        variable: "1"
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
+                        variable: "1",
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
         ],
-        triggers: []
+        triggers: [],
+        script: [],
+        playerHit1Script: [],
+        playerHit2Script: [],
+        playerHit3Script: [],
       },
       {
         id: "6",
@@ -159,10 +167,14 @@ test("should compile simple project into files object", async () => {
           {
             id: "99",
             spriteSheetId: "SPRITE_1",
-            script: []
-          }
+            script: [],
+          },
         ],
-        triggers: []
+        triggers: [],
+        script: [],
+        playerHit1Script: [],
+        playerHit2Script: [],
+        playerHit3Script: [],
       },
       {
         id: "9",
@@ -179,7 +191,11 @@ test("should compile simple project into files object", async () => {
           0,0,0,0,0
         ],
         actors: [],
-        triggers: []
+        triggers: [],
+        script: [],
+        playerHit1Script: [],
+        playerHit2Script: [],
+        playerHit3Script: [],
       },
       {
         id: "10",
@@ -208,153 +224,131 @@ test("should compile simple project into files object", async () => {
               {
                 command: EVENT_TEXT,
                 args: {
-                  text: "TRIGGER TEST"
-                }
-              }
-            ]
-          }
-        ]
-      }
+                  text: "TRIGGER TEST",
+                },
+              },
+            ],
+            leaveScript: [],
+          },
+        ],
+        script: [],
+        playerHit1Script: [],
+        playerHit2Script: [],
+        playerHit3Script: [],
+      },
     ],
     backgrounds: [
       {
         id: "2",
         width: 20,
         height: 32,
-        filename: "forest_clearing.png"
+        filename: "forest_clearing.png",
       },
       {
         id: "3",
         width: 20,
         height: 18,
-        filename: "mabe_house.png"
+        filename: "mabe_house.png",
       },
       {
         id: "4",
         width: 32,
         height: 32,
-        filename: "village_street_night.png"
+        filename: "village_street_night.png",
       },
       {
         id: "7",
         width: 20,
         height: 18,
-        filename: "home_bedroom_night.png"
+        filename: "home_bedroom_night.png",
       },
       {
         id: "8",
         width: 20,
         height: 18,
-        filename: "boss.png"
-      }
+        filename: "boss.png",
+      },
     ],
     spriteSheets: [
       {
         id: "SPRITE_1",
-        filename: "sprite_1.png"
+        filename: "sprite_1.png",
+        states: [
+          {
+            id: "SPRITE_STATE_1",
+            name: "",
+            animations: [
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+            ],
+          },
+        ],
       },
       {
         id: "SPRITE_2",
-        filename: "sprite_2.png"
+        filename: "sprite_2.png",
+        states: [
+          {
+            id: "SPRITE_STATE_2",
+            name: "",
+            animations: [
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+            ],
+          },
+        ],
       },
       {
         id: "SPRITE_3",
-        filename: "sprite_3.png"
-      }
+        filename: "sprite_3.png",
+        states: [
+          {
+            id: "SPRITE_STATE_3",
+            name: "",
+            animations: [
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+              { frames: [] },
+            ],
+          },
+        ],
+      },
     ],
-    music: []
+    music: [],
+    fonts: [
+      {
+        id: "font1",
+        filename: "gbs-mono.png",
+      },
+    ],
+    palettes: [],
+    avatars: [],
+    emotes: [],
   };
   const compiled = await compile(project, {
-    projectRoot: `${__dirname}/_files`
+    projectRoot: `${__dirname}/_files`,
     // eventEmitter: {
     //   emit: (a, b) => console.log(a, ":", b)
     // }
   });
   expect(compiled).toBeInstanceOf(Object);
-});
-
-test("should walk all scene events to build list of used variables", () => {
-  const scenes = [
-    {
-      id: "1",
-      actors: [
-        {
-          id: "2",
-          script: [
-            {
-              id: "3",
-              command: EVENT_IF_TRUE,
-              args: { variable: "109" },
-              children: {
-                true: [
-                  {
-                    id: "4",
-                    command: EVENT_TEXT,
-                    args: { text: "LINE 2" }
-                  },
-                  {
-                    id: "5",
-                    command: EVENT_END
-                  }
-                ],
-                false: [
-                  {
-                    id: "6",
-                    command: EVENT_SET_TRUE,
-                    args: { variable: "109" }
-                  },
-                  {
-                    id: "7",
-                    command: EVENT_TEXT,
-                    args: { text: "LINE 1" }
-                  },
-                  {
-                    id: "8",
-                    command: EVENT_END
-                  }
-                ]
-              }
-            },
-            {
-              id: "9",
-              command: EVENT_END
-            }
-          ]
-        }
-      ],
-      triggers: [
-        {
-          id: "10",
-          script: [
-            {
-              id: "11",
-              command: EVENT_SET_TRUE,
-              args: { variable: "110" }
-            },
-            {
-              id: "12",
-              command: EVENT_SET_TRUE,
-              args: { variable: "109" }
-            },
-            {
-              id: "13",
-              command: EVENT_END
-            }
-          ]
-        }
-      ]
-    }
-  ];
-  const precompiledVariables = precompileVariables(scenes);
-  let output = [];
-  for(let i=0; i<100; i++) {
-    output.push(String(i));
-  }
-  output.push("109");
-  output.push("110");
-  output.push("tmp1");
-  output.push("tmp2");
-  expect(precompiledVariables).toEqual(output);
 });
 
 test("should walk all scene events to build list of strings", () => {
@@ -374,37 +368,37 @@ test("should walk all scene events to build list of strings", () => {
                   {
                     id: "4",
                     command: EVENT_TEXT,
-                    args: { text: "LINE 2" }
+                    args: { text: "LINE 2" },
                   },
                   {
                     id: "5",
-                    command: EVENT_END
-                  }
+                    command: EVENT_END,
+                  },
                 ],
                 false: [
                   {
                     id: "6",
                     command: EVENT_SET_TRUE,
-                    args: { variable: "9" }
+                    args: { variable: "9" },
                   },
                   {
                     id: "7",
                     command: EVENT_TEXT,
-                    args: { text: "LINE 1" }
+                    args: { text: "LINE 1" },
                   },
                   {
                     id: "8",
-                    command: EVENT_END
-                  }
-                ]
-              }
+                    command: EVENT_END,
+                  },
+                ],
+              },
             },
             {
               id: "9",
-              command: EVENT_END
-            }
-          ]
-        }
+              command: EVENT_END,
+            },
+          ],
+        },
       ],
       triggers: [
         {
@@ -413,17 +407,18 @@ test("should walk all scene events to build list of strings", () => {
             {
               id: "11",
               command: EVENT_TEXT,
-              args: { text: "LINE 2" }
+              args: { text: "LINE 2" },
             },
             {
               id: "12",
               command: EVENT_TEXT,
-              args: { text: "LINE 3" }
-            }
-          ]
-        }
-      ]
-    }
+              args: { text: "LINE 3" },
+            },
+          ],
+          leaveScript: [],
+        },
+      ],
+    },
   ];
   const precompiledStrings = precompileStrings(scenes);
   expect(precompiledStrings).toEqual(["LINE 2", "LINE 1", "LINE 3"]);
@@ -432,42 +427,43 @@ test("should walk all scene events to build list of strings", () => {
 test("should precompile image data", async () => {
   const backgrounds = [
     {
-      id: "2",
+      id: "2b",
       name: "test_img",
       width: 20,
       height: 18,
       imageWidth: 160,
       imageHeight: 144,
-      filename: "test_img.png"
+      filename: "test_img.png",
     },
     {
-      id: "3",
+      id: "3b",
       name: "test_img2",
       width: 20,
       height: 18,
       imageWidth: 160,
       imageHeight: 144,
-      filename: "test_img2.png"
-    }
+      filename: "test_img2.png",
+    },
   ];
   const scenes = [
     {
       id: "1",
       name: "first_scene",
-      backgroundId: "2",
+      backgroundId: "2b",
       actors: [],
-      triggers: []
-    }
+      triggers: [],
+    },
   ];
   const { usedBackgrounds, backgroundLookup } = await precompileBackgrounds(
     backgrounds,
     scenes,
+    {},
     `${__dirname}/_files`,
     `${__dirname}/_tmp`
   );
   expect(usedBackgrounds).toHaveLength(1);
-  expect(backgroundLookup["2"]).toBe(backgrounds[0]);
-  expect(backgroundLookup["3"]).toBeUndefined();
+  expect(backgroundLookup["2b"]).toBe(backgrounds[0]);
+  expect(backgroundLookup["3b"]).toBeUndefined();
 });
 
 test("should precompile scenes", async () => {
@@ -475,44 +471,55 @@ test("should precompile scenes", async () => {
     {
       id: "1",
       backgroundId: "3",
+      type: "TOPDOWN",
       actors: [
         {
-          spriteSheetId: "5"
-        }
+          spriteSheetId: "5",
+        },
       ],
-      triggers: []
+      triggers: [],
     },
     {
       id: "2",
       backgroundId: "4",
+      type: "TOPDOWN",
       actors: [
         {
-          spriteSheetId: "5"
+          spriteSheetId: "5",
         },
         {
-          spriteSheetId: "6"
-        }
+          spriteSheetId: "6",
+        },
       ],
-      triggers: []
-    }
+      triggers: [],
+    },
   ];
   const usedBackgrounds = [
     {
-      id: "3"
+      id: "3",
     },
     {
-      id: "4"
-    }
+      id: "4",
+    },
   ];
   const spriteData = [
     {
-      id: "5"
+      id: "5",
     },
     {
-      id: "6"
-    }
+      id: "6",
+    },
   ];
-  const sceneData = precompileScenes(scenes, usedBackgrounds, spriteData);
+  const defaultPlayerSprites = {
+    TOPDOWN: "5",
+  };
+  const sceneData = precompileScenes(
+    scenes,
+    {},
+    defaultPlayerSprites,
+    usedBackgrounds,
+    spriteData
+  );
 
   expect(sceneData).toHaveLength(scenes.length);
   expect(sceneData[0].sprites).toHaveLength(1);

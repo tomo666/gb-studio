@@ -1,12 +1,13 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_OVERLAY_SHOW";
+const id = "EVENT_OVERLAY_SHOW";
+const groups = ["EVENT_GROUP_SCREEN"];
 
-export const fields = [
+const fields = [
   {
     key: "color",
     type: "overlayColor",
-    defaultValue: "black"
+    defaultValue: "black",
   },
   {
     key: "x",
@@ -15,7 +16,7 @@ export const fields = [
     min: 0,
     max: 20,
     defaultValue: 0,
-    width: "50%"
+    width: "50%",
   },
   {
     key: "y",
@@ -24,11 +25,18 @@ export const fields = [
     min: 0,
     max: 18,
     defaultValue: 0,
-    width: "50%"
-  }
+    width: "50%",
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { overlayShow } = helpers;
   overlayShow(input.color, input.x, input.y);
+};
+
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
 };

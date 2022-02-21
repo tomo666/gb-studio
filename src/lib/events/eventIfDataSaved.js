@@ -1,46 +1,80 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_IF_SAVED_DATA";
+const id = "EVENT_IF_SAVED_DATA";
+const groups = ["EVENT_GROUP_SAVE_DATA", "EVENT_GROUP_CONTROL_FLOW"];
 
-export const fields = [
+const fields = [
   {
-    label: l10n("FIELD_IF_SAVED_DATA")
+    key: "saveSlot",
+    label: l10n("FIELD_SAVE_SLOT"),
+    type: "togglebuttons",
+    options: [
+      [
+        0,
+        l10n("FIELD_SLOT_N", { slot: 1 }),
+        l10n("FIELD_SAVE_SLOT_N", { slot: 1 }),
+      ],
+      [
+        1,
+        l10n("FIELD_SLOT_N", { slot: 2 }),
+        l10n("FIELD_SAVE_SLOT_N", { slot: 2 }),
+      ],
+      [
+        2,
+        l10n("FIELD_SLOT_N", { slot: 3 }),
+        l10n("FIELD_SAVE_SLOT_N", { slot: 3 }),
+      ],
+    ],
+    allowNone: false,
+    defaultValue: 0,
+  },
+  {
+    label: l10n("FIELD_IF_SAVED_DATA"),
   },
   {
     key: "true",
-    type: "events"
+    label: l10n("FIELD_TRUE"),
+    type: "events",
   },
   {
     key: "__collapseElse",
     label: l10n("FIELD_ELSE"),
     type: "collapsable",
-    defaultValue: false,
+    defaultValue: true,
     conditions: [
       {
         key: "__disableElse",
-        ne: true
-      }
-    ]
+        ne: true,
+      },
+    ],
   },
   {
     key: "false",
+    label: l10n("FIELD_FALSE"),
     conditions: [
       {
         key: "__collapseElse",
-        ne: true
+        ne: true,
       },
       {
         key: "__disableElse",
-        ne: true
-      }
+        ne: true,
+      },
     ],
-    type: "events"
-  }
+    type: "events",
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { ifDataSaved } = helpers;
   const truePath = input.true;
   const falsePath = input.__disableElse ? [] : input.false;
-  ifDataSaved(truePath, falsePath);
+  ifDataSaved(input.saveSlot, truePath, falsePath);
+};
+
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
 };

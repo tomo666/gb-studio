@@ -1,48 +1,70 @@
 /** @file stdio.h
     Basic file/console input output functions.
+
+    Including stdio.h will use a large number of the
+    background tiles for font characters. If stdio.h
+    is not included then that space will be available
+    for use with other tiles instead.
  */
 #ifndef STDIO_INCLUDE
 #define STDIO_INCLUDE
 
 #include <types.h>
 
-#if STRICT_ANSI
-void putchar(int c);
-#else
-/** Put the character 'c' to stdout. */
-void putchar(char c);
-#endif
+/** Print char to stdout.
+    @param c            Character to print
+ */
+
+void putchar(char c) OLDCALL;
 
 /** Print the string and arguments given by format to stdout.
-    Currently supported: \%c (character), \%u (unsigned int), 
-    \%d (signed int), \%x (unsigned int as hex), and \%s (string).
+
+    @param format   The format string as per printf
+
     Does not return the number of characters printed.
+
+    Currently supported:
+    \li \%hx (char as hex)
+    \li \%hu (unsigned char)
+    \li \%hd (signed char)
+    \li \%c (character)
+    \li \%u (unsigned int)
+    \li \%d (signed int)
+    \li \%x (unsigned int as hex)
+    \li \%s (string)
+
+    Warning: to correctly pass chars for printing as chars, they *must*
+    be explicitly re-cast as such when calling the function.
+    See @ref docs_chars_varargs for more details.
  */
-void printf(const char *format, ...) NONBANKED;
+void printf(const char *format, ...) OLDCALL;
 
 /** Print the string and arguments given by format to a buffer.
-    Currently supported: \%c (character), \%u (unsigned int), 
-    \%d (signed int), \%x (unsigned int as hex), and \%s (string).
+
+    @param str		The buffer to print into
+    @param format	The format string as per @ref printf
+
     Does not return the number of characters printed.
-
-    @param str		The buffer to print into.
-    @param format	The format string as per printf.
  */
-void sprintf(char *str, const char *format, ...) NONBANKED;
+void sprintf(char *str, const char *format, ...) OLDCALL;
 
-/** puts() writes the string s and a trailing newline to  std­
-    out.
+/** puts() writes the string __s__ and a trailing newline to stdout.
 */
-void puts(const char *s) NONBANKED;
+void puts(const char *s);
 
-/** gets() reads a line from stdin into the buffer pointed to by s until
-    either a terminating newline or EOF, which it replaces with '\0'.  No
-    check for buffer overrun is per­ formed.
+/** gets() Reads a line from stdin into a buffer pointed to by __s__.
+
+    @param s    Buffer to store string in
+
+    Reads until either a terminating newline or an EOF, which it replaces with '\0'. No
+    check for buffer overrun is performed.
+
+    Returns: Buffer pointed to by __s__
 */
-char *gets(char *s);
+char *gets(char *s) OLDCALL;
 
-/** getchar() gets a single character from stdin.
+/** getchar() Reads and returns a single character from stdin.
  */
-char getchar(void);
+char getchar() OLDCALL;
 
 #endif
