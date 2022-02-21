@@ -36,6 +36,7 @@
 #include "parallax.h"
 #include "shadow.h"
 #include "data/data_bootstrap.h"
+#include "zeldasAdventureCore.h"
 
 extern void __bank_bootstrap_script;
 extern const UBYTE bootstrap_script[];
@@ -171,6 +172,10 @@ void process_VM() {
                 camera_update();
                 scroll_repaint();
                 actors_update();
+
+                if(scene_type == SCENE_TYPE_ZELDASADVENTURE) {
+                    InitZeldaHud();
+                }
 
                 activate_shadow_OAM();
 
