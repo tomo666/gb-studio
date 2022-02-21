@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
-import { TriangleIcon } from "./Icons";
+import { TriangleIcon } from "ui/icons/Icons";
 import { MenuOverlay, Menu } from "./Menu";
 
 const Button = ({ transparent, small, large, ...props }) => (
@@ -9,7 +9,7 @@ const Button = ({ transparent, small, large, ...props }) => (
     className={cx("Button", {
       "Button--Transparent": transparent,
       "Button--Small": small,
-      "Button--Large": large
+      "Button--Large": large,
     })}
     {...props}
   />
@@ -18,60 +18,61 @@ const Button = ({ transparent, small, large, ...props }) => (
 Button.propTypes = {
   transparent: PropTypes.bool,
   small: PropTypes.bool,
-  large: PropTypes.bool
+  large: PropTypes.bool,
 };
 
 Button.defaultProps = {
   transparent: false,
   small: false,
-  large: false
+  large: false,
 };
 
 export default Button;
 
-export const ButtonToolbar = props => (
+export const ButtonToolbar = (props) => (
   <div className="ButtonToolbar" {...props} />
 );
 
-export const ButtonToolbarSpacer = props => (
+export const ButtonToolbarSpacer = (props) => (
   <div className="ButtonToolbar__Spacer" {...props} />
 );
 
-export const ButtonToolbarFixedSpacer = props => (
+export const ButtonToolbarFixedSpacer = (props) => (
   <div className="ButtonToolbar__FixedSpacer" {...props} />
 );
 
 export class DropdownButton extends Component {
   constructor() {
     super();
+    this.buttonEl = React.createRef();
     this.state = {
-      open: false
+      menuDirection: "down",
+      open: false,
     };
   }
 
   toggleOpen = () => {
-    this.setState(prevState => {
+    this.setState((prevState) => {
+      let menuDirection = "down";
+      if (!prevState.open && this.buttonEl.current) {
+        const boundingRect = this.buttonEl.current.getBoundingClientRect();
+        if (boundingRect.bottom > window.innerHeight - 150) {
+          menuDirection = "up";
+        }
+      }
       return {
-        open: !prevState.open
+        open: !prevState.open,
+        menuDirection,
       };
     });
   };
 
   render() {
-    const {
-      children,
-      label,
-      showArrow,
-      transparent,
-      small,
-      large,
-      right,
-      ...props
-    } = this.props;
-    const { open } = this.state;
-
+    const { children, label, showArrow, transparent, small, large, ...props } =
+      this.props;
+    const { open, menuDirection } = this.state;
     return (
-      <div className="DropdownButton" {...props}>
+      <div ref={this.buttonEl} className="DropdownButton" {...props}>
         <Button
           onClick={this.toggleOpen}
           transparent={transparent}
@@ -87,7 +88,7 @@ export class DropdownButton extends Component {
         </Button>
         {open && <MenuOverlay onClick={this.toggleOpen} />}
         {open && (
-          <Menu onClick={this.toggleOpen} right>
+          <Menu onClick={this.toggleOpen} up={menuDirection === "up"} right>
             {children}
           </Menu>
         )}
@@ -103,7 +104,6 @@ DropdownButton.propTypes = {
   transparent: PropTypes.bool,
   small: PropTypes.bool,
   large: PropTypes.bool,
-  right: PropTypes.bool
 };
 
 DropdownButton.defaultProps = {
@@ -113,5 +113,4 @@ DropdownButton.defaultProps = {
   transparent: false,
   small: false,
   large: false,
-  right: false
 };

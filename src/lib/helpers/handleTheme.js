@@ -1,30 +1,38 @@
+/* eslint-disable import/no-unresolved */
+/* eslint-disable import/no-webpack-loader-syntax */
 import settings from "electron-settings";
-import { ipcRenderer } from "electron";
+import { ipcRenderer, remote } from "electron";
+import darkTheme from "!!raw-loader!../../styles/theme-dark.css";
+import lightTheme from "!!raw-loader!../../styles/theme.css";
 
-const { systemPreferences } = require("electron").remote;
+const { nativeTheme } = remote;
 
-function updateMyAppTheme() {
+const updateMyAppTheme = () => {
+  const settingsTheme = settings.get("theme");
+  const theme =
+    settingsTheme === "dark"
+      ? "dark"
+      : settingsTheme === "light"
+      ? "light"
+      : "system";
+
   const darkMode =
-    settings.get("theme") === "dark" ||
-    (settings.get("theme") === undefined &&
-      systemPreferences.isDarkMode &&
-      systemPreferences.isDarkMode());
+    theme === "dark" || (theme === "system" && nativeTheme.shouldUseDarkColors);
+
   const themeStyle = document.getElementById("theme");
-  const cssFile = darkMode ? "theme-dark.css" : "theme.css";
-  themeStyle.href = `../styles/${cssFile}`;
-}
+  themeStyle.innerHTML = darkMode ? darkTheme : lightTheme;
 
-if (systemPreferences.subscribeNotification) {
-  systemPreferences.subscribeNotification(
-    "AppleInterfaceThemeChangedNotification",
-    function theThemeHasChanged() {
-      updateMyAppTheme();
-    }
-  );
-}
+  if (nativeTheme.themeSource !== theme) {
+    nativeTheme.themeSource = theme;
+  }
+};
 
-updateMyAppTheme();
+nativeTheme.on("updated", () => {
+  updateMyAppTheme();
+});
 
 ipcRenderer.on("update-theme", () => {
   updateMyAppTheme();
 });
+
+updateMyAppTheme();

@@ -1,9 +1,18 @@
 {
-  "extends": ["eslint-config-airbnb", "react-app", "prettier"],
-  "parser": "babel-eslint",
+  "extends": ["plugin:@typescript-eslint/recommended", "react-app", "prettier", "plugin:react-hooks/recommended"],
+  "parser": "@typescript-eslint/parser",
   "plugins": ["babel"],
   "parserOptions": {
-    "ecmaVersion": 2018
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".jsx", ".ts", ".tsx"],
+        "moduleDirectory": ["node_modules", "src", "src/components"]
+      }
+    }
   },
   "rules": {
     "import/extensions": 0,
@@ -23,11 +32,27 @@
     "jsx-a11y/click-events-have-key-events": 0,
     "jsx-a11y/mouse-events-have-key-events": 0,
     "jsx-a11y/no-noninteractive-element-interactions": 0,
-    "no-await-in-loop": 0
+    "no-await-in-loop": 0,
+    "import/prefer-default-export": 0,
+    "@typescript-eslint/explicit-module-boundary-types": 0,
+    "@typescript-eslint/no-empty-function": 0,
+    "camelcase": ["error", {"allow": ["UNSAFE_componentWillReceiveProps", "icon_path", "bug_link_text"]}],
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": ["error"],
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": "off",
+    "react-hooks/exhaustive-deps": ["warn", {
+      "additionalHooks": "useDebouncedCallback"
+    }]
   },
   "env": {
     "browser": true,
     "node": true,
     "es6": true
+  },
+  "globals": {
+    "__non_webpack_require__": true,
+    "COMMITHASH": true,
+    "VERSION": true
   }
 }

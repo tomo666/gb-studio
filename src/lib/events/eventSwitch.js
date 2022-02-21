@@ -1,13 +1,14 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_SWITCH";
+const id = "EVENT_SWITCH";
+const groups = ["EVENT_GROUP_CONTROL_FLOW"];
 
-export const fields = [].concat(
+const fields = [].concat(
   [
     {
       key: "variable",
       type: "variable",
-      defaultValue: "LAST_VARIABLE"
+      defaultValue: "LAST_VARIABLE",
     },
     {
       key: "choices",
@@ -15,8 +16,8 @@ export const fields = [].concat(
       type: "number",
       min: 1,
       max: 16,
-      defaultValue: 2
-    }
+      defaultValue: 2,
+    },
   ],
   Array(16)
     .fill()
@@ -27,11 +28,11 @@ export const fields = [].concat(
         conditions: [
           {
             key: "choices",
-            gt: i
-          }
+            gt: i,
+          },
         ],
         type: "collapsable",
-        defaultValue: false
+        defaultValue: false,
       });
       arr.push({
         key: `value${i}`,
@@ -39,31 +40,31 @@ export const fields = [].concat(
         conditions: [
           {
             key: `__collapseCase${i}`,
-            ne: true
+            ne: true,
           },
           {
             key: "choices",
-            gt: i
-          }
+            gt: i,
+          },
         ],
         type: "number",
-        min: 0,
-        max: 255,
-        defaultValue: i + 1
+        min: -32768,
+        max: 32767,
+        defaultValue: i + 1,
       });
       arr.push({
         key: `true${i}`,
         conditions: [
           {
             key: `__collapseCase${i}`,
-            ne: true
+            ne: true,
           },
           {
             key: "choices",
-            gt: i
-          }
+            gt: i,
+          },
         ],
-        type: "events"
+        type: "events",
       });
       return arr;
     }, []),
@@ -76,28 +77,28 @@ export const fields = [].concat(
       conditions: [
         {
           key: "__disableElse",
-          ne: true
-        }
-      ]
+          ne: true,
+        },
+      ],
     },
     {
       key: "false",
       conditions: [
         {
           key: "__collapseElse",
-          ne: true
+          ne: true,
         },
         {
           key: "__disableElse",
-          ne: true
-        }
+          ne: true,
+        },
       ],
-      type: "events"
-    }
+      type: "events",
+    },
   ]
 );
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { caseVariableValue } = helpers;
   const falsePath = input.__disableElse ? [] : input.false;
 
@@ -105,15 +106,22 @@ export const compile = (input, helpers) => {
     .fill()
     .reduce((memo, _, i) => {
       const value = input[`value${i}`];
-      const key = Number.isInteger(parseInt(value, 10)) ? value : i;
+      const key = Number.isInteger(parseInt(value, 10)) ? value : i + 1;
       if (!memo[key]) {
         return {
           ...memo,
-          [key]: input[`true${i}`]
+          [key]: input[`true${i}`],
         };
       }
       return memo;
     }, {});
 
   caseVariableValue(input.variable, choiceLookup, falsePath);
+};
+
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
 };

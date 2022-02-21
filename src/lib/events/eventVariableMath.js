@@ -1,12 +1,47 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_VARIABLE_MATH";
+const id = "EVENT_VARIABLE_MATH";
+const groups = ["EVENT_GROUP_MATH", "EVENT_GROUP_VARIABLES"];
 
-export const fields = [
+const autoLabel = (fetchArg, input) => {
+  const variable = fetchArg("vectorX");
+  const op = input.operation;
+  const other = input.other;
+
+  let operation = "";
+  if (op === "add") {
+    operation = `${variable} +`;
+  } else if (op === "sub") {
+    operation = `${variable} -`;
+  } else if (op === "mul") {
+    operation = `${variable} *`;
+  } else if (op === "div") {
+    operation = `${variable} /`;
+  } else if (op === "mod") {
+    operation = `${variable} %`;
+  }
+
+  let value = fetchArg("value");
+  if (other === "true") {
+    value = l10n("FIELD_TRUE");
+  } else if (other === "false") {
+    value = l10n("FIELD_FALSE");
+  } else if (other === "var") {
+    value = fetchArg("vectorY");
+  } else if (other === "rnd") {
+    value = `${l10n("FIELD_RANDOM")}(${fetchArg("minValue")},${fetchArg(
+      "maxValue"
+    )})`;
+  }
+
+  return l10n("EVENT_VARIABLE_MATH_LABEL", { variable, operation, value });
+};
+
+const fields = [
   {
     key: "vectorX",
     type: "variable",
-    defaultValue: "LAST_VARIABLE"
+    defaultValue: "LAST_VARIABLE",
   },
   {
     key: "operation",
@@ -17,10 +52,10 @@ export const fields = [
       ["sub", l10n("FIELD_SUB_VALUE")],
       ["mul", l10n("FIELD_MUL_VARIABLE")],
       ["div", l10n("FIELD_DIV_VARIABLE")],
-      ["mod", l10n("FIELD_MOD_VARIABLE")]
+      ["mod", l10n("FIELD_MOD_VARIABLE")],
     ],
     defaultValue: "set",
-    width: "50%"
+    width: "50%",
   },
   {
     key: "other",
@@ -30,10 +65,10 @@ export const fields = [
       ["false", l10n("FIELD_FALSE")],
       ["var", l10n("FIELD_VARIABLE")],
       ["val", l10n("FIELD_VALUE")],
-      ["rnd", l10n("FIELD_RANDOM")]
+      ["rnd", l10n("FIELD_RANDOM")],
     ],
     defaultValue: "true",
-    width: "50%"
+    width: "50%",
   },
   {
     key: "vectorY",
@@ -41,10 +76,10 @@ export const fields = [
     conditions: [
       {
         key: "other",
-        eq: "var"
-      }
+        eq: "var",
+      },
     ],
-    defaultValue: "LAST_VARIABLE"
+    defaultValue: "LAST_VARIABLE",
   },
   {
     key: "value",
@@ -52,12 +87,12 @@ export const fields = [
     conditions: [
       {
         key: "other",
-        eq: "val"
-      }
+        eq: "val",
+      },
     ],
-    min: 0,
-    max: 255,
-    defaultValue: "1"
+    min: -32768,
+    max: 32767,
+    defaultValue: "0",
   },
   {
     key: "minValue",
@@ -65,14 +100,14 @@ export const fields = [
     conditions: [
       {
         key: "other",
-        eq: "rnd"
-      }
+        eq: "rnd",
+      },
     ],
-    min: 0,
-    max: 255,
+    min: -32768,
+    max: 32767,
     label: l10n("FIELD_MIN_VALUE"),
     defaultValue: "0",
-    width: "50%"
+    width: "50%",
   },
   {
     key: "maxValue",
@@ -80,73 +115,87 @@ export const fields = [
     conditions: [
       {
         key: "other",
-        eq: "rnd"
-      }
+        eq: "rnd",
+      },
     ],
-    min: 0,
-    max: 255,
+    min: -32768,
+    max: 32767,
     label: l10n("FIELD_MAX_VALUE"),
-    defaultValue: "255",
-    width: "50%"
+    defaultValue: "32767",
+    width: "50%",
   },
   {
-    label: l10n("FIELD_MATH_NOTE")
-  }
+    key: "clamp",
+    type: "checkbox",
+    label: l10n("FIELD_CLAMP"),
+    conditions: [
+      {
+        key: "operation",
+        in: ["add", "sub", "mul"],
+      },
+    ],
+    defaultValue: false,
+    alignCheckbox: true,
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const {
     variableSetToValue,
     variableCopy,
     variableSetToRandom,
-    variablesAdd,
-    variablesSub,
-    variablesMul,
-    variablesDiv,
-    variablesMod
+    variablesOperation,
+    variableRandomOperation,
+    variableValueOperation,
   } = helpers;
-  const tmp1 = "tmp1";
-  switch (input.other) {
-    case "true":
-      variableSetToValue(tmp1, 1);
-      break;
-    case "false":
-      variableSetToValue(tmp1, 0);
-      break;
-    case "var": {
-      variableCopy(tmp1, input.vectorY);
-      break;
-    }
-    case "rnd": {
-      const min = input.minValue || 0;
-      const range = Math.min(254, Math.max(0, (input.maxValue || 0) - min));
-      variableSetToRandom(tmp1, min, range);
-      break;
-    }
-    case "val":
-    default:
-      variableSetToValue(tmp1, input.value || 0);
-      break;
+
+  let value = input.value || 0;
+  const min = input.minValue || 0;
+  const range = Math.min(32767, Math.max(0, (input.maxValue || 0) - min)) + 1;
+  const operationLookup = {
+    add: ".ADD",
+    sub: ".SUB",
+    mul: ".MUL",
+    div: ".DIV",
+    mod: ".MOD",
+  };
+
+  if (input.other === "true") {
+    value = 1;
+  } else if (input.other === "false") {
+    value = 0;
   }
-  switch (input.operation) {
-    case "add":
-      variablesAdd(input.vectorX, tmp1);
-      break;
-    case "sub":
-      variablesSub(input.vectorX, tmp1);
-      break;
-    case "mul":
-      variablesMul(input.vectorX, tmp1);
-      break;
-    case "div":
-      variablesDiv(input.vectorX, tmp1);
-      break;
-    case "mod":
-      variablesMod(input.vectorX, tmp1);
-      break;
-    case "set":
-    default:
-      variableCopy(input.vectorX, tmp1);
-      break;
+
+  if (!input.operation || input.operation === "set") {
+    if (input.other === "var") {
+      variableCopy(input.vectorX, input.vectorY);
+    } else if (input.other === "rnd") {
+      variableSetToRandom(input.vectorX, min, range);
+    } else {
+      variableSetToValue(input.vectorX, value);
+    }
+  } else {
+    const operation = operationLookup[input.operation];
+    if (input.other === "var") {
+      variablesOperation(input.vectorX, operation, input.vectorY, input.clamp);
+    } else if (input.other === "rnd") {
+      variableRandomOperation(
+        input.vectorX,
+        operation,
+        min,
+        range,
+        input.clamp
+      );
+    } else if (value !== 0) {
+      variableValueOperation(input.vectorX, operation, value, input.clamp);
+    }
   }
+};
+
+module.exports = {
+  id,
+  autoLabel,
+  groups,
+  fields,
+  compile,
 };

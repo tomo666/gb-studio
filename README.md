@@ -3,23 +3,16 @@
 
 [![CircleCI](https://circleci.com/gh/chrismaltby/gb-studio/tree/develop.svg?style=shield)](https://circleci.com/gh/chrismaltby/gb-studio/tree/develop)
 
-Copyright (c) 2020 Chris Maltby, released under the [MIT license](https://opensource.org/licenses/MIT).
+Copyright (c) 2021 Chris Maltby, released under the [MIT license](https://opensource.org/licenses/MIT).
 
 Twitter: [@maltby](https://www.twitter.com/maltby) 
 
 Reddit: [/r/gbstudio](https://www.reddit.com/r/gbstudio)  
 Discord: [Join Chat](https://discord.gg/bxerKnc)
 
-GB Studio is a free and easy to use retro adventure game creator for Game Boy available for Mac, Linux and Windows.
+
+GB Studio is a quick and easy to use retro adventure game creator for Game Boy available for Mac, Linux and Windows.
 For more information see the [GB Studio](https://www.gbstudio.dev) site
-
-----
-
-## 🚨 🚨 🚨 Version 2 Beta Available 🚨 🚨 🚨
-
-If you're looking for the GB Studio 2 Beta check out the branch [v2beta](https://github.com/chrismaltby/gb-studio/tree/v2beta) for the latest builds.
-
-----
 
 ![GB Studio](gbstudio.gif)
 
@@ -31,30 +24,62 @@ Download a release for your operating system from the [GB Studio Downloads](http
 
 Or to run from source, clone this repo then:
 
+- Install latest stable [NodeJS](https://nodejs.org/)
+- Install [Yarn](https://yarnpkg.com/)
+
 ```bash
-$ yarn
-$ npm start
+> cd gb-studio
+> yarn
+> npm start
 ```
+
+## GB Studio CLI 
+
+Install GB Studio from source as above then
+
+```bash
+> npm run make:cli
+> yarn link
+# From any folder you can now run gb-studio-cli
+> gb-studio-cli -V
+3.0.0
+> gb-studio-cli --help
+```
+
+### Update the CLI
+
+Pull the latest code and run make:cli again, yarn link is only needed for the first run.
+
+```bash
+> npm run make:cli
+```
+
+### CLI Examples
+
+- **Export Project**
+
+    ```bash
+    > gb-studio-cli export path/to/project.gbsproj out/
+    ```
+    Export GBDK project from gbsproj to out directory
+
+- **Export Data**
+    ```bash
+    > gb-studio-cli export -d path/to/project.gbsproj out/
+    ```
+    Export only src/data and include/data from gbsproj to out directory
+- **Make ROM**
+    ```bash
+    > gb-studio-cli make:rom path/to/project.gbsproj out/game.gb
+    ```
+    Make a ROM file from gbsproj
+- **Make Web**
+    ```bash
+    > gb-studio-cli make:web path/to/project.gbsproj out/
+    ```
+    Make a Web build from gbsproj
 
 ## Documentation
 
 [GB Studio Documentation](https://www.gbstudio.dev/docs)
-
-## Development builds
-
-These builds reflects the latest changes from the `develop` branch and are updated automatically. It is recommended to make a backup of your project before using any of these versions.
-
-#### macOS
-
-[![MacOS](https://img.shields.io/static/v1.svg?label=&message=64%20bit&color=blue&logo=apple&style=for-the-badge&logoColor=white)](https://github.com/chrismaltby/gb-studio/releases/download/v1.2.2/gb-studio-develop-darwin_x86_64.zip)
-
-#### Linux
-
-[![DEB](https://img.shields.io/static/v1.svg?label=&message=deb&color=blue&logo=Ubuntu&style=for-the-badge&logoColor=white)](https://github.com/chrismaltby/gb-studio/releases/download/v1.2.2/gb-studio-develop-linux_x86_64.deb)
-[![RPM](https://img.shields.io/static/v1.svg?label=&message=RPM&color=blue&logo=linux&style=for-the-badge&logoColor=white)](https://github.com/chrismaltby/gb-studio/releases/download/v1.2.2/gb-studio-develop-linux_x86_64.rpm)
-
-#### Windows
-
-[![Windows_x86_64](https://img.shields.io/static/v1.svg?label=&message=64%20bit&color=blue&logo=windows&style=for-the-badge&logoColor=white)](https://github.com/chrismaltby/gb-studio/releases/download/v1.2.2/gb-studio-develop-windows_x86_64.zip)
-[![Windows_x86](https://img.shields.io/static/v1.svg?label=&message=32%20bit&color=blue&logo=windows&style=for-the-badge&logoColor=white)](https://github.com/chrismaltby/gb-studio/releases/download/v1.2.2/gb-studio-develop-windows_x86.zip)
 

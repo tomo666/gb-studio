@@ -3,65 +3,123 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import cx from "classnames";
 import GlobalError from "../library/GlobalError";
-import AppToolbar from "../../containers/AppToolbar";
-import BackgroundsPage from "../../containers/pages/BackgroundsPage";
-import SpritesPage from "../../containers/pages/SpritesPage";
-import DialoguePage from "../../containers/pages/DialoguePage";
-import BuildPage from "../../containers/pages/BuildPage";
-import WorldPage from "../../containers/pages/WorldPage";
-import UIPage from "../../containers/pages/UIPage";
-import MusicPage from "../../containers/pages/MusicPage";
-import SettingsPage from "../../containers/pages/SettingsPage";
-import l10n from "../../lib/helpers/l10n";
-import { ErrorShape } from "../../reducers/stateShape";
+import AppToolbar from "./AppToolbar";
+import BackgroundsPage from "../pages/BackgroundsPage";
+import SpritesPage from "../pages/SpritesPage";
+import DialoguePage from "../pages/DialoguePage";
+import BuildPage from "../pages/BuildPage";
+import WorldPage from "../pages/WorldPage";
+import MusicPage from "../pages/MusicPage";
+import PalettePage from "../pages/PalettePage";
+import SettingsPage from "../pages/SettingsPage";
+import l10n from "lib/helpers/l10n";
+import { ErrorShape } from "store/stateShape";
+import LoadingPane from "../library/LoadingPane";
+import { DropZone } from "ui/upload/DropZone";
+import projectActions from "store/features/project/projectActions";
+import { ipcRenderer } from "electron";
+import settings from "electron-settings";
+import SoundsPage from "components/pages/SoundsPage";
 
 class App extends Component {
   constructor() {
     super();
+    this.dragLeaveTimer = 0;
     this.state = {
-      blur: false
+      blur: false,
+      draggingOver: false,
     };
   }
 
   componentDidMount() {
     window.addEventListener("blur", this.onBlur);
     window.addEventListener("focus", this.onFocus);
+    window.addEventListener("resize", this.onFocus);
+    window.addEventListener("dragover", this.onDragOver);
+    window.addEventListener("dragleave", this.onDragLeave);
+    window.addEventListener("drop", this.onDrop);
+    const zoomLevel = Number(settings.get("zoomLevel") || 0);
+    ipcRenderer.send("window-zoom", zoomLevel);
   }
 
   onBlur = () => {
-    this.setState({ blur: true });
+    if (!this.state.blur) {
+      this.setState({ blur: true });
+    }
   };
 
   onFocus = () => {
-    this.setState({ blur: false });
+    if (this.state.blur) {
+      this.setState({ blur: false });
+    }
+  };
+
+  onDragOver = (e) => {
+    // Don't activate dropzone unless dragging a file
+    const types = e.dataTransfer.types;
+    if (!types || types.indexOf("Files") === -1) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    clearTimeout(this.dragLeaveTimer);
+    const { draggingOver } = this.state;
+    if (!draggingOver) {
+      this.setState({ draggingOver: true });
+    }
+  };
+
+  onDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    clearTimeout(this.dragLeaveTimer);
+    this.dragLeaveTimer = setTimeout(() => {
+      this.setState({ draggingOver: false });
+    }, 100);
+  };
+
+  onDrop = (e) => {
+    const { addFileToProject } = this.props;
+    this.setState({ draggingOver: false });
+    for (let i = 0; i < e.dataTransfer.files.length; i++) {
+      const file = e.dataTransfer.files[i];
+      addFileToProject(file.path);
+    }
   };
 
   render() {
-    const { section, error } = this.props;
-    const { blur } = this.state;
+    const { section, loaded, error } = this.props;
+    const { blur, draggingOver } = this.state;
 
-    if(error.visible) {
-      return <GlobalError error={error} />
+    if (error.visible) {
+      return <GlobalError error={error} />;
     }
 
     return (
       <div
         className={cx("App", {
           "App--Blur": blur,
-          "App--RTL": l10n("RTL") === true
+          "App--RTL": l10n("RTL") === true,
         })}
       >
         <AppToolbar />
-        <div className="App__Content">
-          {section === "world" && <WorldPage />}
-          {section === "backgrounds" && <BackgroundsPage />}
-          {section === "sprites" && <SpritesPage />}
-          {section === "ui" && <UIPage />}
-          {section === "music" && <MusicPage />}
-          {section === "dialogue" && <DialoguePage />}
-          {section === "build" && <BuildPage />}
-          {section === "settings" && <SettingsPage />}
-        </div>
+        {!loaded ? (
+          <LoadingPane />
+        ) : (
+          <div className="App__Content">
+            {section === "world" && <WorldPage />}
+            {section === "backgrounds" && <BackgroundsPage />}
+            {section === "sprites" && <SpritesPage />}
+            {section === "music" && <MusicPage />}
+            {section === "sounds" && <SoundsPage />}
+            {section === "palettes" && <PalettePage />}
+            {section === "dialogue" && <DialoguePage />}
+            {section === "build" && <BuildPage />}
+            {section === "settings" && <SettingsPage />}
+            {draggingOver && <DropZone />}
+          </div>
+        )}
       </div>
     );
   }
@@ -74,18 +132,25 @@ App.propTypes = {
     "sprites",
     "ui",
     "music",
+    "palettes",
     "dialogue",
     "build",
-    "settings"
+    "settings",
   ]).isRequired,
-  error: ErrorShape.isRequired
+  loaded: PropTypes.bool.isRequired,
+  error: ErrorShape.isRequired,
 };
 
 function mapStateToProps(state) {
   return {
     section: state.navigation.section,
-    error: state.error
+    error: state.error,
+    loaded: state.document.loaded,
   };
 }
 
-export default connect(mapStateToProps)(App);
+const mapDispatchToProps = {
+  addFileToProject: projectActions.addFileToProject,
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(App);

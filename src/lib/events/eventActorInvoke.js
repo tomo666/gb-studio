@@ -1,20 +1,34 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_ACTOR_INVOKE";
+const id = "EVENT_ACTOR_INVOKE";
+const groups = ["EVENT_GROUP_ACTOR"];
 
-export const fields = [
-  {
-    label: l10n("FIELD_ACTOR_INVOKE")
-  },
+const autoLabel = (fetchArg) => {
+  return l10n("EVENT_ACTOR_INVOKE_LABEL", {
+    actor: fetchArg("actorId"),
+  });
+};
+
+const fields = [
   {
     key: "actorId",
+    label: l10n("FIELD_ACTOR_INVOKE"),
     type: "actor",
-    defaultValue: "LAST_ACTOR"
-  }
+    defaultValue: "$self$",
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { actorSetActive, actorInvoke } = helpers;
   actorSetActive(input.actorId);
   actorInvoke();
+};
+
+module.exports = {
+  id,
+  autoLabel,
+  groups,
+  fields,
+  compile,
+  deprecated: true,
 };

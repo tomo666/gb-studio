@@ -1,40 +1,33 @@
-import { walkEvents } from "../helpers/eventSystem";
-import compileEntityEvents from "../compiler/compileEntityEvents";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_CALL_CUSTOM_EVENT";
+const id = "EVENT_CALL_CUSTOM_EVENT";
+const groups = ["EVENT_GROUP_CONTROL_FLOW"];
 
-export const fields = [
+const autoLabel = (fetchArg) => {
+  return l10n("EVENT_CALL_CUSTOM_EVENT_LABEL", {
+    script: fetchArg("customEventId"),
+  });
+};
+
+const fields = [
   {
-    type: "events",
-    key: "script",
-    hide: true,
-    defaultValue: []
+    type: "customEvent",
+    key: "customEventId",
   },
   {
-    type: "text",
-    hide: true,
-    key: "customEventId"
-  }
+    type: "break",
+  },
 ];
 
-export const compile = (input, helpers) => {
-  const script = JSON.parse(JSON.stringify(input.script));
-  walkEvents(script, e => {
-    if (!e.args) return;
+const compile = (input, helpers) => {
+  const { callScript } = helpers;
+  callScript(input.customEventId, input);
+};
 
-    if (e.args.actorId && e.args.actordId !== "player") {
-      e.args.actorId = input[`$actor[${e.args.actorId}]$`];
-    }
-
-    if (e.args.variable) {
-      e.args.variable = input[`$variable[${e.args.variable}]$`];
-    }
-    if (e.args.vectorX) {
-      e.args.vectorX = input[`$variable[${e.args.vectorX}]$`];
-    }
-    if (e.args.vectorY) {
-      e.args.vectorY = input[`$variable[${e.args.vectorY}]$`];
-    }
-  });
-  compileEntityEvents(script, { ...helpers, branch: true });
+module.exports = {
+  id,
+  autoLabel,
+  groups,
+  fields,
+  compile,
 };

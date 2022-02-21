@@ -1,8 +1,12 @@
-CC	= ../../../bin/lcc -Wa-l -Wl-m -DUSE_SFR_FOR_REG
+CC	= ../../../bin/lcc -Wm-yc
 
 BINS	= dscan.gb
 
 all:	$(BINS)
+
+compile.bat: Makefile
+	@echo "REM Automatically generated from Makefile" > compile.bat
+	@make -sn | sed y/\\//\\\\/ | grep -v make >> compile.bat
 
 %.o:	%.c
 	$(CC) -c -o $@ $<
@@ -17,8 +21,4 @@ all:	$(BINS)
 	$(CC) -o $@ $<
 
 clean:
-	rm -f *.o *.lst *.map *.gb
-
-# Link file, and write 0x80 at position 0x143 in header
-dscan.gb:	dscan.o
-	$(CC) -Wl-yp0x143=0x80 -o dscan.gb dscan.o
+	rm -f *.o *.lst *.map *.gb *.ihx *.sym *.cdb *.adb *.asm

@@ -1,48 +1,65 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_IF_TRUE";
+const id = "EVENT_IF_TRUE";
+const groups = ["EVENT_GROUP_CONTROL_FLOW"];
 
-export const fields = [
+const autoLabel = (fetchArg) => {
+  return l10n("EVENT_IF_TRUE_LABEL", {
+    variable: fetchArg("variable"),
+  });
+};
+
+const fields = [
   {
     key: "variable",
     type: "variable",
-    defaultValue: "LAST_VARIABLE"
+    defaultValue: "LAST_VARIABLE",
   },
   {
     key: "true",
-    type: "events"
+    label: l10n("FIELD_TRUE"),
+    type: "events",
   },
   {
     key: "__collapseElse",
     label: l10n("FIELD_ELSE"),
     type: "collapsable",
-    defaultValue: false,
+    defaultValue: true,
     conditions: [
       {
         key: "__disableElse",
-        ne: true
-      }
-    ]
+        ne: true,
+      },
+    ],
   },
   {
     key: "false",
+    label: l10n("FIELD_FALSE"),
     conditions: [
       {
         key: "__collapseElse",
-        ne: true
+        ne: true,
       },
       {
         key: "__disableElse",
-        ne: true
-      }
+        ne: true,
+      },
     ],
-    type: "events"
-  }
+    type: "events",
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { ifVariableTrue } = helpers;
   const truePath = input.true;
   const falsePath = input.__disableElse ? [] : input.false;
   ifVariableTrue(input.variable, truePath, falsePath);
+};
+
+module.exports = {
+  id,
+  autoLabel,
+  groups,
+  fields,
+  compile,
 };

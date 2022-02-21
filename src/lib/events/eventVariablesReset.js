@@ -1,14 +1,22 @@
-import l10n from "../helpers/l10n";
+const l10n = require("../helpers/l10n").default;
 
-export const id = "EVENT_RESET_VARIABLES";
+const id = "EVENT_RESET_VARIABLES";
+const groups = ["EVENT_GROUP_VARIABLES"];
 
-export const fields = [
+const fields = [
   {
-    label: l10n("FIELD_RESET_VARIABLES")
-  }
+    label: l10n("FIELD_RESET_VARIABLES"),
+  },
 ];
 
-export const compile = (input, helpers) => {
+const compile = (input, helpers) => {
   const { variablesReset } = helpers;
   variablesReset();
+};
+
+module.exports = {
+  id,
+  groups,
+  fields,
+  compile,
 };

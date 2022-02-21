@@ -2,12 +2,11 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { Textarea } from "../library/Forms";
-import trimlines, { textNumLines } from "../../lib/helpers/trimlines";
-import l10n from "../../lib/helpers/l10n";
-import { SceneShape, ActorShape, EventShape } from "../../reducers/stateShape";
+import { textNumLines } from "lib/helpers/trimlines";
+import l10n from "lib/helpers/l10n";
+import { SceneShape, ActorShape, EventShape } from "store/stateShape";
 
-const DialogueReviewLine = ({ dialogueLine, onChange, ...props }) => {
-  const maxPerLine = dialogueLine.line.args.avatarId ? 16 : 18;
+const DialogueReviewLine = ({ dialogueLine, onChange }) => {
   return (
     <div>
       {Array.isArray(dialogueLine.line.args.text) ? (
@@ -17,7 +16,7 @@ const DialogueReviewLine = ({ dialogueLine, onChange, ...props }) => {
               {dialogueLine.entityName} — {dialogueLine.sceneName} [
               {(text || "")
                 .split("\n")
-                .map((line, index, lines) => `${line.length}`)
+                .map((line, _index, _lines) => `${line.length}`)
                 .join(", ")}
               ]
             </p>
@@ -28,11 +27,11 @@ const DialogueReviewLine = ({ dialogueLine, onChange, ...props }) => {
               rows={textNumLines(text)}
               value={text}
               placeholder={l10n("FIELD_TEXT_PLACEHOLDER")}
-              onChange={e => {
+              onChange={(e) => {
                 onChange(
                   dialogueLine.line.args.text.map((value, valueIndex) => {
                     if (valueIndex === textIndex) {
-                      return trimlines(e.currentTarget.value, maxPerLine);
+                      return e.currentTarget.value;
                     }
                     return value;
                   })
@@ -47,7 +46,7 @@ const DialogueReviewLine = ({ dialogueLine, onChange, ...props }) => {
             {dialogueLine.entityName} — {dialogueLine.sceneName} [
             {(dialogueLine.line.args.text || "")
               .split("\n")
-              .map((line, index, lines) => `${line.length}`)
+              .map((line, _index, _lines) => `${line.length}`)
               .join(", ")}
             ]
           </p>
@@ -58,8 +57,8 @@ const DialogueReviewLine = ({ dialogueLine, onChange, ...props }) => {
             rows={textNumLines(dialogueLine.line.args.text)}
             value={dialogueLine.line.args.text}
             placeholder={l10n("FIELD_TEXT_PLACEHOLDER")}
-            onChange={e => {
-              onChange(trimlines(e.currentTarget.value, maxPerLine));
+            onChange={(e) => {
+              onChange(e.currentTarget.value);
             }}
           />
         </div>
@@ -74,9 +73,9 @@ DialogueReviewLine.propTypes = {
     actor: ActorShape,
     entityName: PropTypes.string,
     entityIndex: PropTypes.number,
-    line: EventShape
+    line: EventShape,
   }).isRequired,
-  onChange: PropTypes.func.isRequired
+  onChange: PropTypes.func.isRequired,
 };
 
 export default DialogueReviewLine;
