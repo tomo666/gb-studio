@@ -18,7 +18,8 @@ typedef enum {
     SCENE_TYPE_ADVENTURE,
     SCENE_TYPE_SHMUP,
     SCENE_TYPE_POINTNCLICK,
-    SCENE_TYPE_LOGO
+    SCENE_TYPE_LOGO,
+    SCENE_TYPE_ZELDASADVENTURE
 } scene_type_e;
 
 typedef enum { 
