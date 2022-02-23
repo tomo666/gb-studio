@@ -1,7 +1,7 @@
 #pragma bank 3
 
 #include "data/states_defines.h"
-#include "states/topdown.h"
+#include "states/zeldasadventure.h"
 
 #include "actor.h"
 #include "camera.h"
