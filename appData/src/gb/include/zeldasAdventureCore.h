@@ -41,4 +41,6 @@ void InvalidateZeldaHudCache();
  */
 void InitZeldaHud();
 
+void InitZeldaInventory();
+
 #endif
