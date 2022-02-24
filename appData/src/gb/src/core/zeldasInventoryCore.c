@@ -94,6 +94,8 @@ const unsigned char questStatusMap[] = {
 // pointer to GB Studio variables $06 and $07
 UBYTE *scrollWeaponsLeft = (UBYTE *)0xcb2b;
 UBYTE *scrollWeaponsRight = (UBYTE *)0xcb2d;
+UINT8 *weaponFlags1 = (UINT8 *)0xcb2f;
+UINT8 *weaponFlags2 = (UINT8 *)0xcb30;
 
 const UINT8 maxItemsOnScreen = 6;
 UINT8 totalWeaponsFound = 7;
@@ -107,10 +109,27 @@ unsigned char firstTile = 0x00;
 unsigned char weaponPanel[] = {0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF,
                                0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF};
 
-void DrawWeapons()
+UBYTE GetBit(UINT8 byte, UINT8 bit)
+{
+    return (byte & (1 << bit)) != 0;
+}
+
+void IdentifyWeapons()
 {
     // populate weapons array by interrogate GB Studio
+    UINT8 i = 0;
+    if(GetBit(*weaponFlags1, 0)) {
+        weapons[i] = ZELDA_WEAPON_BOOMERANG;
+        i++;
+    }
+    if(GetBit(*weaponFlags2, 0)) {
+        weapons[i] = ZELDA_WEAPON_BOWANDARROW;
+        i++;
+    }
+}
 
+void DrawWeapons()
+{
     // add weapons to on screen weaponPanel
     slot = 0;
     for (UINT8 i = weaponScrollOffset; i < maxItemsOnScreen + weaponScrollOffset; i++)
@@ -180,6 +199,7 @@ void InitZeldaInventory()
     set_bkg_tiles(0, 0, 20, 18, questStatusMap);
 
     // initialise the weapon tiles
+    IdentifyWeapons();
     DrawWeapons();
 }
 
