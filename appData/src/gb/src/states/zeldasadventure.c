@@ -13,9 +13,9 @@
 #include "math.h"
 #include "vm.h"
 
-// #ifndef INPUT_TOPDOWN_INTERACT
-// #define INPUT_TOPDOWN_INTERACT INPUT_A
-// #endif
+#ifndef ZELDAS_ADVENTURE_INTERACT
+#define ZELDAS_ADVENTURE_INTERACT INPUT_A
+#endif
 
 // UBYTE topdown_grid;
 
@@ -141,7 +141,7 @@ void zeldasadventure_update() BANKED {
             }
         }
 
-        if (INPUT_PRESSED(INPUT_TOPDOWN_INTERACT)) {
+        if (INPUT_PRESSED(ZELDAS_ADVENTURE_INTERACT)) {
             hit_actor = actor_in_front_of_player(topdown_grid, TRUE);
             if (hit_actor != NULL && !hit_actor->collision_group) {
                 actor_set_dir(hit_actor, FLIPPED_DIR(PLAYER.dir), FALSE);

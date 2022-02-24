@@ -90,7 +90,7 @@ void process_VM() {
 
                 if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
                 {
-                    CheckForScrollInput();
+                    CheckForInventoryInteraction();
                 }
 
                 ui_update();

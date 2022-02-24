@@ -85,6 +85,6 @@ void InitZeldaInventory();
 /**
  * 
  */
-void CheckForScrollInput();
+void CheckForInventoryInteraction();
 
 #endif

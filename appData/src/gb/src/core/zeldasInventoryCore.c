@@ -92,14 +92,13 @@ const unsigned char questStatusMap[] = {
 };
 
 // pointer to GB Studio variables $06 - $08
-UBYTE *_scrollWeaponsLeft = (UBYTE *)0xcb2b;
-UBYTE *_scrollWeaponsRight = (UBYTE *)0xcb2d;
-UINT16 *_inventoryFlags1 = (UINT16 *)0xcb2f;
-UINT16 *_inventoryFlags2 = (UINT16 *)0xcb31;
-UINT16 *_inventoryFlags3 = (UINT16 *)0xcb33;
-UINT16 *_inventoryFlags4 = (UINT16 *)0xcb35;
-UINT16 *_weaponEquipped = (UINT16 *)0xcb37;
-UINT8 *_highlighted = (UINT8 *)0xcb39;  // if the equipped treasure is visible this is set to 1-6
+UINT16 *_inventoryInteraction = (UINT16 *)0xcb2b;
+UINT16 *_inventoryFlags1 = (UINT16 *)0xcb2d;
+UINT16 *_inventoryFlags2 = (UINT16 *)0xcb2f;
+UINT16 *_inventoryFlags3 = (UINT16 *)0xcb31;
+UINT16 *_inventoryFlags4 = (UINT16 *)0xcb33;
+UINT16 *_weaponEquipped = (UINT16 *)0xcb35;
+UINT8 *_highlighted = (UINT8 *)0xcb37;  // if the equipped treasure is visible this is set to 1-6
 
 const UINT8 maxItemsOnScreen = 6;
 UINT8 totalWeaponsFound = 0;
@@ -135,11 +134,14 @@ void IdentifyWeapons()
 
 void IdentifyEquipped()
 {
-    if(GetBit(*_weaponEquipped, 0)) {
-        weaponEquipped = ZELDA_WEAPON_WAND;        
-    }
-    if(GetBit(*_weaponEquipped, 9)) {
-        weaponEquipped = ZELDA_WEAPON_JADEAMULET;
+    switch(*_weaponEquipped)
+    {
+        case 1:
+            weaponEquipped = ZELDA_WEAPON_WAND;
+            break;
+        case 10:
+            weaponEquipped = ZELDA_WEAPON_JADEAMULET;
+            break;
     }
 }
 
@@ -218,6 +220,11 @@ void ScrollWeaponsLeft()
     }
 }
 
+void SelectWeapon(UINT8 weaponSlot) 
+{
+    *_weaponEquipped = weapons[weaponSlot + weaponScrollOffset];
+}
+
 void InitZeldaInventory() 
 {
     // load the core tiles that won't change (22 tiles)
@@ -238,17 +245,28 @@ void InitZeldaInventory()
     DrawWeapons();
 }
 
-void CheckForScrollInput() 
-{  
-    if (*_scrollWeaponsRight)
-    {
-        *_scrollWeaponsRight = 0;
-        ScrollWeaponsRight();
+void CheckForInventoryInteraction() 
+{
+    if (*_inventoryInteraction != 0) {
+        switch (*_inventoryInteraction) 
+        {
+            case 1:
+                *_inventoryInteraction = 0;
+                ScrollWeaponsLeft();
+                break;
+            case 2:
+                *_inventoryInteraction = 0;
+                ScrollWeaponsRight();
+                break;
+            case 3:
+                *_inventoryInteraction = 0;
+                SelectWeapon(0);
+                break;
+            case 4:
+                *_inventoryInteraction = 0;
+                SelectWeapon(1);
+                break;
+        }
     }
-
-    if (*_scrollWeaponsLeft)
-    {
-        *_scrollWeaponsLeft = 0;
-        ScrollWeaponsLeft();
-    }
+    
 }
