@@ -37,4 +37,9 @@ void InitWeapons();
  */
 void InitZeldaInventory();
 
+/**
+ * 
+ */
+void CheckForScrollInput();
+
 #endif

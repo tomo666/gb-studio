@@ -88,6 +88,11 @@ void process_VM() {
                 actors_update();
                 projectiles_update();                                   // update and render projectiles
 
+                if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
+                {
+                    CheckForScrollInput();
+                }
+
                 ui_update();
                 actors_handle_player_collision();
 
