@@ -69,7 +69,6 @@ UINT8 totalWeaponsFound = 19;
 UINT8 slot = 0;
 UINT8 weaponScrollOffset = 0;
 const UINT8 totalWeaponsAvailable = 19;
-ZELDA_WEAPONS weaponEquipped = ZELDA_WEAPON_UNDEFINED; // interrogates *_weaponEquipped to evaluate value                         
 ZELDA_WEAPONS weapons[19];
 unsigned char firstTile = 0x00;
 
@@ -86,27 +85,28 @@ void IdentifyWeaponsFound()
 {
     // populate weapons array by interrogate GB Studio
     totalWeaponsFound = 0;
-    if(GetBit(*_inventoryFlags1, 0)) {
-        weapons[totalWeaponsFound] = ZELDA_WEAPON_WAND;
-        totalWeaponsFound++;
-    }
-    if(GetBit(*_inventoryFlags1, 9)) {
-        weapons[totalWeaponsFound] = ZELDA_WEAPON_JADEAMULET;
-        totalWeaponsFound++;
-    }
-}
-
-void IdentifyEquipped()
-{
-    switch(*_weaponEquipped)
+    for (UINT8 i = 0; i < 16; i++)
     {
-        case 1:
-            weaponEquipped = ZELDA_WEAPON_WAND;
-            break;
-        case 10:
-            weaponEquipped = ZELDA_WEAPON_JADEAMULET;
-            break;
-        
+        if (GetBit(*_inventoryFlags1, i)) 
+        {
+            weapons[totalWeaponsFound] = i+1;
+            totalWeaponsFound++;
+        }
+    }
+    if(GetBit(*_inventoryFlags2, 0)) 
+    {
+        weapons[totalWeaponsFound] = ZELDA_WEAPON_SHORTAXE;
+        totalWeaponsFound++;
+    }
+    if(GetBit(*_inventoryFlags2, 1)) 
+    {
+        weapons[totalWeaponsFound] = ZELDA_WEAPON_TURQUOISERING;
+        totalWeaponsFound++;
+    }
+    if(GetBit(*_inventoryFlags2, 2)) 
+    {
+        weapons[totalWeaponsFound] = ZELDA_WEAPON_BOOMERANG;
+        totalWeaponsFound++;
     }
 }
 
@@ -118,13 +118,14 @@ void DrawWeapons()
     {
         for (UINT8 j = 1; j <= totalWeaponsAvailable; j++)
         {
-            if (weapons[i] == j) {
+            if (weapons[i] == j) 
+            {
                 weaponPanel[slot] = firstTile + ((j-1) * 4);
                 weaponPanel[slot + 1] = firstTile + ((j-1) * 4) + 1;
                 weaponPanel[slot + 12] = firstTile + ((j-1) * 4) + 2;
                 weaponPanel[slot + 13] = firstTile + ((j-1) * 4) + 3;
                 slot += 2;
-                if (weaponEquipped == j) 
+                if (*_weaponEquipped == j) 
                 {
                     *_highlighted = i - weaponScrollOffset + 1;
                 }
@@ -211,13 +212,13 @@ void InitZeldaInventory()
 
     // initialise the weapon tiles
     IdentifyWeaponsFound();
-    IdentifyEquipped();
     DrawWeapons();
 }
 
 void CheckForInventoryInteraction() 
 {
-    if (*_inventoryInteraction != 0) {
+    if (*_inventoryInteraction != 0) 
+    {
         switch (*_inventoryInteraction) 
         {
             case 1:
@@ -237,6 +238,5 @@ void CheckForInventoryInteraction()
                 SelectWeapon(1);
                 break;
         }
-    }
-    
+    }    
 }
