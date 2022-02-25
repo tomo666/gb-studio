@@ -65,12 +65,12 @@ UINT8 *_highlighted = (UINT8 *)0xcb37;  // if the equipped treasure is visible t
 UINT16 *_overworldFlags = (UINT8 *)0xcb39;
 
 const UINT8 maxItemsOnScreen = 6;
-UINT8 totalWeaponsFound = 0;
+UINT8 totalWeaponsFound = 19;
 UINT8 slot = 0;
 UINT8 weaponScrollOffset = 0;
+const UINT8 totalWeaponsAvailable = 19;
 ZELDA_WEAPONS weaponEquipped = ZELDA_WEAPON_UNDEFINED; // interrogates *_weaponEquipped to evaluate value                         
-ZELDA_WEAPONS weapons[19] = {ZELDA_WEAPON_UNDEFINED, ZELDA_WEAPON_UNDEFINED, ZELDA_WEAPON_UNDEFINED, 
-                             ZELDA_WEAPON_UNDEFINED, ZELDA_WEAPON_UNDEFINED, ZELDA_WEAPON_UNDEFINED, ZELDA_WEAPON_UNDEFINED};
+ZELDA_WEAPONS weapons[19];
 unsigned char firstTile = 0x00;
 
 // on screen view of weapons
@@ -82,7 +82,7 @@ UBYTE GetBit(UINT16 byte, UINT8 bit)
     return (byte & (1 << bit)) != 0;
 }
 
-void IdentifyWeapons()
+void IdentifyWeaponsFound()
 {
     // populate weapons array by interrogate GB Studio
     totalWeaponsFound = 0;
@@ -106,6 +106,7 @@ void IdentifyEquipped()
         case 10:
             weaponEquipped = ZELDA_WEAPON_JADEAMULET;
             break;
+        
     }
 }
 
@@ -115,45 +116,24 @@ void DrawWeapons()
     slot = 0;
     for (UINT8 i = weaponScrollOffset; i < maxItemsOnScreen + weaponScrollOffset; i++)
     {
-        switch (weapons[i]) {
-            case ZELDA_WEAPON_WAND:
-                weaponPanel[slot] = firstTile;
-                weaponPanel[slot + 1] = firstTile + 1;
-                weaponPanel[slot + 12] = firstTile + 2;
-                weaponPanel[slot + 13] = firstTile + 3;
+        for (UINT8 j = 1; j <= totalWeaponsAvailable; j++)
+        {
+            if (weapons[i] == j) {
+                weaponPanel[slot] = firstTile + ((j-1) * 4);
+                weaponPanel[slot + 1] = firstTile + ((j-1) * 4) + 1;
+                weaponPanel[slot + 12] = firstTile + ((j-1) * 4) + 2;
+                weaponPanel[slot + 13] = firstTile + ((j-1) * 4) + 3;
                 slot += 2;
-                if (weaponEquipped == ZELDA_WEAPON_WAND) 
+                if (weaponEquipped == j) 
                 {
                     *_highlighted = i - weaponScrollOffset + 1;
                 }
-                break;
-            case ZELDA_WEAPON_BOWANDARROW:
-                weaponPanel[slot] = firstTile + 4;
-                weaponPanel[slot + 1] = firstTile + 5;
-                weaponPanel[slot + 12] = firstTile + 6;
-                weaponPanel[slot + 13] = firstTile + 7;
-                slot += 2;
-                if (weaponEquipped == ZELDA_WEAPON_BOWANDARROW) 
-                {
-                    *_highlighted = i - weaponScrollOffset + 1;
-                }
-                break;
-            case ZELDA_WEAPON_JADEAMULET:
-                weaponPanel[slot] = firstTile + 36;
-                weaponPanel[slot + 1] = firstTile + 37;
-                weaponPanel[slot + 12] = firstTile + 38;
-                weaponPanel[slot + 13] = firstTile + 39;
-                slot += 2;
-                if (weaponEquipped == ZELDA_WEAPON_JADEAMULET) 
-                {
-                    *_highlighted = i - weaponScrollOffset + 1;
-                }
-                break;
+                continue;
+            }
         }
     }
 
-    set_bkg_tiles(4, 15, 12, 2, weaponPanel);
-    
+    set_bkg_tiles(4, 15, 12, 2, weaponPanel);    
 }
 
 UBYTE CanScrollWeaponsRight()
@@ -230,7 +210,7 @@ void InitZeldaInventory()
     DrawCelestialSignIndicator();
 
     // initialise the weapon tiles
-    IdentifyWeapons();
+    IdentifyWeaponsFound();
     IdentifyEquipped();
     DrawWeapons();
 }
