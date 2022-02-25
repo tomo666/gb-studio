@@ -33,7 +33,6 @@ const unsigned char staticTileset[] = {
 };
 
 // All tile references offset by 194 (0xc2), the number of inventory tiles
-
 const unsigned char questStatusMap[] = {
 0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,
 0xc3,0xc3,0xc3,0xc3,0xc4,0xc5,0xc6,0xc7,0xc8,0xc3,0xc7,0xc8,0xc9,0xc8,0xc5,0xc7,0xc3,0xc3,0xc3,0xc3, // quest status
@@ -63,6 +62,7 @@ UINT16 *_inventoryFlags3 = (UINT16 *)0xcb31;
 UINT16 *_inventoryFlags4 = (UINT16 *)0xcb33;
 UINT16 *_weaponEquipped = (UINT16 *)0xcb35;
 UINT8 *_highlighted = (UINT8 *)0xcb37;  // if the equipped treasure is visible this is set to 1-6
+UINT16 *_overworldFlags = (UINT8 *)0xcb39;
 
 const UINT8 maxItemsOnScreen = 6;
 UINT8 totalWeaponsFound = 0;
@@ -198,21 +198,22 @@ void DrawCelestialSignIndicator()
                                         };
     // draw a 0
     celestialPanel[1] = firstTile + 181;
-    // draw a 1
-    celestialPanel[2] = firstTile + 182;
-    // draw a 2
-    celestialPanel[7] = firstTile + 183;
-    // draw a 3
-    celestialPanel[11] = firstTile + 184;
-    // draw a 4
-    celestialPanel[14] = firstTile + 185;
-    // draw a 5
-    celestialPanel[13] = firstTile + 186;
-    // draw a 6
-    celestialPanel[8] = firstTile + 187;
-    // draw a 7
-    celestialPanel[4] = firstTile + 188;
     
+    // draw a 1
+    if (GetBit(*_overworldFlags, 0)) celestialPanel[2] = firstTile + 182;
+    // draw a 2
+    if (GetBit(*_overworldFlags, 1)) celestialPanel[7] = firstTile + 183;
+    // draw a 3
+    if (GetBit(*_overworldFlags, 2)) celestialPanel[11] = firstTile + 184;
+    // draw a 4
+    if (GetBit(*_overworldFlags, 3)) celestialPanel[14] = firstTile + 185;
+    // draw a 5
+    if (GetBit(*_overworldFlags, 4)) celestialPanel[13] = firstTile + 186;
+    // draw a 6
+    if (GetBit(*_overworldFlags, 5)) celestialPanel[8] = firstTile + 187;
+    // draw a 7
+    if (GetBit(*_overworldFlags, 6)) celestialPanel[4] = firstTile + 188;
+
     set_bkg_tiles(8, 4, 4, 4, celestialPanel);
 }
 
