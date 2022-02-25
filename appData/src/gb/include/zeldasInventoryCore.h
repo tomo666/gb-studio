@@ -72,10 +72,6 @@ typedef enum
     ZELDA_TREASURE_GOLDENBOOTS,
     ZELDA_TREASURE_KEY,
 } ZELDA_TREASURES;
-/**
- * 
- */
-void InitWeapons();
 
 /**
  * 
