@@ -77,7 +77,7 @@ UINT8 totalWeaponsFound = 0;
 UINT8 weaponScrollOffset = 0;
 ZELDA_WEAPONS weapons[19];
 
-UINT8 totalTreasuresFound = 6;
+UINT8 totalTreasuresFound = 0;
 UINT8 treasureScrollOffset = 0;
 ZELDA_TREASURES treasures[40];
 
@@ -180,8 +180,33 @@ void DrawWeaponsTreasures()
         }
     }
 
+    slot = 0;
+    for (UINT8 i = treasureScrollOffset; i < maxItemsOnScreen + treasureScrollOffset; i++)
+    {
+        for (UINT8 j = 1; j <= totalTreasuresAvailable; j++)
+        {
+            if (treasures[i] == j) 
+            {
+                treasurePanel[slot] = firstTreasureTile + ((j-1) * 4);
+                treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) + 1;
+                treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) + 2;
+                treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 3;
+                slot += 2;
+                // if (*_equipped == j) 
+                // {
+                //     equippedPanel[0] = firstWeaponTile + ((j-1) * 4);
+                //     equippedPanel[1] = firstWeaponTile + ((j-1) * 4) + 1;
+                //     equippedPanel[2] = firstWeaponTile + ((j-1) * 4) + 2;
+                //     equippedPanel[3] = firstWeaponTile + ((j-1) * 4) + 3;
+                // }
+                continue;
+            }
+        }
+    }
+
     set_bkg_tiles(3, 15, 12, 2, weaponPanel);
     set_bkg_tiles(17, 13, 2, 2, equippedPanel);
+    set_bkg_tiles(3, 11, 12, 2, treasurePanel);
 }
 
 void ScrollWeaponsRight()
@@ -226,33 +251,170 @@ void SelectWeapon(UINT8 weaponSlot)
     DrawWeaponsTreasures();
 }
 
-void DrawCelestialSignIndicator()
+void SelectTreasure(UINT8 treasureSlot) 
 {
-    unsigned char celestialPanel[16] = {0xc2,0xc3,0xc3,0xc2,
-                                        0xc3,0xd8,0xd9,0xc3,
-                                        0xc3,0xda,0xdb,0xc3,
-                                        0xc2,0xc3,0xc3,0xc2
-                                        };
-    // draw a 0
-    celestialPanel[1] = firstWeaponTile + 181;
-    
-    // draw a 1
-    if (GetBit(*_overworldFlags, 0)) celestialPanel[2] = firstWeaponTile + 182;
-    // draw a 2
-    if (GetBit(*_overworldFlags, 1)) celestialPanel[7] = firstWeaponTile + 183;
-    // draw a 3
-    if (GetBit(*_overworldFlags, 2)) celestialPanel[11] = firstWeaponTile + 184;
-    // draw a 4
-    if (GetBit(*_overworldFlags, 3)) celestialPanel[14] = firstWeaponTile + 185;
-    // draw a 5
-    if (GetBit(*_overworldFlags, 4)) celestialPanel[13] = firstWeaponTile + 186;
-    // draw a 6
-    if (GetBit(*_overworldFlags, 5)) celestialPanel[8] = firstWeaponTile + 187;
-    // draw a 7
-    if (GetBit(*_overworldFlags, 6)) celestialPanel[4] = firstWeaponTile + 188;
-
-    set_bkg_tiles(8, 4, 4, 4, celestialPanel);
+    *_equipped = treasures[treasureSlot + treasureScrollOffset] + totalWeaponsAvailable;
+    DrawWeaponsTreasures();
 }
+
+// void DrawTreasures()
+// {
+//     // add weapons to on screen weaponPanel
+//     slot = 0;
+//     for (UINT8 i = treasureScrollOffset; i < maxItemsOnScreen + treasureScrollOffset; i++)
+//     {
+//         for (UINT8 j = 1; j <= totalTreasuresAvailable; j++)
+//         {
+//             if (j < 3)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + ((j-1) * 4);
+//                     treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) + 1;
+//                     treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) + 2;
+//                     treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 3;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // special case for bone which requires borrowing a joust tile
+//             if (j == 3)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + ((j-1) * 4);
+//                     treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) + 1;
+//                     treasurePanel[slot + 12] = firstWeaponTile + 42; // reuse joust BL time
+//                     treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 2;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // items after the bone
+//             if (j > 3 && j < 9)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + ((j-1) * 4) -1;
+//                     treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4);
+//                     treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) + 1;
+//                     treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 2;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // special case for compasses
+//             if (j > 8 && j < 16)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + 103;
+//                     treasurePanel[slot + 1] = firstTreasureTile + 118;
+//                     treasurePanel[slot + 12] = firstTreasureTile + 104;
+//                     treasurePanel[slot + 13] = firstTreasureTile + 104 + j - 7;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // items after the compasses
+//             if (j > 15 && j < 24)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + ((j-1) * 4) - 29;
+//                     treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) - 29 + 1;
+//                     treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) - 29 + 2;
+//                     treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) - 29 + 3;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // special case for compasses
+//             if (j > 23 && j < 31)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + 101;
+//                     treasurePanel[slot + 1] = firstTreasureTile + 118;
+//                     treasurePanel[slot + 12] = firstTreasureTile + 102;
+//                     treasurePanel[slot + 13] = firstTreasureTile + 104 + j - 22;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // items after the compasses
+//             if (j > 30 && j < 38)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + ((j-1) * 4) - 57;
+//                     treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) - 57 + 1;
+//                     treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) - 57 + 2;
+//                     treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) - 57 + 3;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // items after the compasses
+//             if (j == 38)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + 83;
+//                     treasurePanel[slot + 1] = firstTreasureTile + 84;
+//                     treasurePanel[slot + 12] = firstTreasureTile + 91;
+//                     treasurePanel[slot + 13] = firstTreasureTile + 92;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//             // items after the compasses
+//             if (j == 39)
+//             {
+//                 if (treasures[i] == j) 
+//                 {
+//                     treasurePanel[slot] = firstTreasureTile + 93;
+//                     treasurePanel[slot + 1] = firstTreasureTile + 94;
+//                     treasurePanel[slot + 12] = firstTreasureTile + 95;
+//                     treasurePanel[slot + 13] = firstTreasureTile + 96;
+//                     slot += 2;
+//                     continue;
+//                 }
+//             }
+//         }
+//     }
+
+//     set_bkg_tiles(3, 11, 12, 2, treasurePanel);
+//     set_bkg_tiles(17, 13, 2, 2, equippedPanel);
+// }
+
+// void DrawCelestialSignIndicator()
+// {
+//     unsigned char celestialPanel[16] = {0xc2,0xc3,0xc3,0xc2,
+//                                         0xc3,0xd8,0xd9,0xc3,
+//                                         0xc3,0xda,0xdb,0xc3,
+//                                         0xc2,0xc3,0xc3,0xc2
+//                                         };
+//     // draw a 0
+//     celestialPanel[1] = firstWeaponTile + 181;
+    
+//     // draw a 1
+//     if (GetBit(*_overworldFlags, 0)) celestialPanel[2] = firstWeaponTile + 182;
+//     // draw a 2
+//     if (GetBit(*_overworldFlags, 1)) celestialPanel[7] = firstWeaponTile + 183;
+//     // draw a 3
+//     if (GetBit(*_overworldFlags, 2)) celestialPanel[11] = firstWeaponTile + 184;
+//     // draw a 4
+//     if (GetBit(*_overworldFlags, 3)) celestialPanel[14] = firstWeaponTile + 185;
+//     // draw a 5
+//     if (GetBit(*_overworldFlags, 4)) celestialPanel[13] = firstWeaponTile + 186;
+//     // draw a 6
+//     if (GetBit(*_overworldFlags, 5)) celestialPanel[8] = firstWeaponTile + 187;
+//     // draw a 7
+//     if (GetBit(*_overworldFlags, 6)) celestialPanel[4] = firstWeaponTile + 188;
+
+//     set_bkg_tiles(8, 4, 4, 4, celestialPanel);
+// }
 
 void DrawKeyIndicator()
 {
@@ -273,7 +435,7 @@ void InitZeldaInventory()
     set_bkg_tiles(0, 0, 20, 18, questStatusMap);
 
     // write 1-7 depending on dungeons complete
-    DrawCelestialSignIndicator();
+    // DrawCelestialSignIndicator();
 
     // write 0-1 depending on keys found
     DrawKeyIndicator();
@@ -287,40 +449,38 @@ void CheckForInventoryInteraction()
 {
     if (*_inventoryInteraction != 0) 
     {
-        switch (*_inventoryInteraction) 
+        // weapon interaction
+        if (*_inventoryInteraction == 1) 
         {
-            case 1:
-                *_inventoryInteraction = 0;
-                ScrollWeaponsLeft();
-                break;
-            case 2:
-                *_inventoryInteraction = 0;
-                ScrollWeaponsRight();
-                break;
-            case 3:
-                *_inventoryInteraction = 0;
-                SelectWeapon(0);
-                break;
-            case 4:
-                *_inventoryInteraction = 0;
-                SelectWeapon(1);
-                break;
-            case 5:
-                *_inventoryInteraction = 0;
-                SelectWeapon(2);
-                break;
-            case 6:
-                *_inventoryInteraction = 0;
-                SelectWeapon(3);
-                break;
-            case 7:
-                *_inventoryInteraction = 0;
-                SelectWeapon(4);
-                break;
-            case 8:
-                *_inventoryInteraction = 0;
-                SelectWeapon(5);
-                break;
+            *_inventoryInteraction = 0;
+            ScrollWeaponsLeft();
         }
+        if (*_inventoryInteraction == 2) 
+        {
+            *_inventoryInteraction = 0;
+            ScrollWeaponsRight();
+        }
+        if (*_inventoryInteraction >= 3 && *_inventoryInteraction <= 8) 
+        {
+            SelectWeapon(*_inventoryInteraction - 3);
+            *_inventoryInteraction = 0;
+        }
+
+        // treasure interaction
+        if (*_inventoryInteraction == 9) 
+        {
+            *_inventoryInteraction = 0;
+            ScrollTreasuresLeft();
+        }
+        if (*_inventoryInteraction == 10) 
+        {
+            *_inventoryInteraction = 0;
+            ScrollTreasuresRight();
+        }
+        // if (*_inventoryInteraction >= 11 && *_inventoryInteraction <= 16) 
+        // {
+        //     SelectTreasure(*_inventoryInteraction - 11);
+        //     *_inventoryInteraction = 0;
+        // }
     }    
 }
