@@ -62,7 +62,7 @@ UINT16 *_inventoryFlags1 = (UINT16 *)0xcb2d;
 UINT16 *_inventoryFlags2 = (UINT16 *)0xcb2f;
 UINT16 *_inventoryFlags3 = (UINT16 *)0xcb31;
 UINT16 *_inventoryFlags4 = (UINT16 *)0xcb33;
-UINT16 *_weaponEquipped = (UINT16 *)0xcb35;
+UINT16 *_equipped = (UINT16 *)0xcb35;
 UINT16 *_overworldFlags = (UINT8 *)0xcb39;
 
 const UINT8 maxItemsOnScreen = 6;
@@ -96,12 +96,15 @@ UBYTE GetBit(UINT16 byte, UINT8 bit)
     return (byte & (1 << bit)) != 0;
 }
 
-void IdentifyWeaponsFound()
+// weapons 1-19 = inventory1 (0-15) + inventory2 (0-2)
+// treasures 1-40 = inventory2 (2-15), inventory3 (0-15), inventory4 (0-10)
+void IdentifyWeaponsTreasuresFound()
 {
     // populate weapons array by interrogate GB Studio
     totalWeaponsFound = 0;
     for (UINT8 i = 0; i < 16; i++)
     {
+        // populate weapons
         if (GetBit(*_inventoryFlags1, i)) 
         {
             // when i = 0, i+1 = 1 (ZELDA_WEAPON_WAND)
@@ -109,24 +112,48 @@ void IdentifyWeaponsFound()
             totalWeaponsFound++;
         }
     }
-    if(GetBit(*_inventoryFlags2, 0)) 
+
+    for (UINT8 i = 0; i < 16; i++)
     {
-        weapons[totalWeaponsFound] = ZELDA_WEAPON_SHORTAXE;
-        totalWeaponsFound++;
+        // populate weapons
+        if (i < 3 && GetBit(*_inventoryFlags2, i)) 
+        {
+            // when i = 0, i+17 = 17 (ZELDA_WEAPON_SHORTAXE)
+            weapons[totalWeaponsFound] = i+17;
+            totalWeaponsFound++;
+        }
+
+        // populate treasures
+        if (i > 2 && GetBit(*_inventoryFlags2, i)) 
+        {
+            // when i = 3, i-2 = 1 (ZELDA_TREASURE_LADDER)
+            treasures[totalTreasuresFound] = i-2;
+            totalTreasuresFound++;
+        }
     }
-    if(GetBit(*_inventoryFlags2, 1)) 
+
+    for (UINT8 i = 0; i < 16; i++)
     {
-        weapons[totalWeaponsFound] = ZELDA_WEAPON_TURQUOISERING;
-        totalWeaponsFound++;
+        if (GetBit(*_inventoryFlags3, i)) 
+        {
+            // when i = 0, i+14 = 14 (ZELDA_TREASURE_TICKETA)
+            treasures[totalTreasuresFound] = i+14;
+            totalTreasuresFound++;
+        }
     }
-    if(GetBit(*_inventoryFlags2, 2)) 
+
+    for (UINT8 i = 0; i < 16; i++)
     {
-        weapons[totalWeaponsFound] = ZELDA_WEAPON_BOOMERANG;
-        totalWeaponsFound++;
+        if (GetBit(*_inventoryFlags4, i)) 
+        {
+            // when i = 0, i+30 = 30 (ZELDA_TREASURE_COMPASS5)
+            treasures[totalTreasuresFound] = i+30;
+            totalTreasuresFound++;
+        }
     }
 }
 
-void DrawWeapons()
+void DrawWeaponsTreasures()
 {
     // add weapons to on screen weaponPanel
     slot = 0;
@@ -141,7 +168,7 @@ void DrawWeapons()
                 weaponPanel[slot + 12] = firstWeaponTile + ((j-1) * 4) + 2;
                 weaponPanel[slot + 13] = firstWeaponTile + ((j-1) * 4) + 3;
                 slot += 2;
-                if (*_weaponEquipped == j) 
+                if (*_equipped == j) 
                 {
                     equippedPanel[0] = firstWeaponTile + ((j-1) * 4);
                     equippedPanel[1] = firstWeaponTile + ((j-1) * 4) + 1;
@@ -157,169 +184,46 @@ void DrawWeapons()
     set_bkg_tiles(17, 13, 2, 2, equippedPanel);
 }
 
-UBYTE CanScrollWeaponsRight()
-{
-    return weaponScrollOffset < totalWeaponsFound - maxItemsOnScreen;
-}
-
 void ScrollWeaponsRight()
 {
-    if (CanScrollWeaponsRight())
+    if (weaponScrollOffset < totalWeaponsFound - maxItemsOnScreen)
     {
         weaponScrollOffset++;
-        DrawWeapons();
+        DrawWeaponsTreasures();
     }
-}
-
-UBYTE CanScrollWeaponsLeft()
-{
-    return weaponScrollOffset > 0;
 }
 
 void ScrollWeaponsLeft()
 {
-    if (CanScrollWeaponsLeft())
+    if (weaponScrollOffset > 0)
     {
         weaponScrollOffset--;
-        DrawWeapons();
+        DrawWeaponsTreasures();
+    }
+}
+
+void ScrollTreasuresRight()
+{
+    if (treasureScrollOffset < totalTreasuresFound - maxItemsOnScreen)
+    {
+        treasureScrollOffset++;
+        DrawWeaponsTreasures();
+    }
+}
+
+void ScrollTreasuresLeft()
+{
+    if (treasureScrollOffset > 0)
+    {
+        treasureScrollOffset--;
+        DrawWeaponsTreasures();
     }
 }
 
 void SelectWeapon(UINT8 weaponSlot) 
 {
-    *_weaponEquipped = weapons[weaponSlot + weaponScrollOffset];
-    DrawWeapons();
-}
-
-void DrawTreasures()
-{
-    // add weapons to on screen weaponPanel
-    slot = 0;
-    for (UINT8 i = treasureScrollOffset; i < maxItemsOnScreen + treasureScrollOffset; i++)
-    {
-        for (UINT8 j = 1; j <= totalTreasuresAvailable; j++)
-        {
-            if (j < 3)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + ((j-1) * 4);
-                    treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) + 1;
-                    treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) + 2;
-                    treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 3;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // special case for bone which requires borrowing a joust tile
-            if (j == 3)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + ((j-1) * 4);
-                    treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) + 1;
-                    treasurePanel[slot + 12] = firstWeaponTile + 42; // reuse joust BL time
-                    treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 2;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // items after the bone
-            if (j > 3 && j < 9)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + ((j-1) * 4) -1;
-                    treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4);
-                    treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) + 1;
-                    treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 2;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // special case for compasses
-            if (j > 8 && j < 16)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + 103;
-                    treasurePanel[slot + 1] = firstTreasureTile + 118;
-                    treasurePanel[slot + 12] = firstTreasureTile + 104;
-                    treasurePanel[slot + 13] = firstTreasureTile + 104 + j - 7;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // items after the compasses
-            if (j > 15 && j < 24)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + ((j-1) * 4) - 29;
-                    treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) - 29 + 1;
-                    treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) - 29 + 2;
-                    treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) - 29 + 3;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // special case for compasses
-            if (j > 23 && j < 31)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + 101;
-                    treasurePanel[slot + 1] = firstTreasureTile + 118;
-                    treasurePanel[slot + 12] = firstTreasureTile + 102;
-                    treasurePanel[slot + 13] = firstTreasureTile + 104 + j - 22;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // items after the compasses
-            if (j > 30 && j < 38)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + ((j-1) * 4) - 57;
-                    treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) - 57 + 1;
-                    treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) - 57 + 2;
-                    treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) - 57 + 3;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // items after the compasses
-            if (j == 38)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + 83;
-                    treasurePanel[slot + 1] = firstTreasureTile + 84;
-                    treasurePanel[slot + 12] = firstTreasureTile + 91;
-                    treasurePanel[slot + 13] = firstTreasureTile + 92;
-                    slot += 2;
-                    continue;
-                }
-            }
-            // items after the compasses
-            if (j == 39)
-            {
-                if (treasures[i] == j) 
-                {
-                    treasurePanel[slot] = firstTreasureTile + 93;
-                    treasurePanel[slot + 1] = firstTreasureTile + 94;
-                    treasurePanel[slot + 12] = firstTreasureTile + 95;
-                    treasurePanel[slot + 13] = firstTreasureTile + 96;
-                    slot += 2;
-                    continue;
-                }
-            }
-        }
-    }
-
-    set_bkg_tiles(3, 11, 12, 2, treasurePanel);
-    set_bkg_tiles(17, 13, 2, 2, equippedPanel);
+    *_equipped = weapons[weaponSlot + weaponScrollOffset];
+    DrawWeaponsTreasures();
 }
 
 void DrawCelestialSignIndicator()
@@ -375,11 +279,8 @@ void InitZeldaInventory()
     DrawKeyIndicator();
 
     // initialise the weapon tiles
-    IdentifyWeaponsFound();
-    DrawWeapons();
-
-    // initialise the weapon tiles
-    DrawTreasures();
+    IdentifyWeaponsTreasuresFound();
+    DrawWeaponsTreasures();
 }
 
 void CheckForInventoryInteraction() 
