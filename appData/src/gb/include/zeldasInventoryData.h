@@ -5,4 +5,6 @@
 
 
  void DrawStaticInventory() BANKED;
+ void DrawCelestialSigns(UINT8 shrinesComplete) BANKED;
+ void DrawKeyIndicator(UBYTE keys) BANKED;
 #endif

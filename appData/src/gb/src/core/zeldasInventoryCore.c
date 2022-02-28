@@ -9,6 +9,7 @@ UINT16 *_inventoryFlags1 = (UINT16 *)0xcb2d;
 UINT16 *_inventoryFlags2 = (UINT16 *)0xcb2f;
 UINT16 *_inventoryFlags3 = (UINT16 *)0xcb31;
 UINT16 *_equipped = (UINT16 *)0xcb33;
+UINT16 *_overworldFlags = (UINT16 *)0xcb35;
 
 const UINT8 maxItemsOnScreen = 6;
 const UINT8 totalWeaponsAvailable = 19;
@@ -209,56 +210,33 @@ void SelectTreasure(UINT8 treasureSlot)
     DrawWeaponsTreasures();
 }
 
-// void DrawCelestialSignIndicator()
-// {
-//     unsigned char celestialPanel[16] = {0xc2,0xc3,0xc3,0xc2,
-//                                         0xc3,0xd8,0xd9,0xc3,
-//                                         0xc3,0xda,0xdb,0xc3,
-//                                         0xc2,0xc3,0xc3,0xc2
-//                                         };
-//     // draw a 0
-//     celestialPanel[1] = firstWeaponTile + 181;
-    
-//     // draw a 1
-//     if (GetBit(*_overworldFlags, 0)) celestialPanel[2] = firstWeaponTile + 182;
-//     // draw a 2
-//     if (GetBit(*_overworldFlags, 1)) celestialPanel[7] = firstWeaponTile + 183;
-//     // draw a 3
-//     if (GetBit(*_overworldFlags, 2)) celestialPanel[11] = firstWeaponTile + 184;
-//     // draw a 4
-//     if (GetBit(*_overworldFlags, 3)) celestialPanel[14] = firstWeaponTile + 185;
-//     // draw a 5
-//     if (GetBit(*_overworldFlags, 4)) celestialPanel[13] = firstWeaponTile + 186;
-//     // draw a 6
-//     if (GetBit(*_overworldFlags, 5)) celestialPanel[8] = firstWeaponTile + 187;
-//     // draw a 7
-//     if (GetBit(*_overworldFlags, 6)) celestialPanel[4] = firstWeaponTile + 188;
+UINT8 CalcCelestialSigns()
+{
+    if (GetBit(*_overworldFlags, 6)) return 7;
+    if (GetBit(*_overworldFlags, 5)) return 6;
+    if (GetBit(*_overworldFlags, 4)) return 5;
+    if (GetBit(*_overworldFlags, 3)) return 4;
+    if (GetBit(*_overworldFlags, 2)) return 3;
+    if (GetBit(*_overworldFlags, 1)) return 2;
+    if (GetBit(*_overworldFlags, 0)) return 1;
 
-//     set_bkg_tiles(8, 4, 4, 4, celestialPanel);
-// }
-
-// void DrawKeyIndicator()
-// {
-//     unsigned char keyPanel[16] = {0xc2,0xc2};
-//     // draw a 0
-//     keyPanel[0] = firstWeaponTile + 181;
-//     keyPanel[1] = firstWeaponTile + 181;
-//     set_bkg_tiles(17, 11, 2, 1, keyPanel);
-// }
+    return 0;
+}
 
 void InitZeldaInventory() 
 {
     UBYTE _save = _current_bank;
+    UINT8 shinesComplete = CalcCelestialSigns();
+    UBYTE keys = GetBit(*_inventoryFlags3, 11); // Flag 12 in GB Studio
     
     SWITCH_ROM(5);
+        // draw the background tiles
         DrawStaticInventory();
+        // fill the segments of the celestial sign indicator
+        DrawCelestialSigns(shinesComplete);
+        // write 0-1 depending on keys found
+        DrawKeyIndicator(keys);
     SWITCH_ROM(_save);
-    
-    // write 1-7 depending on dungeons complete
-    // DrawCelestialSignIndicator();
-
-    // write 0-1 depending on keys found
-    // DrawKeyIndicator();
     
     // initialise the weapon tiles
     IdentifyWeaponsTreasuresFound();
