@@ -37,6 +37,7 @@
 #include "shadow.h"
 #include "data/data_bootstrap.h"
 #include "zeldasAdventureCore.h"
+#include "zeldasInventoryCore.h"
 
 extern void __bank_bootstrap_script;
 extern const UBYTE bootstrap_script[];
@@ -86,6 +87,11 @@ void process_VM() {
                 scroll_update();
                 actors_update();
                 projectiles_update();                                   // update and render projectiles
+
+                if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
+                {
+                    CheckForInventoryInteraction();
+                }
 
                 ui_update();
                 actors_handle_player_collision();
@@ -173,8 +179,14 @@ void process_VM() {
                 scroll_repaint();
                 actors_update();
 
-                if(scene_type == SCENE_TYPE_ZELDASADVENTURE) {
+                if (scene_type == SCENE_TYPE_ZELDASADVENTURE) 
+                {
                     InitZeldaHud();
+                }
+
+                if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
+                {
+                    InitZeldaInventory();
                 }
 
                 activate_shadow_OAM();
