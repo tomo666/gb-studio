@@ -38,6 +38,7 @@
 #include "data/data_bootstrap.h"
 #include "zeldasAdventureCore.h"
 #include "zeldasInventoryCore.h"
+#include "zeldasSpellCore.h"
 
 extern void __bank_bootstrap_script;
 extern const UBYTE bootstrap_script[];
@@ -182,6 +183,7 @@ void process_VM() {
                 if (scene_type == SCENE_TYPE_ZELDASADVENTURE) 
                 {
                     InitZeldaHud();
+                    InitZeldasSpell();
                 }
 
                 if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
