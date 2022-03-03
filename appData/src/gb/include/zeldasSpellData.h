@@ -3,6 +3,6 @@
 
 #include <gb/gb.h>
 
-void LoadSpell() BANKED;
+void LoadSpell(UINT16 equipped) BANKED;
 
 #endif

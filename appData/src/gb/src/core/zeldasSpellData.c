@@ -1,7 +1,12 @@
+// regex formatting to display 16 bits (1 tile) per line with:
+// find: (0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],0x[0-9A-F][0-9A-F],)
+// replace: $1\n
+
 #pragma bank 5
 
 #include <gb/gb.h>
 #include "bankdata.h"
+#include "zeldasInventoryCore.h"
 
 // ggbgfx sprite -o wand-tile.c .\spell-wand.png
 const unsigned char spellWand[] = {
@@ -19,7 +24,9 @@ const unsigned char spellWand[] = {
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, // 3
 };
 
-void LoadSpell() BANKED
+void LoadSpell(UINT16 equipped) BANKED
 {
-    set_sprite_data(30, 12, spellWand);
+    if (equipped == ZELDA_WEAPON_WAND) {
+        set_sprite_data(30, 12, spellWand);
+    }
 }
