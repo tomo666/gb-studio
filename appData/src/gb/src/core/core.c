@@ -89,6 +89,11 @@ void process_VM() {
                 actors_update();
                 projectiles_update();                                   // update and render projectiles
 
+                if (scene_type == SCENE_TYPE_ZELDASADVENTURE) 
+                {
+                    CheckForHudRedraw();
+                }
+                
                 if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
                 {
                     CheckForInventoryInteraction();

@@ -262,3 +262,18 @@ void InitZeldaHud()
     // initialise the HUD for the first time
     DrawZeldaHud(1, 1, 1);
 }
+
+void CheckForHudRedraw()
+{
+    BYTE heartsChanged = *cachedHealth != *health;
+    BYTE maxHeartsChanged = *cachedMaxHearts != *maxHearts;
+    BYTE rupeesChanged = *cachedRupees != *rupees;
+
+    if(heartsChanged || maxHeartsChanged || rupeesChanged)
+    {
+        *cachedHealth = *health;
+        *cachedMaxHearts = *maxHearts;
+        *cachedRupees = *rupees;
+        DrawZeldaHud(heartsChanged, maxHeartsChanged, rupeesChanged);
+    }
+}
