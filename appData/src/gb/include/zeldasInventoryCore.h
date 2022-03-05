@@ -3,9 +3,9 @@
 
 #include <gb/gb.h>
 
-const UINT8 maxItemsOnScreen = 6;
-const UINT8 totalWeaponsAvailable = 19;
-const UINT8 totalTreasuresAvailable = 25;
+static const UINT8 maxItemsOnScreen = 6;
+static const UINT8 totalWeaponsAvailable = 19;
+static const UINT8 totalTreasuresAvailable = 25;
 
 typedef enum
 {
