@@ -73,12 +73,14 @@ typedef enum
 } ZELDA_TREASURES;
 
 /**
- * 
+ * Initialise the inventory screen by combining the static background 
+ * with the dynamic weapon and treasure panels.
  */
 void InitZeldaInventory();
 
 /**
- * 
+ * Call back when the user has interacted with the inventory.
+ * Either clicking on a scroll arrow or equipping an item.
  */
 void CheckForInventoryInteraction();
 

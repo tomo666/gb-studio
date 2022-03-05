@@ -33,6 +33,9 @@ UINT8 *maxHearts = (UINT8 *)0xcb25;
 UINT8 *cachedRupees = (UINT8 *)0xcb27;
 UINT8 *rupees = (UINT8 *)0xcb29;
 
+/**
+ * Takes a number and returns the associated tile image
+ */
 UINT8 GetNumberTile(UINT8 number)
 {
     switch (number)
@@ -73,6 +76,9 @@ UINT8 GetNumberTile(UINT8 number)
     }
 }
 
+/**
+ * Draws the HUD rupee counter for a given value
+ */
 void CalculateRupees(char *hud, UINT8 rupees)
 {
     if(rupees < 100) hud[2] = ZELDA_HUD_0;
@@ -104,6 +110,9 @@ void CalculateRupees(char *hud, UINT8 rupees)
     }
 }
 
+/**
+ * Draws the HUD hearts/health values
+ */
 void CalculateHearts(char *hud, UINT8 maxHearts, UINT8 health)
 {
     // max hearts is 14
@@ -163,6 +172,9 @@ void CalculateHearts(char *hud, UINT8 maxHearts, UINT8 health)
     }
 }
 
+/**
+ * Updates the rupee and hearts HUD based on provided values
+ */
 void CalculateHud(char *hud, UINT8 rupees, UINT8 maxHearts, UINT8 health, BYTE heartsChanged, BYTE maxHeartsChanged, BYTE rupeesChanged)
 {
     // set the rupee count
@@ -176,12 +188,19 @@ void CalculateHud(char *hud, UINT8 rupees, UINT8 maxHearts, UINT8 health, BYTE h
     }
 }
 
+/**
+ * Combine the how to draw HUD logic with the GBDK native call to set the background tiles
+ */
 void DrawZeldaHud(BYTE heartsChanged, BYTE maxHeartsChanged, BYTE rupeesChanged) 
 {
   CalculateHud(zeldasAdventureHudMap, *rupees, *maxHearts, *health, heartsChanged, maxHeartsChanged, rupeesChanged);
   set_bkg_tiles(0, 0, 20, 1, zeldasAdventureHudMap);
 }
 
+/**
+ * The reference to the known Zelda HUD tiles gets cached and if the references
+ * in tile memory get shifted, it causes a garbled HUD to be drawn
+ */
 void InvalidateZeldaHudCache() 
 {
     ZELDA_HUD_BLANK = 0xff;
