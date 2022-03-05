@@ -69,7 +69,6 @@ void IdentifyWeaponsTreasuresFound()
     }
 }
 
-
 void ScrollWeaponsRight()
 {
     UBYTE _save = _current_bank;
@@ -148,7 +147,7 @@ UINT8 CalcCelestialSigns()
 void InitZeldaInventory() 
 {
     UBYTE _save = _current_bank;
-    UINT8 shinesComplete = CalcCelestialSigns();
+    UINT8 shrinesComplete = CalcCelestialSigns();
     UBYTE keys = GetBit(*_inventoryFlags3, 11); // Flag 12 in GB Studio
     
     // initialise the weapon tiles
@@ -158,7 +157,7 @@ void InitZeldaInventory()
         // draw the background tiles
         DrawStaticInventory();
         // fill the segments of the celestial sign indicator
-        DrawCelestialSigns(shinesComplete);
+        DrawCelestialSigns(shrinesComplete);
         // write 0-1 depending on keys found
         DrawKeyIndicator(keys);
         DrawWeaponsTreasures(weapons, treasures, *_equipped);
