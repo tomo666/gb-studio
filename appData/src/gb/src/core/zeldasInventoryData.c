@@ -4,10 +4,6 @@
 #include "bankdata.h"
 #include "zeldasInventoryCore.h"
 
-const UINT8 maxItemsOnScreen = 6;
-const UINT8 totalWeaponsAvailable = 19;
-const UINT8 totalTreasuresAvailable = 25;
-
 UINT8 slot = 0;
 unsigned char firstWeaponTile = 0x00;
 unsigned char firstTreasureTile = 0x4C;

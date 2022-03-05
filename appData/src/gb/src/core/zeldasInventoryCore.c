@@ -125,7 +125,7 @@ void SelectTreasure(UINT8 treasureSlot)
         treasureScrollOffset = GetTreasureScrollOffset();
     SWITCH_ROM(_save);
     
-    *_equipped = treasures[treasureSlot + treasureScrollOffset] + 19; //totalWeaponsAvailable;
+    *_equipped = treasures[treasureSlot + treasureScrollOffset] + totalWeaponsAvailable;
     
     SWITCH_ROM(ZELDAS_INVENTORY_BANK);
         DrawWeaponsTreasures(weapons, treasures, *_equipped);

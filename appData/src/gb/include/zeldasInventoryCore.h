@@ -3,6 +3,10 @@
 
 #include <gb/gb.h>
 
+const UINT8 maxItemsOnScreen = 6;
+const UINT8 totalWeaponsAvailable = 19;
+const UINT8 totalTreasuresAvailable = 25;
+
 typedef enum
 {
     ZELDA_WEAPON_UNDEFINED = 0,
