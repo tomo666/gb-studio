@@ -2,6 +2,24 @@
 
 #include <gb/gb.h>
 #include "bankdata.h"
+#include "zeldasInventoryCore.h"
+
+UINT8 slot = 0;
+unsigned char firstWeaponTile = 0x00;
+unsigned char firstTreasureTile = 0x4C;
+UINT8 weaponScrollOffset = 0;
+UINT8 treasureScrollOffset = 0;
+
+
+// on screen view of weapons
+unsigned char weaponPanel[] = {0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2,
+                               0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2};
+// on screen view of treasures
+unsigned char treasurePanel[] = {0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2,
+                                 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2, 0xC2};
+
+unsigned char equippedPanel[] = {0xC2, 0xC2, 
+                                 0xC2, 0xC2};
 
 const unsigned char staticTileset[]  = {
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -206,6 +224,125 @@ const unsigned char celestialSignMap[] = {
 0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,
 0xc2,0xfa,0xfb,0xfc,0xfd,0xc2,
 };
+
+void DrawWeaponsTreasures(ZELDA_WEAPONS weapons[19], ZELDA_TREASURES treasures[25], UINT16 equipped) BANKED
+{
+    // add weapons to on screen weaponPanel
+    slot = 0;
+    for (UINT8 i = weaponScrollOffset; i < maxItemsOnScreen + weaponScrollOffset; i++)
+    {
+        for (UINT8 j = 1; j <= totalWeaponsAvailable; j++)
+        {
+            if (weapons[i] == j) 
+            {
+                weaponPanel[slot] = firstWeaponTile + ((j-1) * 4);
+                weaponPanel[slot + 1] = firstWeaponTile + ((j-1) * 4) + 1;
+                weaponPanel[slot + 12] = firstWeaponTile + ((j-1) * 4) + 2;
+                weaponPanel[slot + 13] = firstWeaponTile + ((j-1) * 4) + 3;
+                slot += 2;
+                if (equipped == j) 
+                {
+                    equippedPanel[0] = firstWeaponTile + ((j-1) * 4);
+                    equippedPanel[1] = firstWeaponTile + ((j-1) * 4) + 1;
+                    equippedPanel[2] = firstWeaponTile + ((j-1) * 4) + 2;
+                    equippedPanel[3] = firstWeaponTile + ((j-1) * 4) + 3;
+                }
+                continue;
+            }
+        }
+    }
+
+    slot = 0;
+    for (UINT8 i = treasureScrollOffset; i < maxItemsOnScreen + treasureScrollOffset; i++)
+    {
+        for (UINT8 j = 1; j <= totalTreasuresAvailable; j++)
+        {
+            if (treasures[i] == j && j < ZELDA_TREASURE_HARP) 
+            {
+                treasurePanel[slot] = firstTreasureTile + ((j-1) * 4);
+                treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) + 1;
+                treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) + 2;
+                treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 3;
+                slot += 2;
+                if (equipped == j + totalWeaponsAvailable) 
+                {
+                    equippedPanel[0] = firstTreasureTile + ((j-1) * 4);
+                    equippedPanel[1] = firstTreasureTile + ((j-1) * 4) + 1;
+                    equippedPanel[2] = firstTreasureTile + ((j-1) * 4) + 2;
+                    equippedPanel[3] = firstTreasureTile + ((j-1) * 4) + 3;
+                }
+                continue;
+            }
+            // strange 1 tile gap in VRAM next to harp
+            if (treasures[i] == j && j > ZELDA_TREASURE_KNIFE) 
+            {
+                treasurePanel[slot] = firstTreasureTile + ((j-1) * 4) + 1;
+                treasurePanel[slot + 1] = firstTreasureTile + ((j-1) * 4) + 2;
+                treasurePanel[slot + 12] = firstTreasureTile + ((j-1) * 4) + 3;
+                treasurePanel[slot + 13] = firstTreasureTile + ((j-1) * 4) + 4;
+                slot += 2;
+                if (equipped == j + totalWeaponsAvailable) 
+                {
+                    equippedPanel[0] = firstTreasureTile + ((j-1) * 4) + 1;
+                    equippedPanel[1] = firstTreasureTile + ((j-1) * 4) + 2;
+                    equippedPanel[2] = firstTreasureTile + ((j-1) * 4) + 3;
+                    equippedPanel[3] = firstTreasureTile + ((j-1) * 4) + 4;
+                }
+                continue;
+            }
+        }
+    }
+
+    set_bkg_tiles(3, 15, 12, 2, weaponPanel);
+    set_bkg_tiles(3, 11, 12, 2, treasurePanel);
+    set_bkg_tiles(17, 13, 2, 2, equippedPanel);
+}
+
+void ConditionalScrollWeaponsRight(ZELDA_WEAPONS weapons[19], ZELDA_TREASURES treasures[25], UINT16 equipped, UINT8 totalWeaponsFound) BANKED
+{
+    if (weaponScrollOffset < totalWeaponsFound - maxItemsOnScreen)
+    {
+        weaponScrollOffset++;
+        DrawWeaponsTreasures(weapons, treasures, equipped);
+    }
+}
+
+void ConditionalScrollWeaponsLeft(ZELDA_WEAPONS weapons[19], ZELDA_TREASURES treasures[25], UINT16 equipped) BANKED
+{
+    if (weaponScrollOffset > 0)
+    {
+        weaponScrollOffset--;
+        DrawWeaponsTreasures(weapons, treasures, equipped);
+    }
+}
+
+void ConditionalScrollTreasuresRight(ZELDA_WEAPONS weapons[19], ZELDA_TREASURES treasures[25], UINT16 equipped, UINT8 totalTreasuresFound) BANKED
+{
+    if (treasureScrollOffset < totalTreasuresFound - maxItemsOnScreen)
+    {
+        treasureScrollOffset++;
+        DrawWeaponsTreasures(weapons, treasures, equipped);
+    }
+}
+
+void ConditionalScrollTreasuresLeft(ZELDA_WEAPONS weapons[19], ZELDA_TREASURES treasures[25], UINT16 equipped) BANKED
+{
+    if (treasureScrollOffset > 0)
+    {
+        treasureScrollOffset--;
+        DrawWeaponsTreasures(weapons, treasures, equipped);
+    }
+}
+
+UINT8 GetWeaponScrollOffset() BANKED
+{
+    return weaponScrollOffset;
+}
+
+UINT8 GetTreasureScrollOffset() BANKED
+{
+    return treasureScrollOffset;
+}
 
 /**
  * load the core tiles that won't change (22 tiles)
