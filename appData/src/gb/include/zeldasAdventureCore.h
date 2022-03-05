@@ -41,6 +41,9 @@ void InvalidateZeldaHudCache();
  */
 void InitZeldaHud();
 
-void InitZeldaInventory();
+/**
+ * If the player health, max hearts or rupees collected has changed, update the HUD
+ */
+void CheckForHudRedraw();
 
 #endif
