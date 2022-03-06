@@ -8,6 +8,10 @@
 #include "bankdata.h"
 #include "zeldasInventoryCore.h"
 
+// UINT8 *firstSpellTile = (UINT8 *)0x8000;
+UINT8 *firstSpellTile = (UINT8 *)0x82c0;
+UINT8 tileOffset = 0x00;
+
 // ggbgfx sprite -o wand-tile.c .\spell-wand.png
 const unsigned char spellWand[] = {
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, // A
@@ -24,9 +28,34 @@ const unsigned char spellWand[] = {
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, // 3
 };
 
+void FindFirstSpellTile() BANKED
+{
+    while (tileOffset == 0) {
+        for (UINT8 i = 0; i < 128; i++)
+        {
+            if (*firstSpellTile == 0xff && *(firstSpellTile + 1) == 0xc3 &&
+                *(firstSpellTile + 2) == 0xff && *(firstSpellTile + 3) == 0x99 &&
+                *(firstSpellTile + 4) == 0xff && *(firstSpellTile + 5) == 0x99 &&
+                *(firstSpellTile + 6) == 0xff && *(firstSpellTile + 7) == 0xc1 &&
+                *(firstSpellTile + 8) == 0xff && *(firstSpellTile + 9) == 0xf9 &&
+                *(firstSpellTile + 10) == 0xff && *(firstSpellTile + 11) == 0x99 &&
+                *(firstSpellTile + 12) == 0xff && *(firstSpellTile + 13) == 0xc3 &&
+                *(firstSpellTile + 14) == 0xff && *(firstSpellTile + 15) == 0xff)
+            {
+                tileOffset = i;
+                break;
+            } else
+            {
+                *firstSpellTile += 16;
+            }
+        }
+    }
+}
+
 void LoadSpell(UINT16 equipped) BANKED
 {
+    FindFirstSpellTile();
+        set_sprite_data(tileOffset - 3, 12, spellWand);
     if (equipped == ZELDA_WEAPON_WAND) {
-        set_sprite_data(30, 12, spellWand);
     }
 }

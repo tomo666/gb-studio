@@ -3,6 +3,7 @@
 
 #include <gb/gb.h>
 
+void FindFirstSpellTile() BANKED;
 void LoadSpell(UINT16 equipped) BANKED;
 
 #endif
