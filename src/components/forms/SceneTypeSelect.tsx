@@ -25,6 +25,8 @@ export const options: SceneTypeOption[] = [
   { value: "SHMUP", label: l10n("GAMETYPE_SHMUP") },
   { value: "POINTNCLICK", label: l10n("GAMETYPE_POINT_N_CLICK") },
   { value: "LOGO", label: l10n("GAMETYPE_LOGO") },
+  { value: "ZELDASADVENTURE", label: "Zelda's Adventure Template" },
+  { value: "ZELDASINVENTORY", label: "Zelda's Adventure Inventory" },
 ];
 
 export const SceneTypeSelect: FC<SceneTypeSelectProps> = ({

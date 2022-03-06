@@ -6,11 +6,13 @@
 #include <gb/metasprites.h>
 #include <string.h>
 
+#include "system.h"
 #include "game_time.h"
 #include "scroll.h"
 #include "linked_list.h"
 #include "math.h"
 #include "collision.h"
+#include "ui.h"
 #include "vm.h"
 
 #ifdef STRICT
@@ -23,6 +25,13 @@
 #define ANIM_PAUSED                255
 
 #define BANK_EMOTE_METASPRITE 1
+
+#ifdef CGB 
+#define NO_OVERLAY_PRIORITY ((!_is_CGB) && ((overlay_priority & S_PRIORITY) == 0))
+#else
+#define NO_OVERLAY_PRIORITY (TRUE)
+#endif 
+
 
 const BYTE emote_offsets[] = {2, 1, 0, -1, -2, -3, -4, -5, -6, -5, -4, -3, -2, -1, 0};
 
@@ -58,6 +67,7 @@ void actors_init() BANKED {
 void player_init() BANKED {
     actor_set_anim_idle(&PLAYER);
     PLAYER.hidden = FALSE;
+    PLAYER.disabled = FALSE;
 }
 
 void actors_update() NONBANKED {
@@ -101,7 +111,7 @@ void actors_update() NONBANKED {
             deactivate_actor(actor);
             actor = prev;
             continue;
-        } else if ((WX_REG != 7) && (WX_REG < (UINT8)screen_x + 8) && (WY_REG < (UINT8)(screen_y)-8)) {
+        } else if (NO_OVERLAY_PRIORITY && (WX_REG != 7) && (WX_REG < (UINT8)screen_x + 8) && (WY_REG < (UINT8)(screen_y) - 8)) {
             // Hide if under window (don't deactivate)
             actor = actor->prev;
             continue;
@@ -153,9 +163,9 @@ void deactivate_actor(actor_t *actor) BANKED {
         return;
     }
 #endif
-    if (!actor->enabled) return;
+    if (!actor->active) return;
     if (actor == &PLAYER) return;
-    actor->enabled = FALSE;
+    actor->active = FALSE;
     DL_REMOVE_ITEM(actors_active_head, actor);
     DL_PUSH_HEAD(actors_inactive_head, actor);
     if ((actor->hscript_update & SCRIPT_TERMINATED) == 0) {
@@ -176,8 +186,8 @@ void activate_actor(actor_t *actor) BANKED {
         return;
     }
 #endif
-    if (actor->enabled) return;
-    actor->enabled = TRUE;
+    if (actor->active || actor->disabled) return;
+    actor->active = TRUE;
     actor_set_anim_idle(actor);
     DL_REMOVE_ITEM(actors_inactive_head, actor);
     DL_PUSH_HEAD(actors_active_head, actor);

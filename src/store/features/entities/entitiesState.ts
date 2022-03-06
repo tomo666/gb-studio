@@ -52,6 +52,7 @@ import {
   SpriteState,
   ScriptEventsRef,
   ScriptEventParentType,
+  Sound,
 } from "./entitiesTypes";
 import {
   normalizeEntities,
@@ -61,20 +62,18 @@ import {
   isUnionVariableValue,
   isUnionPropertyValue,
   walkNormalisedScriptEvents,
+  genEntitySymbol,
+  ensureSymbolsUnique,
+  removeAssetEntity,
+  upsertAssetEntity,
+  updateEntitySymbol,
 } from "./entitiesHelpers";
-import { clone } from "lib/helpers/clone";
 import spriteActions from "../sprite/spriteActions";
 
 const MIN_SCENE_X = 60;
 const MIN_SCENE_Y = 30;
 const MIN_SCENE_WIDTH = 20;
 const MIN_SCENE_HEIGHT = 18;
-
-const inodeToRecentBackground: Dictionary<Background> = {};
-const inodeToRecentMusic: Dictionary<Music> = {};
-const inodeToRecentFont: Dictionary<Font> = {};
-const inodeToRecentAvatar: Dictionary<Avatar> = {};
-const inodeToRecentEmote: Dictionary<Emote> = {};
 
 const scriptEventsAdapter = createEntityAdapter<ScriptEvent>();
 const actorsAdapter = createEntityAdapter<Actor>();
@@ -93,6 +92,9 @@ const spriteStatesAdapter = createEntityAdapter<SpriteState>();
 const palettesAdapter = createEntityAdapter<Palette>();
 const customEventsAdapter = createEntityAdapter<CustomEvent>();
 const musicAdapter = createEntityAdapter<Music>({
+  sortComparer: sortByFilename,
+});
+const soundsAdapter = createEntityAdapter<Sound>({
   sortComparer: sortByFilename,
 });
 const fontsAdapter = createEntityAdapter<Font>({
@@ -121,6 +123,7 @@ export const initialState: EntitiesState = {
   palettes: palettesAdapter.getInitialState(),
   customEvents: customEventsAdapter.getInitialState(),
   music: musicAdapter.getInitialState(),
+  sounds: soundsAdapter.getInitialState(),
   fonts: fontsAdapter.getInitialState(),
   avatars: avatarsAdapter.getInitialState(),
   emotes: emotesAdapter.getInitialState(),
@@ -224,6 +227,7 @@ const loadProject: CaseReducer<
   spriteStatesAdapter.setAll(state.spriteStates, entities.spriteStates || {});
   palettesAdapter.setAll(state.palettes, entities.palettes || {});
   musicAdapter.setAll(state.music, entities.music || {});
+  soundsAdapter.setAll(state.sounds, entities.sounds || {});
   fontsAdapter.setAll(state.fonts, entities.fonts || {});
   avatarsAdapter.setAll(state.avatars, entities.avatars || {});
   emotesAdapter.setAll(state.emotes, entities.emotes || {});
@@ -234,6 +238,7 @@ const loadProject: CaseReducer<
     entities.engineFieldValues || {}
   );
   fixAllScenesWithModifiedBackgrounds(state);
+  ensureSymbolsUnique(state);
 };
 
 const loadBackground: CaseReducer<
@@ -242,38 +247,24 @@ const loadBackground: CaseReducer<
     data: Background;
   }>
 > = (state, action) => {
-  const backgrounds = localBackgroundSelectors.selectAll(state);
-  const existingAsset =
-    backgrounds.find(matchAsset(action.payload.data)) ||
-    inodeToRecentBackground[action.payload.data.inode];
-  const existingId = existingAsset?.id;
-
-  if (existingId) {
-    delete inodeToRecentBackground[action.payload.data.inode];
-    backgroundsAdapter.upsertOne(state.backgrounds, {
-      ...existingAsset,
-      ...action.payload.data,
-      id: existingId,
-    });
-    fixAllScenesWithModifiedBackgrounds(state);
-  } else {
-    backgroundsAdapter.addOne(state.backgrounds, action.payload.data);
-  }
+  upsertAssetEntity(
+    state.backgrounds,
+    backgroundsAdapter,
+    action.payload.data,
+    ["id", "symbol"]
+  );
+  fixAllScenesWithModifiedBackgrounds(state);
+  ensureSymbolsUnique(state);
 };
 
 const removeBackground: CaseReducer<
   EntitiesState,
   PayloadAction<{
     filename: string;
-    plugin: string | undefined;
+    plugin?: string;
   }>
 > = (state, action) => {
-  const backgrounds = localBackgroundSelectors.selectAll(state);
-  const existingAsset = backgrounds.find(matchAsset(action.payload));
-  if (existingAsset) {
-    inodeToRecentBackground[existingAsset.inode] = clone(existingAsset);
-    backgroundsAdapter.removeOne(state.backgrounds, existingAsset.id);
-  }
+  removeAssetEntity(state.backgrounds, backgroundsAdapter, action.payload);
 };
 
 const loadSprite: CaseReducer<
@@ -282,34 +273,26 @@ const loadSprite: CaseReducer<
     data: SpriteSheet;
   }>
 > = (state, action) => {
-  if (action.payload.data.states.length === 0) {
-    // Create default state for newly added spritesheets
-    const metasprites: Metasprite[] = Array.from(Array(8)).map(() => ({
-      id: uuid(),
-      tiles: [],
-    }));
-    const animations: SpriteAnimation[] = metasprites.map((metasprite) => ({
-      id: uuid(),
-      frames: [metasprite.id],
-    }));
-    const animationIds = animations.map((a) => a.id);
-    const spriteState: SpriteState = {
-      id: uuid(),
-      name: "",
-      animationType: "multi_movement",
-      flipLeft: true,
-      animations: animationIds,
-    };
-    metaspritesAdapter.addMany(state.metasprites, metasprites);
-    spriteAnimationsAdapter.addMany(state.spriteAnimations, animations);
-    spriteStatesAdapter.addOne(state.spriteStates, spriteState);
-    spriteSheetsAdapter.upsertOne(state.spriteSheets, {
-      ...action.payload.data,
-      states: [spriteState.id],
-    });
-  } else {
-    spriteSheetsAdapter.upsertOne(state.spriteSheets, action.payload.data);
-  }
+  upsertAssetEntity(
+    state.spriteSheets,
+    spriteSheetsAdapter,
+    action.payload.data,
+    [
+      "id",
+      "symbol",
+      "states",
+      "canvasWidth",
+      "canvasHeight",
+      "boundsX",
+      "boundsY",
+      "boundsWidth",
+      "boundsHeight",
+      "animSpeed",
+      "numTiles",
+    ]
+  );
+  fixAllSpritesWithMissingStates(state);
+  ensureSymbolsUnique(state);
 };
 
 const loadDetectedSprite: CaseReducer<
@@ -362,7 +345,7 @@ const removeSprite: CaseReducer<
   EntitiesState,
   PayloadAction<{
     filename: string;
-    plugin: string | undefined;
+    plugin?: string;
   }>
 > = (state, action) => {
   const spriteSheets = localSpriteSheetSelectors.selectAll(state);
@@ -378,26 +361,12 @@ const loadMusic: CaseReducer<
     data: Music;
   }>
 > = (state, action) => {
-  const music = localMusicSelectors.selectAll(state);
-  const existingAsset =
-    music.find(matchAsset(action.payload.data)) ||
-    inodeToRecentMusic[action.payload.data.inode];
-  const existingId = existingAsset?.id;
-
-  if (existingId) {
-    delete inodeToRecentMusic[action.payload.data.inode];
-    musicAdapter.upsertOne(state.music, {
-      ...existingAsset,
-      ...action.payload.data,
-      id: existingId,
-      settings: {
-        ...existingAsset?.settings,
-        ...action.payload.data.settings,
-      },
-    });
-  } else {
-    musicAdapter.addOne(state.music, action.payload.data);
-  }
+  upsertAssetEntity(state.music, musicAdapter, action.payload.data, [
+    "id",
+    "symbol",
+    "settings",
+  ]);
+  ensureSymbolsUnique(state);
 };
 
 const editMusicSettings: CaseReducer<
@@ -418,19 +387,84 @@ const editMusicSettings: CaseReducer<
   }
 };
 
+const setMusicSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ musicId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.music,
+    musicAdapter,
+    action.payload.musicId,
+    action.payload.symbol
+  );
+};
+
 const removeMusic: CaseReducer<
   EntitiesState,
   PayloadAction<{
     filename: string;
-    plugin: string | undefined;
+    plugin?: string;
   }>
 > = (state, action) => {
-  const music = localMusicSelectors.selectAll(state);
-  const existingAsset = music.find(matchAsset(action.payload));
-  if (existingAsset) {
-    inodeToRecentMusic[existingAsset.inode] = clone(existingAsset);
-    musicAdapter.removeOne(state.music, existingAsset.id);
-  }
+  removeAssetEntity(state.music, musicAdapter, action.payload);
+};
+
+/**************************************************************************
+ * Sounds
+ */
+
+const loadSound: CaseReducer<
+  EntitiesState,
+  PayloadAction<{
+    data: Sound;
+  }>
+> = (state, action) => {
+  upsertAssetEntity(state.sounds, soundsAdapter, action.payload.data, [
+    "id",
+    "symbol",
+  ]);
+  ensureSymbolsUnique(state);
+};
+
+const setSoundSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ soundId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.sounds,
+    soundsAdapter,
+    action.payload.soundId,
+    action.payload.symbol
+  );
+};
+
+const removeSound: CaseReducer<
+  EntitiesState,
+  PayloadAction<{
+    filename: string;
+    plugin?: string;
+  }>
+> = (state, action) => {
+  removeAssetEntity(state.sounds, soundsAdapter, action.payload);
+};
+
+/**************************************************************************
+ * Font
+ */
+
+const setFontSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ fontId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.fonts,
+    fontsAdapter,
+    action.payload.fontId,
+    action.payload.symbol
+  );
 };
 
 const loadFont: CaseReducer<
@@ -439,38 +473,26 @@ const loadFont: CaseReducer<
     data: Font;
   }>
 > = (state, action) => {
-  const fonts = localFontSelectors.selectAll(state);
-  const existingAsset =
-    fonts.find(matchAsset(action.payload.data)) ||
-    inodeToRecentFont[action.payload.data.inode];
-  const existingId = existingAsset?.id;
-
-  if (existingId) {
-    delete inodeToRecentFont[action.payload.data.inode];
-    fontsAdapter.upsertOne(state.fonts, {
-      ...existingAsset,
-      ...action.payload.data,
-      id: existingId,
-    });
-  } else {
-    fontsAdapter.addOne(state.fonts, action.payload.data);
-  }
+  upsertAssetEntity(state.fonts, fontsAdapter, action.payload.data, [
+    "id",
+    "symbol",
+  ]);
+  ensureSymbolsUnique(state);
 };
 
 const removeFont: CaseReducer<
   EntitiesState,
   PayloadAction<{
     filename: string;
-    plugin: string | undefined;
+    plugin?: string;
   }>
 > = (state, action) => {
-  const fonts = localFontSelectors.selectAll(state);
-  const existingAsset = fonts.find(matchAsset(action.payload));
-  if (existingAsset) {
-    inodeToRecentFont[existingAsset.inode] = clone(existingAsset);
-    fontsAdapter.removeOne(state.fonts, existingAsset.id);
-  }
+  removeAssetEntity(state.fonts, fontsAdapter, action.payload);
 };
+
+/**************************************************************************
+ * Avatar
+ */
 
 const loadAvatar: CaseReducer<
   EntitiesState,
@@ -478,37 +500,38 @@ const loadAvatar: CaseReducer<
     data: Avatar;
   }>
 > = (state, action) => {
-  const avatars = localAvatarSelectors.selectAll(state);
-  const existingAsset =
-    avatars.find(matchAsset(action.payload.data)) ||
-    inodeToRecentAvatar[action.payload.data.inode];
-  const existingId = existingAsset?.id;
-
-  if (existingId) {
-    delete inodeToRecentAvatar[action.payload.data.inode];
-    avatarsAdapter.upsertOne(state.avatars, {
-      ...existingAsset,
-      ...action.payload.data,
-      id: existingId,
-    });
-  } else {
-    avatarsAdapter.addOne(state.avatars, action.payload.data);
-  }
+  upsertAssetEntity(state.avatars, avatarsAdapter, action.payload.data, [
+    "id",
+    "symbol",
+  ]);
+  ensureSymbolsUnique(state);
 };
 
 const removeAvatar: CaseReducer<
   EntitiesState,
   PayloadAction<{
     filename: string;
-    plugin: string | undefined;
+    plugin?: string;
   }>
 > = (state, action) => {
-  const avatars = localAvatarSelectors.selectAll(state);
-  const existingAsset = avatars.find(matchAsset(action.payload));
-  if (existingAsset) {
-    inodeToRecentAvatar[existingAsset.inode] = clone(existingAsset);
-    avatarsAdapter.removeOne(state.avatars, existingAsset.id);
-  }
+  removeAssetEntity(state.avatars, avatarsAdapter, action.payload);
+};
+
+/**************************************************************************
+ * Emote
+ */
+
+const setEmoteSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ emoteId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.emotes,
+    emotesAdapter,
+    action.payload.emoteId,
+    action.payload.symbol
+  );
 };
 
 const loadEmote: CaseReducer<
@@ -517,37 +540,21 @@ const loadEmote: CaseReducer<
     data: Emote;
   }>
 > = (state, action) => {
-  const emotes = localEmoteSelectors.selectAll(state);
-  const existingAsset =
-    emotes.find(matchAsset(action.payload.data)) ||
-    inodeToRecentEmote[action.payload.data.inode];
-  const existingId = existingAsset?.id;
-
-  if (existingId) {
-    delete inodeToRecentEmote[action.payload.data.inode];
-    emotesAdapter.upsertOne(state.emotes, {
-      ...existingAsset,
-      ...action.payload.data,
-      id: existingId,
-    });
-  } else {
-    emotesAdapter.addOne(state.emotes, action.payload.data);
-  }
+  upsertAssetEntity(state.emotes, emotesAdapter, action.payload.data, [
+    "id",
+    "symbol",
+  ]);
+  ensureSymbolsUnique(state);
 };
 
 const removeEmote: CaseReducer<
   EntitiesState,
   PayloadAction<{
     filename: string;
-    plugin: string | undefined;
+    plugin?: string;
   }>
 > = (state, action) => {
-  const emotes = localEmoteSelectors.selectAll(state);
-  const existingAsset = emotes.find(matchAsset(action.payload));
-  if (existingAsset) {
-    inodeToRecentEmote[existingAsset.inode] = clone(existingAsset);
-    emotesAdapter.removeOne(state.emotes, existingAsset.id);
-  }
+  removeAssetEntity(state.emotes, emotesAdapter, action.payload);
 };
 
 const fixAllScenesWithModifiedBackgrounds = (state: EntitiesState) => {
@@ -565,6 +572,38 @@ const fixAllScenesWithModifiedBackgrounds = (state: EntitiesState) => {
       scene.width = background ? background.width : 32;
       scene.height = background ? background.height : 32;
       scene.collisions = [];
+    }
+  }
+};
+
+const fixAllSpritesWithMissingStates = (state: EntitiesState) => {
+  const sprites = localSpriteSheetSelectors.selectAll(state);
+  for (const sprite of sprites) {
+    if (!sprite.states || sprite.states.length === 0) {
+      // Create default state for newly added spritesheets
+      const metasprites: Metasprite[] = Array.from(Array(8)).map(() => ({
+        id: uuid(),
+        tiles: [],
+      }));
+      const animations: SpriteAnimation[] = metasprites.map((metasprite) => ({
+        id: uuid(),
+        frames: [metasprite.id],
+      }));
+      const animationIds = animations.map((a) => a.id);
+      const spriteState: SpriteState = {
+        id: uuid(),
+        name: "",
+        animationType: "multi_movement",
+        flipLeft: true,
+        animations: animationIds,
+      };
+      metaspritesAdapter.addMany(state.metasprites, metasprites);
+      spriteAnimationsAdapter.addMany(state.spriteAnimations, animations);
+      spriteStatesAdapter.addOne(state.spriteStates, spriteState);
+      spriteSheetsAdapter.upsertOne(state.spriteSheets, {
+        ...sprite,
+        states: [spriteState.id],
+      });
     }
   }
 };
@@ -599,6 +638,7 @@ const addScene: CaseReducer<
     autoFadeSpeed: 1,
     ...(action.payload.defaults || {}),
     id: action.payload.sceneId,
+    symbol: genEntitySymbol(state, `scene_${scenesTotal + 1}`),
     x: Math.max(MIN_SCENE_X, action.payload.x),
     y: Math.max(MIN_SCENE_Y, action.payload.y),
     actors: [],
@@ -712,6 +752,19 @@ const editScene: CaseReducer<
   });
 };
 
+const setSceneSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ sceneId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.scenes,
+    scenesAdapter,
+    action.payload.sceneId,
+    action.payload.symbol
+  );
+};
+
 const removeScene: CaseReducer<
   EntitiesState,
   PayloadAction<{
@@ -772,6 +825,7 @@ const addActor: CaseReducer<
     isPinned: false,
     collisionGroup: "",
     ...(action.payload.defaults || {}),
+    symbol: genEntitySymbol(state, "actor_0"),
     script: [],
     startScript: [],
     updateScript: [],
@@ -803,6 +857,19 @@ const editActor: CaseReducer<
     id: action.payload.actorId,
     changes: patch,
   });
+};
+
+const setActorSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ actorId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.actors,
+    actorsAdapter,
+    action.payload.actorId,
+    action.payload.symbol
+  );
 };
 
 const moveActor: CaseReducer<
@@ -955,6 +1022,7 @@ const addTrigger: CaseReducer<
     id: action.payload.triggerId,
     x: clamp(action.payload.x, 0, scene.width - width),
     y: clamp(action.payload.y, 0, scene.height - height),
+    symbol: genEntitySymbol(state, "trigger_0"),
     width,
     height,
     script: [],
@@ -976,6 +1044,19 @@ const editTrigger: CaseReducer<
     id: action.payload.triggerId,
     changes: patch,
   });
+};
+
+const setTriggerSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ triggerId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.triggers,
+    triggersAdapter,
+    action.payload.triggerId,
+    action.payload.symbol
+  );
 };
 
 const moveTrigger: CaseReducer<
@@ -1129,6 +1210,23 @@ const removeTriggerAt: CaseReducer<
 };
 
 /**************************************************************************
+ * Backgrounds
+ */
+
+const setBackgroundSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ backgroundId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.backgrounds,
+    backgroundsAdapter,
+    action.payload.backgroundId,
+    action.payload.symbol
+  );
+};
+
+/**************************************************************************
  * Sprite Sheets
  */
 
@@ -1147,6 +1245,19 @@ const editSpriteSheet: CaseReducer<
     id: action.payload.spriteSheetId,
     changes: patch,
   });
+};
+
+const setSpriteSheetSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ spriteSheetId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.spriteSheets,
+    spriteSheetsAdapter,
+    action.payload.spriteSheetId,
+    action.payload.symbol
+  );
 };
 
 /**************************************************************************
@@ -1926,6 +2037,7 @@ const renameVariable: CaseReducer<
     variablesAdapter.upsertOne(state.variables, {
       id: action.payload.variableId,
       name: action.payload.name,
+      symbol: genEntitySymbol(state, `var_${action.payload.name}`),
     });
   } else {
     variablesAdapter.removeOne(state.variables, action.payload.variableId);
@@ -1980,6 +2092,7 @@ const addCustomEvent: CaseReducer<
   EntitiesState,
   PayloadAction<{ customEventId: string; defaults?: Partial<CustomEvent> }>
 > = (state, action) => {
+  const customEventsTotal = localCustomEventSelectors.selectTotal(state);
   const newCustomEvent: CustomEvent = {
     id: action.payload.customEventId,
     name: "",
@@ -1987,6 +2100,7 @@ const addCustomEvent: CaseReducer<
     variables: {},
     actors: {},
     ...(action.payload.defaults || {}),
+    symbol: genEntitySymbol(state, `script_${customEventsTotal + 1}`),
     script: [],
   };
   customEventsAdapter.addOne(state.customEvents, newCustomEvent);
@@ -2004,6 +2118,19 @@ const editCustomEvent: CaseReducer<
     id: action.payload.customEventId,
     changes: patch,
   });
+};
+
+const setCustomEventSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ customEventId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.customEvents,
+    customEventsAdapter,
+    action.payload.customEventId,
+    action.payload.symbol
+  );
 };
 
 const removeCustomEvent: CaseReducer<
@@ -2240,6 +2367,7 @@ const addScriptEvents: CaseReducer<
       const newScriptEvent: ScriptEvent = {
         ...scriptEventData,
         id: action.payload.scriptEventIds[scriptEventIndex],
+        symbol: undefined,
       };
       if (scriptEventData.children) {
         newScriptEvent.children = Object.keys(scriptEventData.children).reduce(
@@ -2310,6 +2438,19 @@ const editScriptEvent: CaseReducer<
     id: action.payload.scriptEventId,
     changes: action.payload.changes,
   });
+};
+
+const setScriptEventSymbol: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ scriptEventId: string; symbol: string }>
+> = (state, action) => {
+  updateEntitySymbol(
+    state,
+    state.scriptEvents,
+    scriptEventsAdapter,
+    action.payload.scriptEventId,
+    action.payload.symbol
+  );
 };
 
 const toggleScriptEventOpen: CaseReducer<
@@ -2532,6 +2673,7 @@ const entitiesSlice = createSlice({
     },
 
     editScene,
+    setSceneSymbol,
     removeScene,
     moveScene,
     paintCollision,
@@ -2560,6 +2702,7 @@ const entitiesSlice = createSlice({
     },
 
     editActor,
+    setActorSymbol,
     removeActor,
     removeActorAt,
     moveActor,
@@ -2589,16 +2732,24 @@ const entitiesSlice = createSlice({
     },
 
     editTrigger,
+    setTriggerSymbol,
     removeTrigger,
     removeTriggerAt,
     moveTrigger,
     resizeTrigger,
 
     /**************************************************************************
+     * Backgrounds
+     */
+
+    setBackgroundSymbol,
+
+    /**************************************************************************
      * Sprites
      */
 
     editSpriteSheet,
+    setSpriteSheetSymbol,
 
     /**************************************************************************
      * Metasprites
@@ -2745,6 +2896,7 @@ const entitiesSlice = createSlice({
     },
 
     editCustomEvent,
+    setCustomEventSymbol,
     removeCustomEvent,
     refreshCustomEventArgs: {
       reducer: refreshCustomEventArgs,
@@ -2786,6 +2938,7 @@ const entitiesSlice = createSlice({
 
     moveScriptEvent,
     editScriptEvent,
+    setScriptEventSymbol,
     resetScript,
     toggleScriptEventOpen,
     toggleScriptEventComment,
@@ -2800,6 +2953,25 @@ const entitiesSlice = createSlice({
      */
 
     editMusicSettings,
+    setMusicSymbol,
+
+    /**************************************************************************
+     * Sounds
+     */
+
+    setSoundSymbol,
+
+    /**************************************************************************
+     * Emote
+     */
+
+    setEmoteSymbol,
+
+    /**************************************************************************
+     * Font
+     */
+
+    setFontSymbol,
 
     /**************************************************************************
      * Engine Field Values
@@ -2818,6 +2990,8 @@ const entitiesSlice = createSlice({
       .addCase(spriteActions.detectSpriteComplete, loadDetectedSprite)
       .addCase(projectActions.loadMusic.fulfilled, loadMusic)
       .addCase(projectActions.removeMusic.fulfilled, removeMusic)
+      .addCase(projectActions.loadSound.fulfilled, loadSound)
+      .addCase(projectActions.removeSound.fulfilled, removeSound)
       .addCase(projectActions.loadFont.fulfilled, loadFont)
       .addCase(projectActions.removeFont.fulfilled, removeFont)
       .addCase(projectActions.loadAvatar.fulfilled, loadAvatar)
@@ -2914,6 +3088,9 @@ const localTriggerSelectors = triggersAdapter.getSelectors(
 const localSceneSelectors = scenesAdapter.getSelectors(
   (state: EntitiesState) => state.scenes
 );
+const localCustomEventSelectors = customEventsAdapter.getSelectors(
+  (state: EntitiesState) => state.customEvents
+);
 const localSpriteSheetSelectors = spriteSheetsAdapter.getSelectors(
   (state: EntitiesState) => state.spriteSheets
 );
@@ -2926,14 +3103,8 @@ const localPaletteSelectors = palettesAdapter.getSelectors(
 const localMusicSelectors = musicAdapter.getSelectors(
   (state: EntitiesState) => state.music
 );
-const localFontSelectors = fontsAdapter.getSelectors(
-  (state: EntitiesState) => state.fonts
-);
-const localAvatarSelectors = avatarsAdapter.getSelectors(
-  (state: EntitiesState) => state.avatars
-);
-const localEmoteSelectors = emotesAdapter.getSelectors(
-  (state: EntitiesState) => state.emotes
+const localSoundSelectors = soundsAdapter.getSelectors(
+  (state: EntitiesState) => state.sounds
 );
 
 // Global
@@ -2975,6 +3146,9 @@ export const customEventSelectors = customEventsAdapter.getSelectors(
 );
 export const musicSelectors = musicAdapter.getSelectors(
   (state: RootState) => state.project.present.entities.music
+);
+export const soundSelectors = soundsAdapter.getSelectors(
+  (state: RootState) => state.project.present.entities.sounds
 );
 export const fontSelectors = fontsAdapter.getSelectors(
   (state: RootState) => state.project.present.entities.fonts

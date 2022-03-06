@@ -1,18 +1,28 @@
 import ScriptBuilder from "../../../src/lib/compiler/scriptBuilder";
 import { ScriptEvent } from "../../../src/store/features/entities/entitiesTypes";
-import { getDummyCompiledFont } from "../../dummydata";
+import {
+  dummyActor,
+  dummyPrecompiledBackground,
+  dummyPrecompiledSpriteSheet,
+  getDummyCompiledFont,
+} from "../../dummydata";
 
 test("Should be able to set active actor to player", () => {
   const output: string[] = [];
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
-      actors: [
-        {
-          id: "actor1",
-        },
-      ],
+      actors: [{ ...dummyActor, id: "actor1" }],
       triggers: [],
       projectiles: [],
     },
@@ -23,7 +33,7 @@ test("Should be able to set active actor to player", () => {
   sb.actorSetActive("player");
   expect(output).toEqual([
     "        ; Actor Set Active",
-    "        VM_SET_CONST            ACTOR, 0",
+    "        VM_SET_CONST            .LOCAL_ACTOR, 0",
     "",
   ]);
 });
@@ -33,14 +43,19 @@ test("Should be able to set active actor to actor by id", () => {
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [
-        {
-          id: "actor1",
-        },
-        {
-          id: "actor2",
-        },
+        { ...dummyActor, id: "actor1" },
+        { ...dummyActor, id: "actor2" },
       ],
       triggers: [],
       projectiles: [],
@@ -49,7 +64,7 @@ test("Should be able to set active actor to actor by id", () => {
   sb.actorSetActive("actor2");
   expect(output).toEqual([
     "        ; Actor Set Active",
-    "        VM_SET_CONST            ACTOR, 2",
+    "        VM_SET_CONST            .LOCAL_ACTOR, 2",
     "",
   ]);
 });
@@ -59,6 +74,15 @@ test("Should be able to move actor to new location", () => {
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [],
       triggers: [],
@@ -68,10 +92,10 @@ test("Should be able to move actor to new location", () => {
   sb.actorMoveTo(5, 6, true, "horizontal");
   expect(output).toEqual([
     "        ; Actor Move To",
-    "        VM_SET_CONST            ^/(ACTOR + 1)/, 640",
-    "        VM_SET_CONST            ^/(ACTOR + 2)/, 768",
-    "        VM_SET_CONST            ^/(ACTOR + 3)/, ^/(.ACTOR_ATTR_CHECK_COLL | .ACTOR_ATTR_H_FIRST)/",
-    "        VM_ACTOR_MOVE_TO        ACTOR",
+    "        VM_SET_CONST            ^/(.LOCAL_ACTOR + 1)/, 640",
+    "        VM_SET_CONST            ^/(.LOCAL_ACTOR + 2)/, 768",
+    "        VM_SET_CONST            ^/(.LOCAL_ACTOR + 3)/, ^/(.ACTOR_ATTR_CHECK_COLL | .ACTOR_ATTR_H_FIRST)/",
+    "        VM_ACTOR_MOVE_TO        .LOCAL_ACTOR",
     "",
   ]);
 });
@@ -81,6 +105,15 @@ test("Should be able to wait for N frames to pass", () => {
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [],
       triggers: [],
@@ -90,8 +123,8 @@ test("Should be able to wait for N frames to pass", () => {
   sb.wait(20);
   expect(output).toEqual([
     "        ; Wait N Frames",
-    "        VM_PUSH_CONST           20",
-    "        VM_INVOKE               b_wait_frames, _wait_frames, 1, .ARG0",
+    "        VM_SET_CONST            .LOCAL_TMP0_WAIT_ARGS, 20",
+    "        VM_INVOKE               b_wait_frames, _wait_frames, 0, .LOCAL_TMP0_WAIT_ARGS",
     "",
   ]);
 });
@@ -101,12 +134,23 @@ test("Should be able to generate script string", () => {
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [
         {
+          ...dummyActor,
           id: "actor1",
         },
         {
+          ...dummyActor,
           id: "actor2",
         },
       ],
@@ -124,27 +168,22 @@ test("Should be able to generate script string", () => {
 
 .area _CODE_255
 
-ACTOR = -4
+.LOCAL_ACTOR = -4
 
 ___bank_MY_SCRIPT = 255
 .globl ___bank_MY_SCRIPT
-.CURRENT_SCRIPT_BANK == ___bank_MY_SCRIPT
 
 _MY_SCRIPT::
-        ; Local Actor
-        VM_PUSH_CONST           0
-        VM_PUSH_CONST           0
-        VM_PUSH_CONST           0
-        VM_PUSH_CONST           0
+        VM_RESERVE              4
 
         ; Actor Set Active
-        VM_SET_CONST            ACTOR, 2
+        VM_SET_CONST            .LOCAL_ACTOR, 2
 
         ; Actor Move To
-        VM_SET_CONST            ^/(ACTOR + 1)/, 640
-        VM_SET_CONST            ^/(ACTOR + 2)/, 768
-        VM_SET_CONST            ^/(ACTOR + 3)/, ^/(.ACTOR_ATTR_CHECK_COLL | .ACTOR_ATTR_H_FIRST)/
-        VM_ACTOR_MOVE_TO        ACTOR
+        VM_SET_CONST            ^/(.LOCAL_ACTOR + 1)/, 640
+        VM_SET_CONST            ^/(.LOCAL_ACTOR + 2)/, 768
+        VM_SET_CONST            ^/(.LOCAL_ACTOR + 3)/, ^/(.ACTOR_ATTR_CHECK_COLL | .ACTOR_ATTR_H_FIRST)/
+        VM_ACTOR_MOVE_TO        .LOCAL_ACTOR
 
 `
   );
@@ -156,6 +195,15 @@ test("Should be able to open dialogue boxes", async () => {
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [],
       triggers: [],
@@ -177,7 +225,6 @@ test("Should be able to open dialogue boxes", async () => {
 
 ___bank_MY_SCRIPT = 255
 .globl ___bank_MY_SCRIPT
-.CURRENT_SCRIPT_BANK == ___bank_MY_SCRIPT
 
 _MY_SCRIPT::
         ; Text Dialogue
@@ -201,6 +248,15 @@ test("Should be able to conditionally execute if variable is true with event arr
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [],
       triggers: [],
@@ -245,11 +301,10 @@ test("Should be able to conditionally execute if variable is true with event arr
 
 ___bank_MY_SCRIPT = 255
 .globl ___bank_MY_SCRIPT
-.CURRENT_SCRIPT_BANK == ___bank_MY_SCRIPT
 
 _MY_SCRIPT::
         ; If Variable True
-        VM_IF_CONST .GT         VAR_VARIABLE_1, 0, 1$, 0
+        VM_IF_CONST .GT         VAR_1, 0, 1$, 0
         VM_DEBUG                0
         .asciz "False Path"
         VM_JUMP                 2$
@@ -268,12 +323,23 @@ test("Should be able to conditionally execute if variable is true with function 
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [
         {
+          ...dummyActor,
           id: "actor1",
         },
         {
+          ...dummyActor,
           id: "actor2",
         },
       ],
@@ -310,11 +376,10 @@ test("Should be able to conditionally execute if variable is true with function 
 
 ___bank_MY_SCRIPT = 255
 .globl ___bank_MY_SCRIPT
-.CURRENT_SCRIPT_BANK == ___bank_MY_SCRIPT
 
 _MY_SCRIPT::
         ; If Variable True
-        VM_IF_CONST .GT         VAR_VARIABLE_0, 0, 1$, 0
+        VM_IF_CONST .GT         VAR_0, 0, 1$, 0
         ; Text Dialogue
         VM_LOAD_TEXT            0
         .asciz "Goodbye World"
@@ -351,20 +416,21 @@ test("Should be able to conditionally execute if variable is true with nested fu
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [
-        {
-          id: "actor1",
-        },
-        {
-          id: "actor2",
-        },
-        {
-          id: "actor3",
-        },
-        {
-          id: "actor4",
-        },
+        { ...dummyActor, id: "actor1" },
+        { ...dummyActor, id: "actor2" },
+        { ...dummyActor, id: "actor3" },
+        { ...dummyActor, id: "actor4" },
       ],
       triggers: [],
       projectiles: [],
@@ -403,13 +469,12 @@ test("Should be able to conditionally execute if variable is true with nested fu
 
 ___bank_MY_SCRIPT = 255
 .globl ___bank_MY_SCRIPT
-.CURRENT_SCRIPT_BANK == ___bank_MY_SCRIPT
 
 _MY_SCRIPT::
         ; If Variable True
-        VM_IF_CONST .GT         VAR_VARIABLE_0, 0, 1$, 0
+        VM_IF_CONST .GT         VAR_0, 0, 1$, 0
         ; If Variable True
-        VM_IF_CONST .GT         VAR_VARIABLE_2, 0, 3$, 0
+        VM_IF_CONST .GT         VAR_2, 0, 3$, 0
         ; Text Dialogue
         VM_LOAD_TEXT            0
         .asciz "0=FALSE 2=FALSE"
@@ -437,7 +502,7 @@ _MY_SCRIPT::
         VM_JUMP                 2$
 1$:
         ; If Variable True
-        VM_IF_CONST .GT         VAR_VARIABLE_1, 0, 5$, 0
+        VM_IF_CONST .GT         VAR_1, 0, 5$, 0
         ; Text Dialogue
         VM_LOAD_TEXT            0
         .asciz "0=TRUE 1=FALSE"
@@ -475,6 +540,15 @@ test("Should be able to define labels and jump", () => {
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
       actors: [],
       triggers: [],
@@ -495,7 +569,6 @@ test("Should be able to define labels and jump", () => {
 
 ___bank_MY_SCRIPT = 255
 .globl ___bank_MY_SCRIPT
-.CURRENT_SCRIPT_BANK == ___bank_MY_SCRIPT
 
 _MY_SCRIPT::
 1$:
@@ -509,12 +582,17 @@ test("Should throw if jump to label is not stack neutral", () => {
   const sb = new ScriptBuilder(output, {
     scene: {
       id: "scene1",
+      name: "Scene 1",
+      symbol: "scene_1",
+      width: 20,
+      height: 18,
+      background: dummyPrecompiledBackground,
+      playerSprite: dummyPrecompiledSpriteSheet,
+      sprites: [],
+      parallax: [],
+      actorsExclusiveLookup: {},
       type: "TOPDOWN",
-      actors: [
-        {
-          id: "actor1",
-        },
-      ],
+      actors: [{ ...dummyActor, id: "actor1" }],
       triggers: [],
       projectiles: [],
     },

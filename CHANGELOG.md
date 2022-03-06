@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Add VM_LOAD_TILESET and VM_OVERLAY_SET_MAP to gbvm [untoxa](https://github.com/untoxa)
+- Add VM_ACTOR_MOVE_CANCEL [@um3k](https://github.com/um3k)
+- Allow using frames rather than seconds for wait/camera shake/attach timer script events
+- Added events to Deactivate & Activate actors, similar to old hide/show but prevents update scripts from running on disabled actors
+- Added ability to choose any referenced assets in GBVM script event forcing assets to be included within built project
+- Added ability to rename the GBVM symbol used for generated data files, accessible from "View GBVM Symbols" in right sidebar menu + GBVM event references section
+- Added syntax highlighting and line numbers to GBVM event code input
+- Added event Actor Move Cancel to cancel any scripted movement currently running for a given actor [@um3k](https://github.com/um3k)
+- Add sound effects file support reading WAV (.wav), VGM (.vgm, .vgz) and FXHammer (.sav) files from assets/sounds folder
+- Add support for setting sound effects priority [untoxa](https://github.com/untoxa)
+
+### Changed
+
+- Updated to latest GBDK-2020
+- Save/restore RNG seed when saving/loading a game [untoxa](https://github.com/untoxa)
+- Updated Polish localisation. [@ReptiIe](https://github.com/ReptiIe)
+- Optimised Switch event codegen to use VM_SWITCH instruction
+- Optimised codegen to use a stack frame rather than push/pop
+- Improved randomize [untoxa](https://github.com/untoxa)
+- Improved gbspack error when data is over bank size limits
+- Update hUGEDriver [untoxa](https://github.com/untoxa)
+- Hide/show actor now ONLY hides/shows, update scripts & collisions are not affected (existing hide/show events migrated to deactivate/activate for compatibility)
+
+### Fixed
+
+- Fixed Wait event in scene init scripts to happen after automatic fade in
+- Fixed issue where animated camera lock would be off by 8x8px
+- Fix vertical shoot em up scene type [@um3k](https://github.com/um3k)
+- Fixed display of errors in game engine files while building
+- Fix issue where activating an actor wouldn't trigger update script [untoxa](https://github.com/untoxa)
+- Fix issue where full magenta characters in font files didn't have zero width
+- Fixed typo in Japanese localisation [RYU-N2001](https://github.com/RYU-N2001)
+- Updated 32-bit Windows app to use correct 32-bit GBDK-2020 (again) [untoxa](https://github.com/untoxa)
+- Fixed issue where relative actor movement on left or top edge of scene would wrap around scene [@um3k](https://github.com/um3k)
+- Fix issue where soft reset could lead to UI tiles over scene tiles [untoxa](https://github.com/untoxa)
+
+### Removed
+
+- Removed .CURRENT_SCRIPT_BANK for gbvm scripts as results were unreliable
+
 ## [3.0.3]
 
 ### Added

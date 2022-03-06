@@ -36,6 +36,8 @@
 #include "parallax.h"
 #include "shadow.h"
 #include "data/data_bootstrap.h"
+#include "zeldasAdventureCore.h"
+#include "zeldasInventoryCore.h"
 
 extern void __bank_bootstrap_script;
 extern const UBYTE bootstrap_script[];
@@ -47,7 +49,7 @@ void core_reset() BANKED {
     SIO_init();
     input_init();
     load_init();
-    sound_init();
+    music_init_driver();
     parallax_init();
     scroll_init();
     fade_init();
@@ -56,7 +58,7 @@ void core_reset() BANKED {
     ui_init();
     events_init(FALSE);
     timers_init(FALSE);
-    music_init(FALSE);
+    music_init_events(FALSE);
 }
 
 void process_VM() {
@@ -85,6 +87,16 @@ void process_VM() {
                 scroll_update();
                 actors_update();
                 projectiles_update();                                   // update and render projectiles
+
+                if (scene_type == SCENE_TYPE_ZELDASADVENTURE) 
+                {
+                    CheckForHudRedraw();
+                }
+                
+                if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
+                {
+                    CheckForInventoryInteraction();
+                }
 
                 ui_update();
                 actors_handle_player_collision();
@@ -123,7 +135,7 @@ void process_VM() {
                         // reset input events on scene change
                         events_init(FALSE);
                         // reset music events
-                        music_init(FALSE);
+                        music_init_events(FALSE);
                         // load scene
                         far_ptr_t scene;
                         ReadBankedFarPtr(&scene, vm_exception_params_offset, vm_exception_params_bank);
@@ -172,6 +184,16 @@ void process_VM() {
                 scroll_repaint();
                 actors_update();
 
+                if (scene_type == SCENE_TYPE_ZELDASADVENTURE) 
+                {
+                    InitZeldaHud();
+                }
+
+                if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
+                {
+                    InitZeldaInventory();
+                }
+
                 activate_shadow_OAM();
 
                 if (fade_in) fade_in_modal();
@@ -181,13 +203,6 @@ void process_VM() {
 }
 
 void core_run() BANKED {
-#ifdef CGB
-    if (_cpu == CGB_TYPE) cpu_fast();
-#endif
-
-    memset(shadow_OAM2, 0, sizeof(shadow_OAM2));
-
-    data_init();
 #ifdef SGB
     for (UBYTE i = 4; i != 0; i--) wait_vbl_done(); // this delay is required for PAL SNES
     _is_SGB = sgb_check();
@@ -202,6 +217,14 @@ void core_run() BANKED {
 #endif
     // GBA features only available together with CGB
     _is_GBA = (_is_GBA && _is_CGB);
+
+#ifdef CGB
+    if (_is_CGB) cpu_fast();
+#endif
+
+    memset(shadow_OAM2, 0, sizeof(shadow_OAM2));
+
+    data_init();
 
     display_off();
     palette_init();
@@ -225,13 +248,7 @@ void core_run() BANKED {
         add_VBL(VBL_isr);
         STAT_REG |= STATF_LYC; 
 
-        #ifdef CGB
-            // CGB_VAL = 256 - ((256 - DMG_VAL) * 2)
-            TMA_REG = _cpu == CGB_TYPE ? 0x80u : 0xC0u;
-        #else
-            TMA_REG = 0xC0u;
-        #endif
-        TAC_REG = 0x07u;
+        music_setup_timer();
         IE_REG |= (TIM_IFLAG | LCD_IFLAG | SIO_IFLAG);
     }
     DISPLAY_ON;
