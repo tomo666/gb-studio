@@ -8,9 +8,18 @@
 #include "bankdata.h"
 #include "zeldasInventoryCore.h"
 
-// UINT8 *firstSpellTile = (UINT8 *)0x8000;
-UINT8 *firstSpellTile = (UINT8 *)0x82c0;
 UINT8 tileOffset = 0x00;
+
+UINT8 *spriteMemory[128] = {
+(UINT8 *)0x8000, (UINT8 *)0x8010, (UINT8 *)0x8020, (UINT8 *)0x8030, (UINT8 *)0x8040, (UINT8 *)0x8050, (UINT8 *)0x8060, (UINT8 *)0x8070, (UINT8 *)0x8080, (UINT8 *)0x8090, (UINT8 *)0x80A0, (UINT8 *)0x80B0, (UINT8 *)0x80C0, (UINT8 *)0x80D0, (UINT8 *)0x80E0, (UINT8 *)0x80F0,
+(UINT8 *)0x8100, (UINT8 *)0x8110, (UINT8 *)0x8120, (UINT8 *)0x8130, (UINT8 *)0x8140, (UINT8 *)0x8150, (UINT8 *)0x8160, (UINT8 *)0x8170, (UINT8 *)0x8180, (UINT8 *)0x8190, (UINT8 *)0x81A0, (UINT8 *)0x81B0, (UINT8 *)0x81C0, (UINT8 *)0x81D0, (UINT8 *)0x81E0, (UINT8 *)0x81F0,
+(UINT8 *)0x8200, (UINT8 *)0x8210, (UINT8 *)0x8220, (UINT8 *)0x8230, (UINT8 *)0x8240, (UINT8 *)0x8250, (UINT8 *)0x8260, (UINT8 *)0x8270, (UINT8 *)0x8280, (UINT8 *)0x8290, (UINT8 *)0x82A0, (UINT8 *)0x82B0, (UINT8 *)0x82C0, (UINT8 *)0x82D0, (UINT8 *)0x82E0, (UINT8 *)0x82F0,
+(UINT8 *)0x8300, (UINT8 *)0x8310, (UINT8 *)0x8320, (UINT8 *)0x8330, (UINT8 *)0x8340, (UINT8 *)0x8350, (UINT8 *)0x8360, (UINT8 *)0x8370, (UINT8 *)0x8380, (UINT8 *)0x8390, (UINT8 *)0x83A0, (UINT8 *)0x83B0, (UINT8 *)0x83C0, (UINT8 *)0x83D0, (UINT8 *)0x83E0, (UINT8 *)0x83F0,
+(UINT8 *)0x8400, (UINT8 *)0x8410, (UINT8 *)0x8420, (UINT8 *)0x8430, (UINT8 *)0x8440, (UINT8 *)0x8450, (UINT8 *)0x8460, (UINT8 *)0x8470, (UINT8 *)0x8480, (UINT8 *)0x8490, (UINT8 *)0x84A0, (UINT8 *)0x84B0, (UINT8 *)0x84C0, (UINT8 *)0x84D0, (UINT8 *)0x84E0, (UINT8 *)0x84F0,
+(UINT8 *)0x8500, (UINT8 *)0x8510, (UINT8 *)0x8520, (UINT8 *)0x8530, (UINT8 *)0x8540, (UINT8 *)0x8550, (UINT8 *)0x8560, (UINT8 *)0x8570, (UINT8 *)0x8580, (UINT8 *)0x8590, (UINT8 *)0x85A0, (UINT8 *)0x85B0, (UINT8 *)0x85C0, (UINT8 *)0x85D0, (UINT8 *)0x85E0, (UINT8 *)0x85F0,
+(UINT8 *)0x8600, (UINT8 *)0x8610, (UINT8 *)0x8620, (UINT8 *)0x8630, (UINT8 *)0x8640, (UINT8 *)0x8650, (UINT8 *)0x8660, (UINT8 *)0x8670, (UINT8 *)0x8680, (UINT8 *)0x8690, (UINT8 *)0x86A0, (UINT8 *)0x86B0, (UINT8 *)0x86C0, (UINT8 *)0x86D0, (UINT8 *)0x86E0, (UINT8 *)0x86F0,
+(UINT8 *)0x8700, (UINT8 *)0x8710, (UINT8 *)0x8720, (UINT8 *)0x8730, (UINT8 *)0x8740, (UINT8 *)0x8750, (UINT8 *)0x8760, (UINT8 *)0x8770, (UINT8 *)0x8780, (UINT8 *)0x8790, (UINT8 *)0x87A0, (UINT8 *)0x87B0, (UINT8 *)0x87C0, (UINT8 *)0x87D0, (UINT8 *)0x87E0, (UINT8 *)0x87F0,
+};
 
 // ggbgfx sprite -o wand-tile.c .\spell-wand.png
 const unsigned char spellWand[] = {
@@ -33,20 +42,17 @@ void FindFirstSpellTile() BANKED
     while (tileOffset == 0) {
         for (UINT8 i = 0; i < 128; i++)
         {
-            if (*firstSpellTile == 0xff && *(firstSpellTile + 1) == 0xc3 &&
-                *(firstSpellTile + 2) == 0xff && *(firstSpellTile + 3) == 0x99 &&
-                *(firstSpellTile + 4) == 0xff && *(firstSpellTile + 5) == 0x99 &&
-                *(firstSpellTile + 6) == 0xff && *(firstSpellTile + 7) == 0xc1 &&
-                *(firstSpellTile + 8) == 0xff && *(firstSpellTile + 9) == 0xf9 &&
-                *(firstSpellTile + 10) == 0xff && *(firstSpellTile + 11) == 0x99 &&
-                *(firstSpellTile + 12) == 0xff && *(firstSpellTile + 13) == 0xc3 &&
-                *(firstSpellTile + 14) == 0xff && *(firstSpellTile + 15) == 0xff)
+            if (*spriteMemory[i] == 0xff && *(spriteMemory[i] + 1) == 0xc3 &&
+                *(spriteMemory[i] + 2) == 0xff && *(spriteMemory[i] + 3) == 0x99 &&
+                *(spriteMemory[i] + 4) == 0xff && *(spriteMemory[i] + 5) == 0x99 &&
+                *(spriteMemory[i] + 6) == 0xff && *(spriteMemory[i] + 7) == 0xc1 &&
+                *(spriteMemory[i] + 8) == 0xff && *(spriteMemory[i] + 9) == 0xf9 &&
+                *(spriteMemory[i] + 10) == 0xff && *(spriteMemory[i] + 11) == 0x99 &&
+                *(spriteMemory[i] + 12) == 0xff && *(spriteMemory[i] + 13) == 0xc3 &&
+                *(spriteMemory[i] + 14) == 0xff && *(spriteMemory[i] + 15) == 0xff)
             {
                 tileOffset = i;
                 break;
-            } else
-            {
-                *firstSpellTile += 16;
             }
         }
     }
@@ -55,7 +61,7 @@ void FindFirstSpellTile() BANKED
 void LoadSpell(UINT16 equipped) BANKED
 {
     FindFirstSpellTile();
-        set_sprite_data(tileOffset - 3, 12, spellWand);
+    set_sprite_data(tileOffset, 12, spellWand);
     if (equipped == ZELDA_WEAPON_WAND) {
     }
 }
