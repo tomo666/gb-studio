@@ -41,12 +41,14 @@ UBYTE GetBit(UINT16 byte, UINT8 bit)
 {
     return (byte & (1 << bit)) != 0;
 }
+
 // weapons 1-19 = inventory1 (0-15) + inventory2 (0-2)
 // treasures 1-25 = inventory2 (2-15), inventory3 (0-11)
 void IdentifyWeaponsTreasuresFound()
 {
     // populate weapons array by interrogate GB Studio
     totalWeaponsFound = 0;
+    totalTreasuresFound = 0;
     for (UINT8 i = 0; i < 16; i++)
     {
         // populate weapons
@@ -234,7 +236,7 @@ void InitZeldaInventory()
 
     // initialise the weapon tiles
     IdentifyWeaponsTreasuresFound();
-    DrawWeaponsTreasures();    
+    DrawWeaponsTreasures();
 }
 
 void CheckForInventoryInteraction() 
