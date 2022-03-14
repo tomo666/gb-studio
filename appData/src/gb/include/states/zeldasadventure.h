@@ -6,6 +6,4 @@
 void zeldasadventure_init() BANKED;
 void zeldasadventure_update() BANKED;
 
-extern UBYTE topdown_grid;
-
 #endif
