@@ -219,17 +219,18 @@ UINT8 CalcCelestialSigns()
     if (GetBit(*_overworldFlags, 0)) return 1;
     return 0;
 }
+
 void InitZeldaInventory() 
 {
     UBYTE _save = _current_bank;
-    UINT8 shinesComplete = CalcCelestialSigns();
+    UINT8 shrinesComplete = CalcCelestialSigns();
     UBYTE keys = GetBit(*_inventoryFlags3, 11); // Flag 12 in GB Studio
 
     SWITCH_ROM(5);
         // draw the background tiles
         DrawStaticInventory();
         // fill the segments of the celestial sign indicator
-        DrawCelestialSigns(shinesComplete);
+        DrawCelestialSigns(shrinesComplete);
         // write 0-1 depending on keys found
         DrawKeyIndicator(keys);
     SWITCH_ROM(_save);
