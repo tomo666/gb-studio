@@ -93,7 +93,7 @@ void process_VM() {
                 if (scene_type == SCENE_TYPE_ZELDASADVENTURE) 
                 {
                     CheckForHudRedraw();
-                    AnimateZeldasTile();
+                    AnimateTile();
                 }
                 
                 if (scene_type == SCENE_TYPE_ZELDASINVENTORY) 
@@ -189,6 +189,7 @@ void process_VM() {
 
                 if (scene_type == SCENE_TYPE_ZELDASADVENTURE) 
                 {
+                    InitAnimatedTile();
                     InitZeldaHud();
                     InitZeldasSpell();
                 }
