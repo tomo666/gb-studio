@@ -6,6 +6,10 @@
 
 ZELDA_TILE_ANIMATION FindAnimationTile() BANKED;
 
-void AnimateSeaWater() BANKED;
+void AnimateSea() BANKED;
+
+void AnimateLake() BANKED;
+
+void AnimateLava() BANKED;
 
 #endif
