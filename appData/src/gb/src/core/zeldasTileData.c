@@ -43,11 +43,21 @@ const unsigned char lava3[] = {
 };
 
 UINT8 frame = 0;
-// point to animation indicator tile 15
-UINT8 *_zeldaAnimationTile = (UINT8 *)0x980f;
+// The HUD is a curated set of reference tiles
+// the tile in position 15 is the animation indicator tile
+UINT8 *_zeldaAnimationTile0 = (UINT8 *)0x980f;
+UINT8 *_zeldaAnimationTile1 = (UINT8 *)0x9810;
+
+UINT8 staticRefTile0 = 0xff;
+UINT8 staticRefTile1 = 0xff;
 
 ZELDA_TILE_ANIMATION FindAnimationTile() BANKED 
 {
+    // the pointer to the animation tile will be wiped by the re-ordering of the HUD
+    // grab a static reference to it while it's available;
+    staticRefTile0 = *_zeldaAnimationTile0;
+    staticRefTile1 = *_zeldaAnimationTile1;
+
     UINT8 *bkgMemory[128] = {
         (UINT8 *)0x9000, (UINT8 *)0x9010, (UINT8 *)0x9020, (UINT8 *)0x9030, (UINT8 *)0x9040, (UINT8 *)0x9050, (UINT8 *)0x9060, (UINT8 *)0x9070, (UINT8 *)0x9080, (UINT8 *)0x9090, (UINT8 *)0x90A0, (UINT8 *)0x90B0, (UINT8 *)0x90C0, (UINT8 *)0x90D0, (UINT8 *)0x90E0, (UINT8 *)0x90F0,
         (UINT8 *)0x9100, (UINT8 *)0x9110, (UINT8 *)0x9120, (UINT8 *)0x9130, (UINT8 *)0x9140, (UINT8 *)0x9150, (UINT8 *)0x9160, (UINT8 *)0x9170, (UINT8 *)0x9180, (UINT8 *)0x9190, (UINT8 *)0x91A0, (UINT8 *)0x91B0, (UINT8 *)0x91C0, (UINT8 *)0x91D0, (UINT8 *)0x91E0, (UINT8 *)0x91F0,
@@ -62,53 +72,56 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
     BYTE found = 0;
     while (!found)
     {
-        if (*(bkgMemory[*_zeldaAnimationTile]) == sea0[0] && *(bkgMemory[*_zeldaAnimationTile] + 1) == sea0[1]
-            && *(bkgMemory[*_zeldaAnimationTile] + 2) == sea0[2] && *(bkgMemory[*_zeldaAnimationTile] + 3) == sea0[3]
-            && *(bkgMemory[*_zeldaAnimationTile] + 4) == sea0[4] && *(bkgMemory[*_zeldaAnimationTile] + 5) == sea0[5]
-            && *(bkgMemory[*_zeldaAnimationTile] + 6) == sea0[6] && *(bkgMemory[*_zeldaAnimationTile] + 7) == sea0[7]
-            && *(bkgMemory[*_zeldaAnimationTile] + 8) == sea0[8] && *(bkgMemory[*_zeldaAnimationTile] + 9) == sea0[9]
-            && *(bkgMemory[*_zeldaAnimationTile] + 10) == sea0[10] && *(bkgMemory[*_zeldaAnimationTile] + 11) == sea0[11]
-            && *(bkgMemory[*_zeldaAnimationTile] + 12) == sea0[12] && *(bkgMemory[*_zeldaAnimationTile] + 13) == sea0[13]
-            && *(bkgMemory[*_zeldaAnimationTile] + 14) == sea0[14] && *(bkgMemory[*_zeldaAnimationTile] + 15) == sea0[15])
+        // look for sea water tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == sea0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == sea0[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == sea0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == sea0[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == sea0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == sea0[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == sea0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == sea0[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == sea0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == sea0[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == sea0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == sea0[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == sea0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == sea0[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == sea0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == sea0[15])
         {
             found = 1;
             return ZELDA_TILE_ANIMATION_SEA;
         }
 
-        if (*(bkgMemory[*_zeldaAnimationTile]) == lake0[0] && *(bkgMemory[*_zeldaAnimationTile] + 1) == lake0[1]
-            && *(bkgMemory[*_zeldaAnimationTile] + 2) == lake0[2] && *(bkgMemory[*_zeldaAnimationTile] + 3) == lake0[3]
-            && *(bkgMemory[*_zeldaAnimationTile] + 4) == lake0[4] && *(bkgMemory[*_zeldaAnimationTile] + 5) == lake0[5]
-            && *(bkgMemory[*_zeldaAnimationTile] + 6) == lake0[6] && *(bkgMemory[*_zeldaAnimationTile] + 7) == lake0[7]
-            && *(bkgMemory[*_zeldaAnimationTile] + 8) == lake0[8] && *(bkgMemory[*_zeldaAnimationTile] + 9) == lake0[9]
-            && *(bkgMemory[*_zeldaAnimationTile] + 10) == lake0[10] && *(bkgMemory[*_zeldaAnimationTile] + 11) == lake0[11]
-            && *(bkgMemory[*_zeldaAnimationTile] + 12) == lake0[12] && *(bkgMemory[*_zeldaAnimationTile] + 13) == lake0[13]
-            && *(bkgMemory[*_zeldaAnimationTile] + 14) == lake0[14] && *(bkgMemory[*_zeldaAnimationTile] + 15) == lake0[15])
+        // look for lake water tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == lake0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lake0[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lake0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lake0[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lake0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lake0[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lake0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lake0[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lake0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lake0[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lake0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lake0[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lake0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lake0[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lake0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lake0[15])
         {
             found = 1;
             return ZELDA_TILE_ANIMATION_LAKE;
         }
 
-        if (*(bkgMemory[*_zeldaAnimationTile]) == lava0[0] && *(bkgMemory[*_zeldaAnimationTile] + 1) == lava0[1]
-            && *(bkgMemory[*_zeldaAnimationTile] + 2) == lava0[2] && *(bkgMemory[*_zeldaAnimationTile] + 3) == lava0[3]
-            && *(bkgMemory[*_zeldaAnimationTile] + 4) == lava0[4] && *(bkgMemory[*_zeldaAnimationTile] + 5) == lava0[5]
-            && *(bkgMemory[*_zeldaAnimationTile] + 6) == lava0[6] && *(bkgMemory[*_zeldaAnimationTile] + 7) == lava0[7]
-            && *(bkgMemory[*_zeldaAnimationTile] + 8) == lava0[8] && *(bkgMemory[*_zeldaAnimationTile] + 9) == lava0[9]
-            && *(bkgMemory[*_zeldaAnimationTile] + 10) == lava0[10] && *(bkgMemory[*_zeldaAnimationTile] + 11) == lava0[11]
-            && *(bkgMemory[*_zeldaAnimationTile] + 12) == lava0[12] && *(bkgMemory[*_zeldaAnimationTile] + 13) == lava0[13]
-            && *(bkgMemory[*_zeldaAnimationTile] + 14) == lava0[14] && *(bkgMemory[*_zeldaAnimationTile] + 15) == lava0[15])
+        // look for lava tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == lava0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lava0[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lava0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lava0[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lava0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lava0[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lava0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lava0[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lava0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lava0[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lava0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lava0[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lava0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lava0[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lava0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lava0[15])
         {
             found = 1;
             return ZELDA_TILE_ANIMATION_LAVA;
         }
 
-        if (*(bkgMemory[*_zeldaAnimationTile]) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 1) == 0xff
-            && *(bkgMemory[*_zeldaAnimationTile] + 2) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 3) == 0xff
-            && *(bkgMemory[*_zeldaAnimationTile] + 4) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 5) == 0xff
-            && *(bkgMemory[*_zeldaAnimationTile] + 6) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 7) == 0xff
-            && *(bkgMemory[*_zeldaAnimationTile] + 8) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 9) == 0xff
-            && *(bkgMemory[*_zeldaAnimationTile] + 10) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 11) == 0xff
-            && *(bkgMemory[*_zeldaAnimationTile] + 12) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 13) == 0xff
-            && *(bkgMemory[*_zeldaAnimationTile] + 14) == 0xff && *(bkgMemory[*_zeldaAnimationTile] + 15) == 0xff)
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 1) == 0xff
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 3) == 0xff
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 5) == 0xff
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 7) == 0xff
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 9) == 0xff
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 11) == 0xff
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 13) == 0xff
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 15) == 0xff)
         {
             found = 1;
             return ZELDA_TILE_ANIMATION_NONE;
@@ -121,19 +134,19 @@ void AnimateSea() BANKED
     if(IS_FRAME_32) {
         switch(frame) {
             case 0:
-                set_bkg_data(0x0f, 1, sea1);
+                set_bkg_data(staticRefTile0, 1, sea1);
                 frame++;
                 break;
             case 1:
-                set_bkg_data(0x0f, 1, sea2);
+                set_bkg_data(staticRefTile0, 1, sea2);
                 frame++;
                 break;
             case 2:
-                set_bkg_data(0x0f, 1, sea3);
+                set_bkg_data(staticRefTile0, 1, sea3);
                 frame++;
                 break;
             case 3:
-                set_bkg_data(0x0f, 1, sea0);
+                set_bkg_data(staticRefTile0, 1, sea0);
                 frame = 0;
                 break;
         }
@@ -145,19 +158,19 @@ void AnimateLake() BANKED
     if(IS_FRAME_64) {
         switch(frame) {
             case 0:
-                set_bkg_data(0x0f, 1, lake1);
+                set_bkg_data(staticRefTile0, 1, lake1);
                 frame++;
                 break;
             case 1:
-                set_bkg_data(0x0f, 1, lake2);
+                set_bkg_data(staticRefTile0, 1, lake2);
                 frame++;
                 break;
             case 2:
-                set_bkg_data(0x0f, 1, lake3);
+                set_bkg_data(staticRefTile0, 1, lake3);
                 frame++;
                 break;
             case 3:
-                set_bkg_data(0x0f, 1, lake0);
+                set_bkg_data(staticRefTile0, 1, lake0);
                 frame = 0;
                 break;
         }
@@ -166,22 +179,38 @@ void AnimateLake() BANKED
 
 void AnimateLava() BANKED
 {
+    // small, big, smile, dash, smile, big
+    // smile, dash, small, big, small, dash
     if(IS_FRAME_64) {
         switch(frame) {
             case 0:
-                set_bkg_data(0x0f, 1, lava1);
+                set_bkg_data(staticRefTile0, 1, lava1);
+                set_bkg_data(staticRefTile1, 1, lava3);
                 frame++;
                 break;
             case 1:
-                set_bkg_data(0x0f, 1, lava2);
+                set_bkg_data(staticRefTile0, 1, lava2);
+                set_bkg_data(staticRefTile1, 1, lava0);
                 frame++;
                 break;
             case 2:
-                set_bkg_data(0x0f, 1, lava3);
+                set_bkg_data(staticRefTile0, 1, lava3);
+                set_bkg_data(staticRefTile1, 1, lava1);
                 frame++;
                 break;
             case 3:
-                set_bkg_data(0x0f, 1, lava0);
+                set_bkg_data(staticRefTile0, 1, lava2);
+                set_bkg_data(staticRefTile1, 1, lava0);
+                frame++;
+                break;
+            case 4:
+                set_bkg_data(staticRefTile0, 1, lava1);
+                set_bkg_data(staticRefTile1, 1, lava3);
+                frame++;
+                break;
+            case 5:
+                set_bkg_data(staticRefTile0, 1, lava0);
+                set_bkg_data(staticRefTile1, 1, lava2);
                 frame = 0;
                 break;
         }
