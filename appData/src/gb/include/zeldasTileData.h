@@ -12,4 +12,6 @@ void AnimateLake() BANKED;
 
 void AnimateLava() BANKED;
 
+void AnimateLamp() BANKED;
+
 #endif

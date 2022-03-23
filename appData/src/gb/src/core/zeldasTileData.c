@@ -42,6 +42,38 @@ const unsigned char lava3[] = {
 0x00,0xFF,0x00,0xFF,0x00,0xFF,0x10,0xEF,0x18,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,
 };
 
+const unsigned char lamp0a[] = {
+0x3F,0x3F,0x42,0x42,0x84,0x84,0x8A,0x88,0x93,0x90,0x96,0x91,0x96,0x91,0x8B,0x89,
+};
+
+const unsigned char lamp0b[] = {
+0xFC,0xFC,0xC2,0xC2,0xB1,0xA1,0x99,0x91,0x59,0x11,0xD9,0x11,0x59,0x91,0xB1,0xA1,
+};
+
+const unsigned char lamp1a[] = {
+0x3F,0x3F,0x43,0x43,0x8D,0x85,0x98,0x88,0x99,0x88,0x9B,0x88,0x9A,0x89,0x8D,0x85,
+};
+
+const unsigned char lamp1b[] = {
+0x7C,0x7C,0x22,0x22,0x11,0x11,0x51,0x11,0xC9,0x09,0x69,0x89,0x69,0x89,0xD1,0x91,
+};
+
+const unsigned char lamp2a[] = {
+0x3F,0x3F,0x40,0x40,0x9F,0x81,0xBE,0x82,0xBC,0x84,0xB8,0x88,0xB9,0x88,0x9D,0x85,
+};
+
+const unsigned char lamp2b[] = {
+0xFC,0xFC,0x02,0x02,0xF9,0xC1,0xBD,0xA1,0x1D,0x11,0x9D,0x11,0x1D,0x91,0xB9,0xA1,
+};
+
+const unsigned char lamp3a[] = {
+0x3F,0x3F,0x41,0x41,0x9F,0x83,0xBD,0x85,0xB8,0x88,0xB9,0x88,0xB8,0x89,0x9D,0x85,
+};
+
+const unsigned char lamp3b[] = {
+0xFC,0xFC,0x82,0x82,0x79,0x41,0x3D,0x21,0x9D,0x11,0xDD,0x11,0x5D,0x91,0xB9,0xA1,
+};
+
 UINT8 frame = 0;
 // The HUD is a curated set of reference tiles
 // the tile in position 15 is the animation indicator tile
@@ -114,6 +146,21 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
             return ZELDA_TILE_ANIMATION_LAVA;
         }
 
+        // look for lamp tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == lamp0a[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lamp0a[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lamp0a[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lamp0a[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lamp0a[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lamp0a[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lamp0a[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lamp0a[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lamp0a[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lamp0a[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lamp0a[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lamp0a[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lamp0a[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lamp0a[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lamp0a[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lamp0a[15])
+        {
+            found = 1;
+            return ZELDA_TILE_ANIMATION_LAMP;
+        }
+
+        // look for blank tile (no animation)
         if (*(bkgMemory[*_zeldaAnimationTile0]) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 1) == 0xff
             && *(bkgMemory[*_zeldaAnimationTile0] + 2) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 3) == 0xff
             && *(bkgMemory[*_zeldaAnimationTile0] + 4) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 5) == 0xff
@@ -131,8 +178,10 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
 
 void AnimateSea() BANKED
 {
-    if(IS_FRAME_32) {
-        switch(frame) {
+    if (IS_FRAME_32) 
+    {
+        switch (frame) 
+        {
             case 0:
                 set_bkg_data(staticRefTile0, 1, sea1);
                 frame++;
@@ -155,8 +204,10 @@ void AnimateSea() BANKED
 
 void AnimateLake() BANKED
 {
-    if(IS_FRAME_64) {
-        switch(frame) {
+    if (IS_FRAME_64) 
+    {
+        switch (frame) 
+        {
             case 0:
                 set_bkg_data(staticRefTile0, 1, lake1);
                 frame++;
@@ -181,8 +232,10 @@ void AnimateLava() BANKED
 {
     // small, big, smile, dash, smile, big
     // smile, dash, small, big, small, dash
-    if(IS_FRAME_64) {
-        switch(frame) {
+    if (IS_FRAME_64) 
+    {
+        switch (frame) 
+        {
             case 0:
                 set_bkg_data(staticRefTile0, 1, lava1);
                 set_bkg_data(staticRefTile1, 1, lava3);
@@ -211,6 +264,46 @@ void AnimateLava() BANKED
             case 5:
                 set_bkg_data(staticRefTile0, 1, lava0);
                 set_bkg_data(staticRefTile1, 1, lava2);
+                frame = 0;
+                break;
+        }
+    }
+}
+
+void AnimateLamp() BANKED
+{
+    if (IS_FRAME_16) 
+    {
+        switch (frame) 
+        {
+            case 0:
+                set_bkg_data(staticRefTile0, 1, lamp1a);
+                set_bkg_data(staticRefTile1, 1, lamp1b);
+                frame++;
+                break;
+            case 1:
+                set_bkg_data(staticRefTile0, 1, lamp2a);
+                set_bkg_data(staticRefTile1, 1, lamp2b);
+                frame++;
+                break;
+            case 2:
+                set_bkg_data(staticRefTile0, 1, lamp3a);
+                set_bkg_data(staticRefTile1, 1, lamp3b);
+                frame++;
+                break;
+            case 3:
+                set_bkg_data(staticRefTile0, 1, lamp2a);
+                set_bkg_data(staticRefTile1, 1, lamp2b);
+                frame++;
+                break;
+            case 4:
+                set_bkg_data(staticRefTile0, 1, lamp1a);
+                set_bkg_data(staticRefTile1, 1, lamp1b);
+                frame++;
+                break;
+            case 5:
+                set_bkg_data(staticRefTile0, 1, lamp0a);
+                set_bkg_data(staticRefTile1, 1, lamp0b);
                 frame = 0;
                 break;
         }

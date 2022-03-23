@@ -32,5 +32,10 @@ void AnimateTile()
                 AnimateLava();
             SWITCH_ROM(_save);
             break;
+        case ZELDA_TILE_ANIMATION_LAMP:
+            SWITCH_ROM(5);
+                AnimateLamp();
+            SWITCH_ROM(_save);
+            break;
     }
 }
