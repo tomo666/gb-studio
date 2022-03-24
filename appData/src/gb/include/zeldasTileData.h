@@ -2,16 +2,18 @@
 #define ZELDAS_TILE_DATA_H
 
 #include <gb/gb.h>
-#include "zeldasTileCore.h"
 
-ZELDA_TILE_ANIMATION FindAnimationTile() BANKED;
+typedef enum
+{
+    ZELDA_TILE_ANIMATION_NONE = 0,
+    ZELDA_TILE_ANIMATION_SEA,
+    ZELDA_TILE_ANIMATION_LAKE,
+    ZELDA_TILE_ANIMATION_LAVA,
+    ZELDA_TILE_ANIMATION_LAMP,
+} ZELDA_TILE_ANIMATION;
 
-void AnimateSea() BANKED;
+UBYTE FindAnimationTile() BANKED;
 
-void AnimateLake() BANKED;
-
-void AnimateLava() BANKED;
-
-void AnimateLamp() BANKED;
+void AnimateTile() BANKED;
 
 #endif

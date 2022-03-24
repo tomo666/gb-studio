@@ -2,7 +2,7 @@
 
 #include <gb/gb.h>
 #include "bankdata.h"
-#include "zeldasTileCore.h"
+#include "zeldasTileData.h"
 #include "game_time.h"
 
 const unsigned char sea0[] = {
@@ -83,7 +83,9 @@ UINT8 *_zeldaAnimationTile1 = (UINT8 *)0x9810;
 UINT8 staticRefTile0 = 0xff;
 UINT8 staticRefTile1 = 0xff;
 
-ZELDA_TILE_ANIMATION FindAnimationTile() BANKED 
+ZELDA_TILE_ANIMATION animationTile = ZELDA_TILE_ANIMATION_NONE;
+
+UBYTE FindAnimationTile() BANKED 
 {
     // the pointer to the animation tile will be wiped by the re-ordering of the HUD
     // grab a static reference to it while it's available;
@@ -115,7 +117,7 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
             && *(bkgMemory[*_zeldaAnimationTile0] + 14) == sea0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == sea0[15])
         {
             found = 1;
-            return ZELDA_TILE_ANIMATION_SEA;
+            animationTile = ZELDA_TILE_ANIMATION_SEA;
         }
 
         // look for lake water tile
@@ -129,7 +131,7 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
             && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lake0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lake0[15])
         {
             found = 1;
-            return ZELDA_TILE_ANIMATION_LAKE;
+            animationTile = ZELDA_TILE_ANIMATION_LAKE;
         }
 
         // look for lava tile
@@ -143,7 +145,7 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
             && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lava0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lava0[15])
         {
             found = 1;
-            return ZELDA_TILE_ANIMATION_LAVA;
+            animationTile = ZELDA_TILE_ANIMATION_LAVA;
         }
 
         // look for lamp tile
@@ -157,7 +159,7 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
             && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lamp0a[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lamp0a[15])
         {
             found = 1;
-            return ZELDA_TILE_ANIMATION_LAMP;
+            animationTile = ZELDA_TILE_ANIMATION_LAMP;
         }
 
         // look for blank tile (no animation)
@@ -171,9 +173,11 @@ ZELDA_TILE_ANIMATION FindAnimationTile() BANKED
             && *(bkgMemory[*_zeldaAnimationTile0] + 14) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 15) == 0xff)
         {
             found = 1;
-            return ZELDA_TILE_ANIMATION_NONE;
+            animationTile = ZELDA_TILE_ANIMATION_NONE;
         }
     }
+
+    return animationTile == ZELDA_TILE_ANIMATION_NONE ? 0 : 1;
 }
 
 void AnimateSea() BANKED
@@ -307,5 +311,23 @@ void AnimateLamp() BANKED
                 frame = 0;
                 break;
         }
+    }
+}
+
+void AnimateTile() BANKED
+{
+    switch (animationTile) {
+        case ZELDA_TILE_ANIMATION_SEA:
+            AnimateSea();
+            break;
+        case ZELDA_TILE_ANIMATION_LAKE:
+            AnimateLake();
+            break;
+        case ZELDA_TILE_ANIMATION_LAVA:
+            AnimateLava();
+            break;
+        case ZELDA_TILE_ANIMATION_LAMP:
+            AnimateLamp();
+            break;
     }
 }
