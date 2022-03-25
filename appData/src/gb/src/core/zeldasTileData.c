@@ -41,63 +41,54 @@ const unsigned char lava2[] = {
 const unsigned char lava3[] = {
 0x00,0xFF,0x00,0xFF,0x00,0xFF,0x10,0xEF,0x18,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,
 };
-
 const unsigned char lamp0a[] = {
 0x3F,0x3F,0x42,0x42,0x84,0x84,0x8A,0x88,0x93,0x90,0x96,0x91,0x96,0x91,0x8B,0x89,
 };
-
 const unsigned char lamp0b[] = {
 0xFC,0xFC,0xC2,0xC2,0xB1,0xA1,0x99,0x91,0x59,0x11,0xD9,0x11,0x59,0x91,0xB1,0xA1,
 };
-
 const unsigned char lamp1a[] = {
 0x3F,0x3F,0x43,0x43,0x8D,0x85,0x98,0x88,0x99,0x88,0x9B,0x88,0x9A,0x89,0x8D,0x85,
 };
-
 const unsigned char lamp1b[] = {
 0x7C,0x7C,0x22,0x22,0x11,0x11,0x51,0x11,0xC9,0x09,0x69,0x89,0x69,0x89,0xD1,0x91,
 };
-
 const unsigned char lamp2a[] = {
 0x3F,0x3F,0x40,0x40,0x9F,0x81,0xBE,0x82,0xBC,0x84,0xB8,0x88,0xB9,0x88,0x9D,0x85,
 };
-
 const unsigned char lamp2b[] = {
 0xFC,0xFC,0x02,0x02,0xF9,0xC1,0xBD,0xA1,0x1D,0x11,0x9D,0x11,0x1D,0x91,0xB9,0xA1,
 };
-
 const unsigned char lamp3a[] = {
 0x3F,0x3F,0x41,0x41,0x9F,0x83,0xBD,0x85,0xB8,0x88,0xB9,0x88,0xB8,0x89,0x9D,0x85,
 };
-
 const unsigned char lamp3b[] = {
 0xFC,0xFC,0x82,0x82,0x79,0x41,0x3D,0x21,0x9D,0x11,0xDD,0x11,0x5D,0x91,0xB9,0xA1,
 };
-
 const unsigned char torch0[] = {
 0x81,0x7E,0x00,0xFF,0x00,0xFF,0x18,0xE7,0x18,0xE7,0x00,0xFF,0x00,0xFF,0x81,0x7E,
 };
-
 const unsigned char torch1[] = {
 0x81,0x7E,0x00,0xFF,0x18,0xE7,0x24,0xC3,0x24,0xC3,0x18,0xE7,0x00,0xFF,0x81,0x7E,
 };
-
 const unsigned char torch2[] = {
 0x81,0x7E,0x3C,0xC3,0x66,0x81,0x42,0x81,0x42,0x81,0x66,0x81,0x3C,0xC3,0x81,0x7E,
 };
-
 const unsigned char torch3[] = {
 0xBD,0x42,0x66,0x81,0xC3,0x00,0x81,0x00,0x81,0x00,0xC3,0x00,0x66,0x81,0xBD,0x42,
 };
 
 UINT8 frame = 0;
+UINT8 altFrame = 0;
 // The HUD is a curated set of reference tiles
 // the tile in position 15 is the animation indicator tile
 UINT8 *_zeldaAnimationTile0 = (UINT8 *)0x980f;
 UINT8 *_zeldaAnimationTile1 = (UINT8 *)0x9810;
+UINT8 *_zeldaAnimationTile2 = (UINT8 *)0x9811;
 
 UINT8 staticRefTile0 = 0xff;
 UINT8 staticRefTile1 = 0xff;
+UINT8 staticRefTile2 = 0xff;
 
 ZELDA_TILE_ANIMATION animationTile = ZELDA_TILE_ANIMATION_NONE;
 
@@ -106,13 +97,15 @@ void initTileReference()
     // clear cache
     staticRefTile0 = 0xff;
     staticRefTile1 = 0xff;
+    staticRefTile2 = 0xff;
 
     // a simple allocation seems to be incosistent due to a de-bounce
     // so keep trying until we've got a stable reference to the animation tiles
-    while (staticRefTile0 == 0xff || staticRefTile1 == 0xff)
+    while (staticRefTile0 == 0xff || staticRefTile1 == 0xff || staticRefTile2 == 0xff)
     {
         if (staticRefTile0 == 0xff) staticRefTile0 = *_zeldaAnimationTile0;
         if (staticRefTile1 == 0xff) staticRefTile1 = *_zeldaAnimationTile1;
+        if (staticRefTile2 == 0xff) staticRefTile2 = *_zeldaAnimationTile2;
     }
 }
 
@@ -192,7 +185,7 @@ UBYTE FindAnimationTile() BANKED
             animationTile = ZELDA_TILE_ANIMATION_LAMP;
         }
 
-        // look for torch tile
+        // look for torch tile (isolation)
         if (*(bkgMemory[*_zeldaAnimationTile0]) == torch0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == torch0[1]
             && *(bkgMemory[*_zeldaAnimationTile0] + 2) == torch0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == torch0[3]
             && *(bkgMemory[*_zeldaAnimationTile0] + 4) == torch0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == torch0[5]
@@ -204,7 +197,21 @@ UBYTE FindAnimationTile() BANKED
         {
             found = 1;
             animationTile = ZELDA_TILE_ANIMATION_TORCH;
-        }        
+        }
+
+        // look for torch tile (with lamp)
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == torch3[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == torch3[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == torch3[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == torch3[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == torch3[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == torch3[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == torch3[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == torch3[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == torch3[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == torch3[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == torch3[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == torch3[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == torch3[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == torch3[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == torch3[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == torch3[15])
+        {
+            found = 1;
+            animationTile = ZELDA_TILE_ANIMATION_TORCH_AND_LAMP;
+        }
 
         // look for blank tile (no animation)
         if (*(bkgMemory[*_zeldaAnimationTile0]) == 0xff && *(bkgMemory[*_zeldaAnimationTile0] + 1) == 0xff
@@ -392,6 +399,77 @@ void AnimateTorch() BANKED
     }
 }
 
+void AnimateTorchAndLamp() BANKED
+{
+    if (IS_FRAME_32) 
+    {
+        switch (frame) 
+        {
+            case 0:
+                set_bkg_data(staticRefTile0, 1, torch1);
+                frame++;
+                break;
+            case 1:
+                set_bkg_data(staticRefTile0, 1, torch2);
+                frame++;
+                break;
+            case 2:
+                set_bkg_data(staticRefTile0, 1, torch3);
+                frame++;
+                break;
+            case 3:
+                set_bkg_data(staticRefTile0, 1, torch2);
+                frame++;
+                break;
+            case 4:
+                set_bkg_data(staticRefTile0, 1, torch1);
+                frame++;
+                break;
+            case 5:
+                set_bkg_data(staticRefTile0, 1, torch0);
+                frame = 0;
+                break;
+        }
+    }
+
+    if (IS_FRAME_16) 
+    {
+        switch (altFrame) 
+        {
+            case 0:
+                set_bkg_data(staticRefTile1, 1, lamp2a);
+                set_bkg_data(staticRefTile2, 1, lamp2b);
+                altFrame++;
+                break;
+            case 1:
+                set_bkg_data(staticRefTile1, 1, lamp1a);
+                set_bkg_data(staticRefTile2, 1, lamp1b);
+                altFrame++;
+                break;
+            case 2:
+                set_bkg_data(staticRefTile1, 1, lamp0a);
+                set_bkg_data(staticRefTile2, 1, lamp0b);
+                altFrame++;
+                break;
+            case 3:
+                set_bkg_data(staticRefTile1, 1, lamp1a);
+                set_bkg_data(staticRefTile2, 1, lamp1b);
+                altFrame++;
+                break;
+            case 4:
+                set_bkg_data(staticRefTile1, 1, lamp2a);
+                set_bkg_data(staticRefTile2, 1, lamp2b);
+                altFrame++;
+                break;
+            case 5:
+                set_bkg_data(staticRefTile1, 1, lamp3a);
+                set_bkg_data(staticRefTile2, 1, lamp3b);
+                altFrame = 0;
+                break;
+        }
+    }
+}
+
 void AnimateTile() BANKED
 {
     switch (animationTile) {
@@ -409,6 +487,9 @@ void AnimateTile() BANKED
             break;
         case ZELDA_TILE_ANIMATION_TORCH:
             AnimateTorch();
+            break;
+        case ZELDA_TILE_ANIMATION_TORCH_AND_LAMP:
+            AnimateTorchAndLamp();
             break;
     }
 }
