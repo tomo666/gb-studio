@@ -79,7 +79,6 @@ const unsigned char torch3[] = {
 };
 
 UINT8 frame = 0;
-UINT8 altFrame = 0;
 // The HUD is a curated set of reference tiles
 // the tile in position 15 is the animation indicator tile
 UINT8 *_zeldaAnimationTile0 = (UINT8 *)0x980f;
@@ -401,70 +400,46 @@ void AnimateTorch() BANKED
 
 void AnimateTorchAndLamp() BANKED
 {
+    // purposely slow the lamp animation down to sync with lamp
     if (IS_FRAME_32) 
     {
         switch (frame) 
         {
             case 0:
                 set_bkg_data(staticRefTile0, 1, torch1);
+                set_bkg_data(staticRefTile1, 1, lamp2a);
+                set_bkg_data(staticRefTile2, 1, lamp2b);
                 frame++;
                 break;
             case 1:
                 set_bkg_data(staticRefTile0, 1, torch2);
+                set_bkg_data(staticRefTile1, 1, lamp1a);
+                set_bkg_data(staticRefTile2, 1, lamp1b);
                 frame++;
                 break;
             case 2:
                 set_bkg_data(staticRefTile0, 1, torch3);
+                set_bkg_data(staticRefTile1, 1, lamp0a);
+                set_bkg_data(staticRefTile2, 1, lamp0b);
                 frame++;
                 break;
             case 3:
                 set_bkg_data(staticRefTile0, 1, torch2);
+                set_bkg_data(staticRefTile1, 1, lamp1a);
+                set_bkg_data(staticRefTile2, 1, lamp1b);
                 frame++;
                 break;
             case 4:
                 set_bkg_data(staticRefTile0, 1, torch1);
+                set_bkg_data(staticRefTile1, 1, lamp2a);
+                set_bkg_data(staticRefTile2, 1, lamp2b);
                 frame++;
                 break;
             case 5:
                 set_bkg_data(staticRefTile0, 1, torch0);
-                frame = 0;
-                break;
-        }
-    }
-
-    if (IS_FRAME_16) 
-    {
-        switch (altFrame) 
-        {
-            case 0:
-                set_bkg_data(staticRefTile1, 1, lamp2a);
-                set_bkg_data(staticRefTile2, 1, lamp2b);
-                altFrame++;
-                break;
-            case 1:
-                set_bkg_data(staticRefTile1, 1, lamp1a);
-                set_bkg_data(staticRefTile2, 1, lamp1b);
-                altFrame++;
-                break;
-            case 2:
-                set_bkg_data(staticRefTile1, 1, lamp0a);
-                set_bkg_data(staticRefTile2, 1, lamp0b);
-                altFrame++;
-                break;
-            case 3:
-                set_bkg_data(staticRefTile1, 1, lamp1a);
-                set_bkg_data(staticRefTile2, 1, lamp1b);
-                altFrame++;
-                break;
-            case 4:
-                set_bkg_data(staticRefTile1, 1, lamp2a);
-                set_bkg_data(staticRefTile2, 1, lamp2b);
-                altFrame++;
-                break;
-            case 5:
                 set_bkg_data(staticRefTile1, 1, lamp3a);
                 set_bkg_data(staticRefTile2, 1, lamp3b);
-                altFrame = 0;
+                frame = 0;
                 break;
         }
     }
