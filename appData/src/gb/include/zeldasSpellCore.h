@@ -3,6 +3,10 @@
 
 #include <gb/gb.h>
 
+/**
+ * Find and replace the reference spell tileset
+ * with the spell for the equipped weapon
+ */
 void InitZeldasSpell();
 
 #endif
