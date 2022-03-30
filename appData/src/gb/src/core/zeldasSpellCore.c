@@ -1,7 +1,11 @@
 #include <gb/gb.h>
 #include "zeldasSpellData.h"
 
-UINT16 *_spellEquipped = (UINT16 *)0xcb33;
+#ifdef CGB
+    UINT16 *_spellEquipped = (UINT16 *)0xcb34;
+#else
+    UINT16 *_spellEquipped = (UINT16 *)0xcb33;
+#endif
 
 void InitZeldasSpell()
 {

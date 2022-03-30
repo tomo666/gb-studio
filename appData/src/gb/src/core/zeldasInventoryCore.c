@@ -3,13 +3,23 @@
 #include "zeldasInventoryCore.h"
 #include "zeldasInventoryData.h"
 
-// pointer to GB Studio variables $06 - $12
-UINT16 *_inventoryInteraction = (UINT16 *)0xcb2b;
-UINT16 *_inventoryFlags1 = (UINT16 *)0xcb2d;
-UINT16 *_inventoryFlags2 = (UINT16 *)0xcb2f;
-UINT16 *_inventoryFlags3 = (UINT16 *)0xcb31;
-UINT16 *_equipped = (UINT16 *)0xcb33;
-UINT16 *_overworldFlags = (UINT16 *)0xcb35;
+#ifdef CGB
+    // pointer to GB Studio variables $06 - $12
+    UINT16 *_inventoryInteraction = (UINT16 *)0xcb2c;
+    UINT16 *_inventoryFlags1 = (UINT16 *)0xcb2e;
+    UINT16 *_inventoryFlags2 = (UINT16 *)0xcb30;
+    UINT16 *_inventoryFlags3 = (UINT16 *)0xcb32;
+    UINT16 *_equipped = (UINT16 *)0xcb34;
+    UINT16 *_overworldFlags = (UINT16 *)0xcb36;
+#else
+    // pointer to GB Studio variables $06 - $12
+    UINT16 *_inventoryInteraction = (UINT16 *)0xcb2b;
+    UINT16 *_inventoryFlags1 = (UINT16 *)0xcb2d;
+    UINT16 *_inventoryFlags2 = (UINT16 *)0xcb2f;
+    UINT16 *_inventoryFlags3 = (UINT16 *)0xcb31;
+    UINT16 *_equipped = (UINT16 *)0xcb33;
+    UINT16 *_overworldFlags = (UINT16 *)0xcb35;
+#endif
 
 const UINT8 maxItemsOnScreen = 6;
 const UINT8 totalWeaponsAvailable = 19;
@@ -276,5 +286,5 @@ void CheckForInventoryInteraction()
             SelectTreasure(*_inventoryInteraction - 11);
             *_inventoryInteraction = 0;
         }
-    }    
+    }
 }

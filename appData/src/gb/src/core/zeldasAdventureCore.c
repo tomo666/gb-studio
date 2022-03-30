@@ -23,15 +23,28 @@ unsigned char zeldasAdventureHudMap[20] = {0x00, 0x0B, 0x0A, 0x0A, 0x0A, 0x00, 0
                                            0x0E, 0x0E, 0x0C, 0x0C, 0x0C, 0x0C, 0x0C,
                                            0x0C, 0x0C, 0x0C, 0x0C, 0x0C, 0x0C};
 
-// pointer to GB Studio variables $00 and $01
-UINT8 *cachedHealth = (UINT8 *)0xcb1f;
-UINT8 *health = (UINT8 *)0xcb21;
-// pointer to GB Studio variables $02 and $03
-UINT8 *cachedMaxHearts = (UINT8 *)0xcb23;
-UINT8 *maxHearts = (UINT8 *)0xcb25;
-// pointer to GB Studio variables $04 and $05
-UINT8 *cachedRupees = (UINT8 *)0xcb27;
-UINT8 *rupees = (UINT8 *)0xcb29;
+#ifdef CGB
+    // pointer to GB Studio variables $00 and $01
+    UINT8 *cachedHealth = (UINT8 *)0xcb20;
+    UINT8 *health = (UINT8 *)0xcb22;
+    // pointer to GB Studio variables $02 and $03
+    UINT8 *cachedMaxHearts = (UINT8 *)0xcb24;
+    UINT8 *maxHearts = (UINT8 *)0xcb26;
+    // pointer to GB Studio variables $04 and $05
+    UINT8 *cachedRupees = (UINT8 *)0xcb28;
+    UINT8 *rupees = (UINT8 *)0xcb2a;
+#else
+    // pointer to GB Studio variables $00 and $01
+    UINT8 *cachedHealth = (UINT8 *)0xcb1f;
+    UINT8 *health = (UINT8 *)0xcb21;
+    // pointer to GB Studio variables $02 and $03
+    UINT8 *cachedMaxHearts = (UINT8 *)0xcb23;
+    UINT8 *maxHearts = (UINT8 *)0xcb25;
+    // pointer to GB Studio variables $04 and $05
+    UINT8 *cachedRupees = (UINT8 *)0xcb27;
+    UINT8 *rupees = (UINT8 *)0xcb29;
+#endif
+    
 
 /**
  * Takes a number and returns the associated tile image
@@ -40,39 +53,39 @@ UINT8 GetNumberTile(UINT8 number)
 {
     switch (number)
     {
-    case 0:
-        return ZELDA_HUD_0;
-        break;
-    case 1:
-        return ZELDA_HUD_1;
-        break;
-    case 2:
-        return ZELDA_HUD_2;
-        break;
-    case 3:
-        return ZELDA_HUD_3;
-        break;
-    case 4:
-        return ZELDA_HUD_4;
-        break;
-    case 5:
-        return ZELDA_HUD_5;
-        break;
-    case 6:
-        return ZELDA_HUD_6;
-        break;
-    case 7:
-        return ZELDA_HUD_7;
-        break;
-    case 8:
-        return ZELDA_HUD_8;
-        break;
-    case 9:
-        return ZELDA_HUD_9;
-        break;
-    default:
-        return ZELDA_HUD_BLANK;
-        break;
+        case 0:
+            return ZELDA_HUD_0;
+            break;
+        case 1:
+            return ZELDA_HUD_1;
+            break;
+        case 2:
+            return ZELDA_HUD_2;
+            break;
+        case 3:
+            return ZELDA_HUD_3;
+            break;
+        case 4:
+            return ZELDA_HUD_4;
+            break;
+        case 5:
+            return ZELDA_HUD_5;
+            break;
+        case 6:
+            return ZELDA_HUD_6;
+            break;
+        case 7:
+            return ZELDA_HUD_7;
+            break;
+        case 8:
+            return ZELDA_HUD_8;
+            break;
+        case 9:
+            return ZELDA_HUD_9;
+            break;
+        default:
+            return ZELDA_HUD_BLANK;
+            break;
     }
 }
 
