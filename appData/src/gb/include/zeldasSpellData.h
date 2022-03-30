@@ -3,7 +3,9 @@
 
 #include <gb/gb.h>
 
-void FindFirstSpellTile() BANKED;
+/**
+ * Set sprite data of reference spell based on weapon equipped
+ */
 void LoadSpell(UINT16 equipped) BANKED;
 
 #endif

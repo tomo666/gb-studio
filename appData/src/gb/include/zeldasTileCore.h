@@ -9,6 +9,9 @@
  */
 void InitTileAnimation();
 
+/**
+ * Animate the specified tile(s)
+ */
 void UpdateTileAnimation();
 
 #endif
