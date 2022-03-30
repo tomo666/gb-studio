@@ -207,10 +207,6 @@ const unsigned char celestialSignMap[] = {
 0xc2,0xfa,0xfb,0xfc,0xfd,0xc2,
 };
 
-/**
- * load the core tiles that won't change (22 tiles)
- * data starts at 194 to account for inventory item tiles
- */
 void DrawStaticInventory() BANKED
 {
     // custom tilesets and tilemaps for the inventory screen
@@ -276,7 +272,7 @@ void DrawCelestialSigns(UINT8 shrinesComplete) BANKED
         set_bkg_data(234, 1, celestial7tileset3);
     }
 
-    // // draw the background tiles        
+    // draw the background tiles        
     set_bkg_tiles(7, 3, 6, 6, celestialSignMap);
 }
 
