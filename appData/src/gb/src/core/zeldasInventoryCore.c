@@ -234,7 +234,7 @@ void InitZeldaInventory()
 {
     UBYTE _save = _current_bank;
     UINT8 shrinesComplete = CalcCelestialSigns();
-    UBYTE keys = GetBit(*_inventoryFlags3, 11); // Flag 12 in GB Studio
+    UBYTE keys = GetBit(*_inventoryFlags3, 12); // Flag 13 in GB Studio
 
     SWITCH_ROM(5);
         // draw the background tiles
