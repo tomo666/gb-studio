@@ -7,6 +7,7 @@ typedef enum
 {
     ZELDA_TILE_ANIMATION_NONE = 0,
     ZELDA_TILE_ANIMATION_SEA,
+    ZELDA_TILE_ANIMATION_RIVER,
     ZELDA_TILE_ANIMATION_LAKE,
     ZELDA_TILE_ANIMATION_LAVA,
     ZELDA_TILE_ANIMATION_LAMP,
@@ -16,7 +17,7 @@ typedef enum
 
 /**
  * If tile 15 in the HUD has been marked for animation
- * return either sea water, lake water, lava, lamp or torch
+ * return either river water, sea water, lake water, lava, lamp or torch
  */
 UBYTE FindAnimationTile() BANKED;
 
