@@ -77,52 +77,52 @@ const unsigned char torch2[] = {
 const unsigned char torch3[] = {
 0xBD,0x42,0x66,0x81,0xC3,0x00,0x81,0x00,0x81,0x00,0xC3,0x00,0x66,0x81,0xBD,0x42,
 };
-const unsigned char sea0[] = {
+const unsigned char sea0a[] = {
 0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xF8,0x00,0xC0,0x00,0x09,0x00,0x3F,0x00,
 };
-const unsigned char sea1[] = {
+const unsigned char sea0b[] = {
 0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0x1F,0x00,0x07,0x00,0x80,0x00,0xD8,0x00,
 };
-const unsigned char sea2[] = {
+const unsigned char sea1a[] = {
 0xFF,0x00,0xFF,0x00,0xFE,0x00,0xE0,0x00,0x01,0x00,0x33,0x00,0xFF,0x00,0xFF,0x00,
 };
-const unsigned char sea3[] = {
+const unsigned char sea1b[] = {
 0xFF,0x00,0xFF,0x00,0x3F,0x00,0x0F,0x00,0x80,0x00,0xE0,0x00,0xFF,0x00,0xFF,0x00,
 };
-const unsigned char sea4[] = {
+const unsigned char sea2a[] = {
 0xFC,0x00,0xF0,0x00,0x01,0x00,0x03,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,
 };
-const unsigned char sea5[] = {
+const unsigned char sea2b[] = {
 0x1F,0x00,0x00,0x00,0xC0,0x00,0xE7,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,
 };
-const unsigned char sea6[] = {
+const unsigned char sea3a[] = {
 0x03,0x00,0xE7,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xF8,0x00,0xC0,0x00,
 };
-const unsigned char sea7[] = {
+const unsigned char sea3b[] = {
 0x80,0x00,0xF3,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0xFF,0x00,0x3F,0x00,0x07,0x00,
 };
-const unsigned char sea8[] = {
+const unsigned char wave0a[] = {
 0x03,0x00,0x1C,0x03,0xE0,0x1F,0x02,0xFC,0x08,0xF0,0x01,0x00,0x11,0x00,0xCE,0x00,
 };
-const unsigned char sea9[] = {
+const unsigned char wave0b[] = {
 0xC0,0x00,0x38,0xC0,0x07,0xF8,0x40,0x3F,0x08,0x07,0x80,0x00,0xA2,0x00,0x78,0x00,
 };
-const unsigned char sea10[] = {
+const unsigned char wave1a[] = {
 0x03,0x00,0x1C,0x00,0xE0,0x00,0x09,0x00,0x01,0x00,0xE6,0x00,0xFF,0x00,0xFF,0x00,
 };
-const unsigned char sea11[] = {
+const unsigned char wave1b[] = {
 0xC0,0x00,0x38,0x00,0x0F,0x00,0xA0,0x00,0xCC,0x00,0x35,0x00,0xFB,0x00,0xFF,0x00,
 };
-const unsigned char sea12[] = {
+const unsigned char wave2a[] = {
 0x03,0x00,0x1C,0x03,0xE2,0x1C,0x08,0xF0,0x03,0x00,0x20,0x00,0x8F,0x00,0xFF,0x00,
 };
-const unsigned char sea13[] = {
+const unsigned char wave2b[] = {
 0xC0,0x00,0x38,0xC0,0x47,0x38,0x10,0x0F,0x10,0x00,0x40,0x00,0xFC,0x00,0xFF,0x00,
 };
-const unsigned char sea14[] = {
+const unsigned char wave3a[] = {
 0x03,0x00,0x1C,0x03,0xE0,0x1F,0x00,0xFF,0x00,0xFF,0x04,0xF8,0x10,0xE0,0x05,0x00,
 };
-const unsigned char sea15[] = {
+const unsigned char wave3b[] = {
 0xC0,0x00,0x38,0xC0,0x07,0xF8,0x00,0xFF,0x00,0xFF,0x20,0x1F,0x08,0x07,0x40,0x00,
 };
 
@@ -181,14 +181,14 @@ UBYTE FindAnimationTile() BANKED
     while (!found)
     {
         // look for sea water tile
-        if (*(bkgMemory[*_zeldaAnimationTile0]) == sea0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == sea0[1]
-            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == sea0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == sea0[3]
-            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == sea0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == sea0[5]
-            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == sea0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == sea0[7]
-            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == sea0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == sea0[9]
-            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == sea0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == sea0[11]
-            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == sea0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == sea0[13]
-            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == sea0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == sea0[15])
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == sea0a[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == sea0a[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == sea0a[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == sea0a[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == sea0a[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == sea0a[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == sea0a[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == sea0a[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == sea0a[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == sea0a[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == sea0a[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == sea0a[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == sea0a[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == sea0a[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == sea0a[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == sea0a[15])
         {
             found = 1;
             animationTile = ZELDA_TILE_ANIMATION_SEA;
@@ -303,31 +303,31 @@ void AnimateSea() BANKED
         switch (frame) 
         {
             case 0:
-                set_bkg_data(staticRefTile0, 1, sea2);
-                set_bkg_data(staticRefTile1, 1, sea3);
-                set_bkg_data(staticRefTile2, 1, sea10);
-                set_bkg_data(staticRefTile3, 1, sea11);
+                set_bkg_data(staticRefTile0, 1, sea1a);
+                set_bkg_data(staticRefTile1, 1, sea1b);
+                set_bkg_data(staticRefTile2, 1, wave1a);
+                set_bkg_data(staticRefTile3, 1, wave1b);
                 frame++;
                 break;
             case 1:
-                set_bkg_data(staticRefTile0, 1, sea4);
-                set_bkg_data(staticRefTile1, 1, sea5);
-                set_bkg_data(staticRefTile2, 1, sea12);
-                set_bkg_data(staticRefTile3, 1, sea13);
+                set_bkg_data(staticRefTile0, 1, sea2a);
+                set_bkg_data(staticRefTile1, 1, sea2b);
+                set_bkg_data(staticRefTile2, 1, wave2a);
+                set_bkg_data(staticRefTile3, 1, wave2b);
                 frame++;
                 break;
             case 2:
-                set_bkg_data(staticRefTile0, 1, sea6);
-                set_bkg_data(staticRefTile1, 1, sea7);
-                set_bkg_data(staticRefTile2, 1, sea14);
-                set_bkg_data(staticRefTile3, 1, sea15);
+                set_bkg_data(staticRefTile0, 1, sea3a);
+                set_bkg_data(staticRefTile1, 1, sea3b);
+                set_bkg_data(staticRefTile2, 1, wave3a);
+                set_bkg_data(staticRefTile3, 1, wave3b);
                 frame++;
                 break;
             case 3:
-                set_bkg_data(staticRefTile0, 1, sea0);
-                set_bkg_data(staticRefTile1, 1, sea1);
-                set_bkg_data(staticRefTile2, 1, sea8);
-                set_bkg_data(staticRefTile3, 1, sea9);
+                set_bkg_data(staticRefTile0, 1, sea0a);
+                set_bkg_data(staticRefTile1, 1, sea0b);
+                set_bkg_data(staticRefTile2, 1, wave0a);
+                set_bkg_data(staticRefTile3, 1, wave0b);
                 frame = 0;
                 break;
         }
