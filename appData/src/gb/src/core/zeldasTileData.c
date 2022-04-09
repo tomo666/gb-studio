@@ -200,7 +200,7 @@ UBYTE FindAnimationTile() BANKED
     BYTE found = 0;
     while (!found)
     {
-        // look for sea water tile
+        // look for sea water tile (isolation)
         found = CompareAnimationTile(sea0a);
         if (found) 
         {
@@ -208,11 +208,27 @@ UBYTE FindAnimationTile() BANKED
             break;
         }
 
-        // look for river water tile
+        // look for sea water with crashing wave tile
+        found = CompareAnimationTile(wave0a);
+        if (found) 
+        {
+            animationTile = ZELDA_TILE_ANIMATION_WAVE;
+            break;
+        }
+
+        // look for river water tile (isolation)
         found = CompareAnimationTile(river0);
         if (found) 
         {
             animationTile = ZELDA_TILE_ANIMATION_RIVER;
+            break;
+        }
+
+        // look for sea water (with river water) tile
+        found = CompareAnimationTile(sea0b);
+        if (found) 
+        {
+            animationTile = ZELDA_TILE_ANIMATION_SEA_RIVER;
             break;
         }
 
@@ -277,29 +293,59 @@ void AnimateSea() BANKED
             case 0:
                 set_bkg_data(staticRefTile0, 1, sea1a);
                 set_bkg_data(staticRefTile1, 1, sea1b);
-                set_bkg_data(staticRefTile2, 1, wave1a);
-                set_bkg_data(staticRefTile3, 1, wave1b);
                 frame++;
                 break;
             case 1:
                 set_bkg_data(staticRefTile0, 1, sea2a);
                 set_bkg_data(staticRefTile1, 1, sea2b);
-                set_bkg_data(staticRefTile2, 1, wave2a);
-                set_bkg_data(staticRefTile3, 1, wave2b);
                 frame++;
                 break;
             case 2:
                 set_bkg_data(staticRefTile0, 1, sea3a);
                 set_bkg_data(staticRefTile1, 1, sea3b);
-                set_bkg_data(staticRefTile2, 1, wave3a);
-                set_bkg_data(staticRefTile3, 1, wave3b);
                 frame++;
                 break;
             case 3:
                 set_bkg_data(staticRefTile0, 1, sea0a);
                 set_bkg_data(staticRefTile1, 1, sea0b);
-                set_bkg_data(staticRefTile2, 1, wave0a);
-                set_bkg_data(staticRefTile3, 1, wave0b);
+                frame = 0;
+                break;
+        }
+    }
+}
+
+void AnimateWave() BANKED
+{
+    if (IS_FRAME_32) 
+    {
+        switch (frame) 
+        {
+            case 0:
+                set_bkg_data(staticRefTile0, 1, wave1a);
+                set_bkg_data(staticRefTile1, 1, wave1b);
+                set_bkg_data(staticRefTile2, 1, sea1a);
+                set_bkg_data(staticRefTile3, 1, sea1b);
+                frame++;
+                break;
+            case 1:
+                set_bkg_data(staticRefTile0, 1, wave2a);
+                set_bkg_data(staticRefTile1, 1, wave2b);
+                set_bkg_data(staticRefTile2, 1, sea2a);
+                set_bkg_data(staticRefTile3, 1, sea2b);
+                frame++;
+                break;
+            case 2:
+                set_bkg_data(staticRefTile0, 1, wave3a);
+                set_bkg_data(staticRefTile1, 1, wave3b);
+                set_bkg_data(staticRefTile2, 1, sea3a);
+                set_bkg_data(staticRefTile3, 1, sea3b);
+                frame++;
+                break;
+            case 3:
+                set_bkg_data(staticRefTile0, 1, wave0a);
+                set_bkg_data(staticRefTile1, 1, wave0b);
+                set_bkg_data(staticRefTile2, 1, sea0a);
+                set_bkg_data(staticRefTile3, 1, sea0b);
                 frame = 0;
                 break;
         }
@@ -326,6 +372,40 @@ void AnimateRiver() BANKED
                 break;
             case 3:
                 set_bkg_data(staticRefTile0, 1, river0);
+                frame = 0;
+                break;
+        }
+    }
+}
+
+void AnimateSeaRiver() BANKED
+{
+    if (IS_FRAME_32) 
+    {
+        switch (frame) 
+        {
+            case 0:
+                set_bkg_data(staticRefTile0, 1, sea1b);
+                set_bkg_data(staticRefTile1, 1, sea1a);
+                set_bkg_data(staticRefTile2, 1, river1);
+                frame++;
+                break;
+            case 1:
+                set_bkg_data(staticRefTile0, 1, sea2b);
+                set_bkg_data(staticRefTile1, 1, sea2a);
+                set_bkg_data(staticRefTile2, 1, river2);
+                frame++;
+                break;
+            case 2:
+                set_bkg_data(staticRefTile0, 1, sea3b);
+                set_bkg_data(staticRefTile1, 1, sea3a);
+                set_bkg_data(staticRefTile2, 1, river3);
+                frame++;
+                break;
+            case 3:
+                set_bkg_data(staticRefTile0, 1, sea0b);
+                set_bkg_data(staticRefTile1, 1, sea0a);
+                set_bkg_data(staticRefTile2, 1, river0);
                 frame = 0;
                 break;
         }
@@ -527,8 +607,14 @@ void AnimateTile() BANKED
         case ZELDA_TILE_ANIMATION_SEA:
             AnimateSea();
             break;
+        case ZELDA_TILE_ANIMATION_WAVE:
+            AnimateWave();
+            break;
         case ZELDA_TILE_ANIMATION_RIVER:
             AnimateRiver();
+            break;
+        case ZELDA_TILE_ANIMATION_SEA_RIVER:
+            AnimateSeaRiver();
             break;
         case ZELDA_TILE_ANIMATION_LAKE:
             AnimateLake();
