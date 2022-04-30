@@ -156,7 +156,7 @@ void projectile_launch(UBYTE index, upoint16_t *pos, UBYTE angle) BANKED {
         UBYTE dir = DIR_UP;
         if (angle > 224) {
             dir = DIR_UP;
-        } else if (angle > 160 && angle < 224) {
+        } else if (angle > 160) {
             dir = DIR_LEFT;
         } else if (angle > 96) {
             dir = DIR_DOWN;
