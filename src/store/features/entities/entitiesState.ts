@@ -654,15 +654,28 @@ const addScene: CaseReducer<
 
 const moveScene: CaseReducer<
   EntitiesState,
-  PayloadAction<{ sceneId: string; x: number; y: number }>
+  PayloadAction<{ sceneId: string; x: number; y: number, snap: boolean }>
 > = (state, action) => {
-  scenesAdapter.updateOne(state.scenes, {
-    id: action.payload.sceneId,
-    changes: {
-      x: Math.max(MIN_SCENE_X, action.payload.x),
-      y: Math.max(MIN_SCENE_Y, action.payload.y),
-    },
-  });
+  if (action.payload.snap) {
+    let gridSize = 20;
+    let posX = Math.ceil(Math.max(MIN_SCENE_X, action.payload.x) / gridSize) * gridSize;
+    let posY = Math.ceil(Math.max(MIN_SCENE_Y, action.payload.y) / gridSize) * gridSize;
+    scenesAdapter.updateOne(state.scenes, {
+        id: action.payload.sceneId,
+        changes: { 
+            x: posX,
+            y: posY,
+          },
+      });
+  } else {
+    scenesAdapter.updateOne(state.scenes, {
+        id: action.payload.sceneId,
+        changes: {
+          x: Math.max(MIN_SCENE_X, action.payload.x),
+          y: Math.max(MIN_SCENE_Y, action.payload.y),
+        },
+      });
+  }
 };
 
 const editScene: CaseReducer<
