@@ -318,6 +318,8 @@ void FindFirstSpellTile() BANKED
         (UINT8 *)0x8700, (UINT8 *)0x8710, (UINT8 *)0x8720, (UINT8 *)0x8730, (UINT8 *)0x8740, (UINT8 *)0x8750, (UINT8 *)0x8760, (UINT8 *)0x8770, (UINT8 *)0x8780, (UINT8 *)0x8790, (UINT8 *)0x87A0, (UINT8 *)0x87B0, (UINT8 *)0x87C0, (UINT8 *)0x87D0, (UINT8 *)0x87E0, (UINT8 *)0x87F0,
     };
     
+    // TODO: if the reference spell can't be find the scene never loads!
+    tileOffset = 0x00;
     while (tileOffset == 0) {
         for (UINT8 i = 0; i < 128; i++)
         {
