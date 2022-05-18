@@ -112,6 +112,9 @@ class Scene extends Component {
     this.dragging = true;
   };
 
+  lastDragX = 0;
+  lastDragY = 0;
+  lastDragScene = 0;
   onMoveDrag = (e) => {
     const { zoomRatio, moveScene, id, scene } = this.props;
     const { x, y } = scene;
@@ -122,12 +125,18 @@ class Scene extends Component {
       this.lastPageX = e.pageX;
       this.lastPageY = e.pageY;
 
-      moveScene({ sceneId: id, x: x + dragDeltaX, y: y + dragDeltaY });
+      this.lastDragX = x + dragDeltaX;
+      this.lastDragY = y + dragDeltaY;
+      this.lastDragScene = id;
+
+      moveScene({ sceneId: id, x: this.lastDragX, y: this.lastDragY, snap: false });
     }
   };
 
   onEndDrag = (_e) => {
     this.dragging = false;
+    const { moveScene } = this.props;
+    moveScene({ sceneId: this.lastDragScene, x: this.lastDragX, y: this.lastDragY, snap: true });
   };
 
   render() {
