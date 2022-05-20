@@ -225,89 +225,89 @@ UBYTE FindAnimationTile() BANKED
             animationTile = ZELDA_TILE_ANIMATION_RIVER;
         }
 
-        // // look for sea water (with river water) tile
-        // if (*(bkgMemory[*_zeldaAnimationTile0]) == sea0b[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == sea0b[1]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 2) == sea0b[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == sea0b[3]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 4) == sea0b[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == sea0b[5]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 6) == sea0b[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == sea0b[7]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 8) == sea0b[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == sea0b[9]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 10) == sea0b[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == sea0b[11]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 12) == sea0b[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == sea0b[13]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 14) == sea0b[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == sea0b[15])
-        // {
-        //     found = 1;
-        //     animationTile = ZELDA_TILE_ANIMATION_SEA_RIVER;
-        // }
+        // look for sea water (with river water) tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == sea0b[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == sea0b[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == sea0b[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == sea0b[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == sea0b[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == sea0b[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == sea0b[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == sea0b[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == sea0b[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == sea0b[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == sea0b[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == sea0b[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == sea0b[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == sea0b[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == sea0b[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == sea0b[15])
+        {
+            found = 1;
+            animationTile = ZELDA_TILE_ANIMATION_SEA_RIVER;
+        }
 
-        // // look for lake water tile
-        // if (*(bkgMemory[*_zeldaAnimationTile0]) == lake0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lake0[1]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lake0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lake0[3]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lake0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lake0[5]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lake0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lake0[7]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lake0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lake0[9]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lake0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lake0[11]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lake0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lake0[13]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lake0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lake0[15])
-        // {
-        //     found = 1;
-        //     animationTile = ZELDA_TILE_ANIMATION_LAKE;
-        // }
+        // look for lake water tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == lake0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lake0[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lake0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lake0[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lake0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lake0[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lake0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lake0[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lake0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lake0[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lake0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lake0[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lake0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lake0[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lake0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lake0[15])
+        {
+            found = 1;
+            animationTile = ZELDA_TILE_ANIMATION_LAKE;
+        }
 
-        // // look for lava tile
-        // if (*(bkgMemory[*_zeldaAnimationTile0]) == lava0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lava0[1]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lava0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lava0[3]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lava0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lava0[5]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lava0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lava0[7]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lava0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lava0[9]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lava0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lava0[11]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lava0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lava0[13]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lava0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lava0[15])
-        // {
-        //     found = 1;
-        //     animationTile = ZELDA_TILE_ANIMATION_LAVA;
-        // }
+        // look for lava tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == lava0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lava0[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lava0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lava0[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lava0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lava0[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lava0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lava0[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lava0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lava0[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lava0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lava0[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lava0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lava0[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lava0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lava0[15])
+        {
+            found = 1;
+            animationTile = ZELDA_TILE_ANIMATION_LAVA;
+        }
 
-        // // look for lamp tile
-        // if (*(bkgMemory[*_zeldaAnimationTile0]) == lamp0a[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lamp0a[1]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lamp0a[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lamp0a[3]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lamp0a[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lamp0a[5]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lamp0a[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lamp0a[7]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lamp0a[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lamp0a[9]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lamp0a[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lamp0a[11]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lamp0a[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lamp0a[13]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lamp0a[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lamp0a[15])
-        // {
-        //     found = 1;
-        //     animationTile = ZELDA_TILE_ANIMATION_LAMP;
-        // }
+        // look for lamp tile
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == lamp0a[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == lamp0a[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == lamp0a[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == lamp0a[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == lamp0a[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == lamp0a[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == lamp0a[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == lamp0a[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == lamp0a[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == lamp0a[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == lamp0a[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == lamp0a[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == lamp0a[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == lamp0a[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == lamp0a[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == lamp0a[15])
+        {
+            found = 1;
+            animationTile = ZELDA_TILE_ANIMATION_LAMP;
+        }
 
-        // // look for torch tile (isolation)
-        // if (*(bkgMemory[*_zeldaAnimationTile0]) == torch0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == torch0[1]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 2) == torch0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == torch0[3]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 4) == torch0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == torch0[5]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 6) == torch0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == torch0[7]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 8) == torch0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == torch0[9]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 10) == torch0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == torch0[11]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 12) == torch0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == torch0[13]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 14) == torch0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == torch0[15])
-        // {
-        //     found = 1;
-        //     animationTile = ZELDA_TILE_ANIMATION_TORCH;
-        // }
+        // look for torch tile (isolation)
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == torch0[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == torch0[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == torch0[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == torch0[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == torch0[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == torch0[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == torch0[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == torch0[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == torch0[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == torch0[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == torch0[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == torch0[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == torch0[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == torch0[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == torch0[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == torch0[15])
+        {
+            found = 1;
+            animationTile = ZELDA_TILE_ANIMATION_TORCH;
+        }
 
-        // // look for torch tile (with lamp)
-        // if (*(bkgMemory[*_zeldaAnimationTile0]) == torch3[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == torch3[1]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 2) == torch3[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == torch3[3]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 4) == torch3[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == torch3[5]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 6) == torch3[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == torch3[7]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 8) == torch3[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == torch3[9]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 10) == torch3[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == torch3[11]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 12) == torch3[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == torch3[13]
-        //     && *(bkgMemory[*_zeldaAnimationTile0] + 14) == torch3[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == torch3[15])
-        // {
-        //     found = 1;
-        //     animationTile = ZELDA_TILE_ANIMATION_TORCH_AND_LAMP;
-        // }
+        // look for torch tile (with lamp)
+        if (*(bkgMemory[*_zeldaAnimationTile0]) == torch3[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == torch3[1]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 2) == torch3[2] && *(bkgMemory[*_zeldaAnimationTile0] + 3) == torch3[3]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 4) == torch3[4] && *(bkgMemory[*_zeldaAnimationTile0] + 5) == torch3[5]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 6) == torch3[6] && *(bkgMemory[*_zeldaAnimationTile0] + 7) == torch3[7]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 8) == torch3[8] && *(bkgMemory[*_zeldaAnimationTile0] + 9) == torch3[9]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 10) == torch3[10] && *(bkgMemory[*_zeldaAnimationTile0] + 11) == torch3[11]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 12) == torch3[12] && *(bkgMemory[*_zeldaAnimationTile0] + 13) == torch3[13]
+            && *(bkgMemory[*_zeldaAnimationTile0] + 14) == torch3[14] && *(bkgMemory[*_zeldaAnimationTile0] + 15) == torch3[15])
+        {
+            found = 1;
+            animationTile = ZELDA_TILE_ANIMATION_TORCH_AND_LAMP;
+        }
 
         // look for blank tile (no animation)
         if (*(bkgMemory[*_zeldaAnimationTile0]) == blank[0] && *(bkgMemory[*_zeldaAnimationTile0] + 1) == blank[1]
