@@ -16,7 +16,7 @@ const MAX_TILESET_TILES = 16 * 12;
 export interface BackgroundInfo {
   numTiles: number;
   warnings: string[];
-  lookup: Uint8Array;
+  lookup: number[];
 }
 
 export const getBackgroundInfo = async (
@@ -28,7 +28,7 @@ export const getBackgroundInfo = async (
   const warnings: string[] = [];
 
   let tilesetLength = precalculatedTilesetLength;
-  let tilesets = new Uint8Array();
+  let tilesets: number[] = [];
   if (!tilesetLength) {
     const filename = assetFilename(projectPath, "backgrounds", background);
     const tileData = await readFileToTilesDataArray(filename);

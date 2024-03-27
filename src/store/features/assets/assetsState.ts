@@ -5,7 +5,7 @@ type BackgroundAsset = {
   is360: boolean;
   warnings: string[];
   numTiles: number;
-  lookup: Uint8Array;
+  lookup: number[];
   timestamp: number;
 };
 
@@ -39,7 +39,7 @@ const assetsSlice = createSlice({
         is360: boolean;
         warnings: string[];
         numTiles: number;
-        lookup: Uint8Array;
+        lookup: number[];
       }>
     ) => {
       state.backgroundsLoading = false;

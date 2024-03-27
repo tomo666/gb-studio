@@ -12,6 +12,7 @@ import { CompiledFontData } from "lib/fonts/fontData";
 import { decHex32Val, hexDec, wrap8Bit } from "shared/lib/helpers/8bit";
 import { PrecompiledSpriteSheetData } from "./compileSprites";
 import { dirEnum } from "./helpers";
+import clamp from "shared/lib/helpers/clamp";
 
 export interface PrecompiledBackground {
   id: string;
@@ -21,6 +22,7 @@ export interface PrecompiledBackground {
   height: number;
   data: number[] | Uint8Array;
   tileset: PrecompiledTileData;
+  cgbTileset?: PrecompiledTileData;
   tilemap: PrecompiledTileData;
   tilemapAttr: PrecompiledTileData;
 }
@@ -54,6 +56,12 @@ export interface PrecompiledEmote {
 export interface PrecompiledTileData {
   symbol: string;
   data: number[] | Uint8Array;
+}
+
+export interface PrecompiledTilemapData {
+  symbol: string;
+  data: number[] | Uint8Array;
+  is360: boolean;
 }
 
 interface Entity {
@@ -883,7 +891,7 @@ export const compileBackground = (
       width: background.width,
       height: background.height,
       tileset: toFarPtr(background.tileset.symbol),
-      cgb_tileset: "{ NULL, NULL }",
+      cgb_tileset: color && background.cgbTileset ? toFarPtr(background.cgbTileset.symbol) : "{ NULL, NULL }",
       tilemap: toFarPtr(background.tilemap.symbol),
       cgb_tilemap_attr: color
         ? toFarPtr(background.tilemapAttr.symbol)
@@ -891,6 +899,7 @@ export const compileBackground = (
     },
     ([] as string[]).concat(
       background.tileset.symbol,
+      background.cgbTileset?.symbol ?? [],
       background.tilemap.symbol,
       color ? background.tilemapAttr.symbol : []
     )
@@ -903,14 +912,46 @@ export const compileBackgroundHeader = (background: PrecompiledBackground) =>
     `// Background: ${background.name}`
   );
 
-export const compileTilemap = (tilemap: PrecompiledTileData) =>
-  toArrayDataFile(
+const TILE_FIRST_CHUNK_SIZE = 128;
+const TILE_BANK_SIZE = 192;
+const TILE_SECOND_CHUNK_MAX_SIZE = 64;
+
+export const compileTilemap = (tilemap: PrecompiledTilemapData, useSecondBank: boolean) => {
+  const maxValue = Math.max(...tilemap.data);
+  const bank1Size = clamp(maxValue, 0, TILE_BANK_SIZE);
+  const bank2Size = clamp(((maxValue - TILE_BANK_SIZE) % TILE_BANK_SIZE), 0, TILE_BANK_SIZE);
+  const bank1SecondChunkSize = clamp(bank1Size - TILE_FIRST_CHUNK_SIZE + 1, 0, TILE_SECOND_CHUNK_MAX_SIZE);
+  const bank2SecondChunkSize = clamp(bank2Size - TILE_FIRST_CHUNK_SIZE + 1, 0, TILE_SECOND_CHUNK_MAX_SIZE);
+
+  return toArrayDataFile(
     DATA_TYPE,
     tilemap.symbol,
     `// Tilemap ${tilemap.symbol}`,
-    Array.from(tilemap.data).map(wrap8Bit).map(toHex),
+    (tilemap.is360
+      // 360 scenes use tile indexes as is
+      ? Array.from(tilemap.data) :
+      // For other scene types reorganise tile indexes
+      // to maximise tiles available for sprite data
+      Array.from(tilemap.data).map((v) => {
+        if (v < TILE_FIRST_CHUNK_SIZE) {
+          return v;
+        }
+        else if (v < TILE_BANK_SIZE) {
+          return (v % TILE_BANK_SIZE) + (TILE_SECOND_CHUNK_MAX_SIZE - bank1SecondChunkSize);
+        }
+        if (!useSecondBank) {
+          return v;
+        }
+        else if (v < TILE_BANK_SIZE + TILE_FIRST_CHUNK_SIZE) {
+          return v - TILE_BANK_SIZE;
+        }
+        else {
+          return (v % TILE_BANK_SIZE) + (TILE_SECOND_CHUNK_MAX_SIZE - bank2SecondChunkSize);
+        }
+      })).map(wrap8Bit).map(toHex),
     16
   );
+}
 
 export const compileTilemapHeader = (tilemap: PrecompiledTileData) =>
   toArrayDataHeader(DATA_TYPE, tilemap.symbol, `// Tilemap ${tilemap.symbol}`);

@@ -16,9 +16,9 @@ type CompileImageOptions = {
 };
 
 interface CompiledImagesResult {
-  tilesets: Record<string, Uint8Array>;
+  tilesets: Uint8Array[];
   tilemaps: Record<string, number[] | Uint8Array>;
-  tilemapsTileset: Record<string, number>;
+  tilemapsTileset: Record<string, number[]>;
 }
 
 const imageBuildCache: Record<
@@ -36,6 +36,7 @@ let lastOutputIds = "";
 const compileImages = async (
   imgs: BackgroundData[],
   generate360Ids: string[],
+  cgbOnly: boolean,
   projectPath: string,
   tmpPath: string,
   { warnings }: CompileImageOptions
@@ -44,7 +45,7 @@ const compileImages = async (
   const tilesetIndexes: number[] = [];
   const imgTiles: Uint8Array[][] = [];
   const output: CompiledImagesResult = {
-    tilesets: {},
+    tilesets: [],
     tilemaps: {},
     tilemapsTileset: {},
   };
@@ -55,7 +56,7 @@ const compileImages = async (
     const img = imgs[i];
 
     const filename = assetFilename(projectPath, "backgrounds", img);
-    let tilesetLookup;
+    let tilesetLookup : TileLookup | undefined;
 
     const imageModifiedTime = await getFileModifiedTime(filename);
 
@@ -144,28 +145,31 @@ const compileImages = async (
     }
   }
 
-  // Output lookups to files
   for (let i = 0; i < imgs.length; i++) {
     if (generate360Ids.includes(imgs[i].id)) {
-      // Generate 360 tiles
-      output.tilesets[i] = tileArrayToTileData(imgTiles[i]);
-    } else if (tilesetLookups[i]) {
-      output.tilesets[i] = tileLookupToTileData(tilesetLookups[i] ?? {});
-    }
-  }
-
-  for (let i = 0; i < imgs.length; i++) {
-    if (generate360Ids.includes(imgs[i].id)) {
+      // Generate 360 tileset
+      const tileSetIndex = output.tilesets.length;
+      output.tilesets.push(tileArrayToTileData(imgTiles[i]));
       // Generate 360 tilemap
       output.tilemaps[imgs[i].id] = Array.from(Array(360)).map((_, i) => i);
-      output.tilemapsTileset[imgs[i].id] = i;
+      output.tilemapsTileset[imgs[i].id] = [tileSetIndex];
     } else {
+      const tiles = tileLookupToTileData(tilesetLookups[i] ?? {});
+      const tileSetIndex = output.tilesets.length;
+      const bank1Tiles = cgbOnly ? tiles.slice(0, 192 * 16) : tiles;
+      const bank2Tiles = cgbOnly ? tiles.slice(192 * 16, 192 * 16 * 2) : new Uint8Array();
+
+      output.tilesets.push(bank1Tiles);
+      if (bank2Tiles.length > 0) {
+        // Two banks
+        output.tilesets.push(bank2Tiles);
+      }
       const tilemap = tilesAndLookupToTilemap(
         imgTiles[i],
         tilesetLookups[tilesetIndexes[i]] ?? {}
       );
       output.tilemaps[imgs[i].id] = tilemap;
-      output.tilemapsTileset[imgs[i].id] = tilesetIndexes[i];
+      output.tilemapsTileset[imgs[i].id] = bank2Tiles.length > 0 ? [tileSetIndex, tileSetIndex+1] : [tileSetIndex];
     }
   }
 
