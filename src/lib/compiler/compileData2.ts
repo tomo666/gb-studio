@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import { Dictionary } from "@reduxjs/toolkit";
 import flatten from "lodash/flatten";
-import { SCREEN_WIDTH } from "consts";
+import { FLAG_VRAM_BANK_1, SCREEN_WIDTH } from "consts";
 import type {
   Actor,
   Scene,
@@ -102,6 +102,7 @@ export interface PrecompiledPalette {
 export type PrecompiledSprite = {
   symbol: string;
   tileset: PrecompiledTileData;
+  cgbTileset?: PrecompiledTileData;
 } & PrecompiledSpriteSheetData;
 
 export type PrecompiledFontData = {
@@ -788,6 +789,7 @@ export const compileTilesetHeader = (tileset: PrecompiledTileData) =>
 export const compileSpriteSheet = (
   spriteSheet: PrecompiledSprite,
   spriteSheetIndex: number,
+  useSecondBank: boolean,
   {
     statesOrder,
     stateReferences,
@@ -798,11 +800,20 @@ export const compileSpriteSheet = (
     null,
     stateNames.map((state) => statesOrder.indexOf(state))
   );
+  console.log("=== " + spriteSheet.name + "=================");
+  const bank1TileSize = Math.ceil(spriteSheet.data.length / 64) * 2;
+  console.log("=" + bank1TileSize);
+
   return `#pragma bank 255
 // SpriteSheet: ${spriteSheet.name}
 
 #include "gbs_types.h"
 #include "data/${spriteSheet.tileset.symbol}.h"
+${
+  spriteSheet.cgbTileset
+    ? `#include "data/${spriteSheet.cgbTileset?.symbol}.h"`
+    : ""
+}
 
 ${bankRef(spriteSheet.symbol)}
 
@@ -821,7 +832,18 @@ ${spriteSheet.metasprites
       spriteSheet.symbol
     }_metasprite_${metaspriteIndex}[]  = {
     ${metasprite
-      .map((tile) => `{ ${tile.y}, ${tile.x}, ${tile.tile}, ${tile.props} }`)
+      .map((tile) => {
+        let tileIndex = tile.tile;
+        let tileAttr = tile.props;
+        console.log("INITIAL", { tileIndex, tileAttr });
+        if (useSecondBank && tileIndex >= bank1TileSize) {
+          tileIndex -= bank1TileSize;
+          tileAttr |= FLAG_VRAM_BANK_1;
+          console.log("CJANGED", { tileIndex, tileAttr, bank1TileSize });
+        }
+
+        return `{ ${tile.y}, ${tile.x}, ${tileIndex}, ${tileAttr} }`;
+      })
       .join(", ")}${metasprite.length > 0 ? ",\n    " : ""}{metasprite_end}
 };`;
   })
@@ -859,7 +881,9 @@ ${toStructData(
     animations_lookup: `${spriteSheet.symbol}_animations_lookup`,
     bounds: compileBounds(spriteSheet),
     tileset: toFarPtr(spriteSheet.tileset.symbol),
-    cgb_tileset: "{ NULL, NULL }",
+    cgb_tileset: spriteSheet.cgbTileset
+      ? toFarPtr(spriteSheet.cgbTileset.symbol)
+      : "{ NULL, NULL }",
   },
 
   INDENT_SPACES
@@ -891,7 +915,10 @@ export const compileBackground = (
       width: background.width,
       height: background.height,
       tileset: toFarPtr(background.tileset.symbol),
-      cgb_tileset: color && background.cgbTileset ? toFarPtr(background.cgbTileset.symbol) : "{ NULL, NULL }",
+      cgb_tileset:
+        color && background.cgbTileset
+          ? toFarPtr(background.cgbTileset.symbol)
+          : "{ NULL, NULL }",
       tilemap: toFarPtr(background.tilemap.symbol),
       cgb_tilemap_attr: color
         ? toFarPtr(background.tilemapAttr.symbol)
@@ -916,42 +943,63 @@ const TILE_FIRST_CHUNK_SIZE = 128;
 const TILE_BANK_SIZE = 192;
 const TILE_SECOND_CHUNK_MAX_SIZE = 64;
 
-export const compileTilemap = (tilemap: PrecompiledTilemapData, useSecondBank: boolean) => {
+export const compileTilemap = (
+  tilemap: PrecompiledTilemapData,
+  useSecondBank: boolean
+) => {
   const maxValue = Math.max(...tilemap.data);
   const bank1Size = clamp(maxValue, 0, TILE_BANK_SIZE);
-  const bank2Size = clamp(((maxValue - TILE_BANK_SIZE) % TILE_BANK_SIZE), 0, TILE_BANK_SIZE);
-  const bank1SecondChunkSize = clamp(bank1Size - TILE_FIRST_CHUNK_SIZE + 1, 0, TILE_SECOND_CHUNK_MAX_SIZE);
-  const bank2SecondChunkSize = clamp(bank2Size - TILE_FIRST_CHUNK_SIZE + 1, 0, TILE_SECOND_CHUNK_MAX_SIZE);
+  const bank2Size = clamp(
+    (maxValue - TILE_BANK_SIZE) % TILE_BANK_SIZE,
+    0,
+    TILE_BANK_SIZE
+  );
+  const bank1SecondChunkSize = clamp(
+    bank1Size - TILE_FIRST_CHUNK_SIZE + 1,
+    0,
+    TILE_SECOND_CHUNK_MAX_SIZE
+  );
+  const bank2SecondChunkSize = clamp(
+    bank2Size - TILE_FIRST_CHUNK_SIZE + 1,
+    0,
+    TILE_SECOND_CHUNK_MAX_SIZE
+  );
 
   return toArrayDataFile(
     DATA_TYPE,
     tilemap.symbol,
     `// Tilemap ${tilemap.symbol}`,
     (tilemap.is360
-      // 360 scenes use tile indexes as is
-      ? Array.from(tilemap.data) :
-      // For other scene types reorganise tile indexes
-      // to maximise tiles available for sprite data
-      Array.from(tilemap.data).map((v) => {
-        if (v < TILE_FIRST_CHUNK_SIZE) {
-          return v;
-        }
-        else if (v < TILE_BANK_SIZE) {
-          return (v % TILE_BANK_SIZE) + (TILE_SECOND_CHUNK_MAX_SIZE - bank1SecondChunkSize);
-        }
-        if (!useSecondBank) {
-          return v;
-        }
-        else if (v < TILE_BANK_SIZE + TILE_FIRST_CHUNK_SIZE) {
-          return v - TILE_BANK_SIZE;
-        }
-        else {
-          return (v % TILE_BANK_SIZE) + (TILE_SECOND_CHUNK_MAX_SIZE - bank2SecondChunkSize);
-        }
-      })).map(wrap8Bit).map(toHex),
+      ? // 360 scenes use tile indexes as is
+        Array.from(tilemap.data)
+      : // For other scene types reorganise tile indexes
+        // to maximise tiles available for sprite data
+        Array.from(tilemap.data).map((v) => {
+          if (v < TILE_FIRST_CHUNK_SIZE) {
+            return v;
+          } else if (v < TILE_BANK_SIZE) {
+            return (
+              (v % TILE_BANK_SIZE) +
+              (TILE_SECOND_CHUNK_MAX_SIZE - bank1SecondChunkSize)
+            );
+          }
+          if (!useSecondBank) {
+            return v;
+          } else if (v < TILE_BANK_SIZE + TILE_FIRST_CHUNK_SIZE) {
+            return v - TILE_BANK_SIZE;
+          } else {
+            return (
+              (v % TILE_BANK_SIZE) +
+              (TILE_SECOND_CHUNK_MAX_SIZE - bank2SecondChunkSize)
+            );
+          }
+        })
+    )
+      .map(wrap8Bit)
+      .map(toHex),
     16
   );
-}
+};
 
 export const compileTilemapHeader = (tilemap: PrecompiledTileData) =>
   toArrayDataHeader(DATA_TYPE, tilemap.symbol, `// Tilemap ${tilemap.symbol}`);
