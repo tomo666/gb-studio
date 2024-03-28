@@ -1264,9 +1264,9 @@ ipcMain.handle(
 
 ipcMain.handle(
   "project:get-background-info",
-  (_event, background: Background, is360: boolean) => {
+  (_event, background: Background, is360: boolean, cgbOnly: boolean) => {
     const projectRoot = Path.dirname(projectPath);
-    return getBackgroundInfo(background, is360, projectRoot);
+    return getBackgroundInfo(background, is360, cgbOnly, projectRoot);
   }
 );
 

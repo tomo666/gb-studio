@@ -87,6 +87,7 @@ const compileImages = async (
     const backgroundInfo = await getBackgroundInfo(
       img,
       is360,
+      cgbOnly,
       projectPath,
       tilesetLength
     );

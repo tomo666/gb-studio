@@ -64,6 +64,7 @@ test("Should trigger call to check background assets", async () => {
       id: "bg1",
       numTiles: 10,
       is360: false,
+      isCGBOnly: false,
       warnings: ["Warning 1"],
       lookup: [],
     })
@@ -185,6 +186,7 @@ test("Should trigger call to check background assets if cache has expired", asyn
       id: "bg1",
       numTiles: 10,
       is360: false,
+      isCGBOnly: false,
       warnings: ["Warning 1"],
       lookup: [],
     })
