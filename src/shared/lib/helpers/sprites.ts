@@ -3,7 +3,6 @@ export const maxSpriteTilesForBackgroundTilesLength = (
   isCGBOnly: boolean
 ) => {
   if (isCGBOnly) {
-    console.log({ isCGBOnly, backgroundTilesLength });
     if (backgroundTilesLength <= 256) {
       return 192;
     }
