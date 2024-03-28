@@ -147,7 +147,6 @@ export const defaultProjectSettings: SettingsState = {
   worldScrollX: 0,
   worldScrollY: 0,
   zoom: 100,
-  customColorsEnabled: false,
   sgbEnabled: false,
   customHead: "",
   defaultBackgroundPaletteIds: [
@@ -202,6 +201,7 @@ export const defaultProjectSettings: SettingsState = {
   debuggerPauseOnWatchedVariableChanged: false,
   debuggerBreakpoints: [],
   debuggerWatchedVariables: [],
+  colorMode: "mixed",
 };
 
 export {

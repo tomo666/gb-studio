@@ -118,9 +118,6 @@ import { walkSceneScripts, walkScenesScripts } from "shared/lib/scripts/walk";
 import { ScriptEventHandlers } from "lib/project/loadScriptEventHandlers";
 import { EntityType } from "shared/lib/scripts/context";
 
-// Hard coded for now
-const globalCGBOnly = true;
-
 type TilemapData = {
   symbol: string;
   data: number[] | Uint8Array;
@@ -388,7 +385,7 @@ export const precompilePalettes = async (
   const sceneActorPaletteIndexes: Record<string, number> = {};
   const actorPaletteIndexes = {};
 
-  const isColor = settings.customColorsEnabled || settings.sgbEnabled;
+  const isColor = settings.colorMode !== "mono" || settings.sgbEnabled;
 
   const palettesLookup = indexById(palettes);
   const defaultBackgroundPaletteIds =
@@ -650,19 +647,12 @@ export const precompileSprites = async (
   const usedSpritesWithData: PrecompiledSprite[] = spritesData.map((sprite) => {
     // Determine tileset
     const spriteTileset = sprite.data;
-    console.log({
-      spriteName: sprite.name,
-      spriteSize: sprite.data.length,
-      tileCount: sprite.numTiles,
-      tileCount2: sprite.data.length / 32,
-      bank1Size: Math.ceil(sprite.data.length / 64) * 32,
-    });
     if (cgbOnly) {
       const bank1Size = Math.ceil(sprite.data.length / 64) * 32;
       const bank1Tileset = spriteTileset.slice(0, bank1Size);
       const bank2Tileset = spriteTileset.slice(bank1Size, spriteTileset.length);
-      console.log({ bank1Tileset, bank2Tileset });
 
+      // VRAM Bank1 Tileset
       const tileset1Key = JSON.stringify(bank1Tileset);
       let tileset1Index = 0;
       if (usedTilesetCache[tileset1Key] === undefined) {
@@ -677,6 +667,8 @@ export const precompileSprites = async (
         // Already used tileset
         tileset1Index = usedTilesetCache[tileset1Key];
       }
+
+      // VRAM Bank2 Tileset
       const tileset2Key = JSON.stringify(bank2Tileset);
       let tileset2Index = 0;
       if (usedTilesetCache[tileset2Key] === undefined) {
@@ -693,10 +685,10 @@ export const precompileSprites = async (
       }
 
       const tileset1 = usedTilesets[tileset1Index];
-      tileset1.symbol = `${sprite.symbol}_1_tileset`;
+      tileset1.symbol = `${sprite.symbol}_bank1_tileset`;
 
       const tileset2 = usedTilesets[tileset2Index];
-      tileset2.symbol = `${sprite.symbol}_2_tileset`;
+      tileset2.symbol = `${sprite.symbol}_bank2_tileset`;
 
       return {
         ...sprite,
@@ -1215,7 +1207,7 @@ const precompile = async (
   const customEventsLookup = keyBy(projectData.customEvents, "id");
   const variablesLookup = keyBy(projectData.variables, "id");
   const soundsLookup = keyBy(projectData.sounds, "id");
-  const cgbOnly = globalCGBOnly && projectData.settings.customColorsEnabled;
+  const cgbOnly = projectData.settings.colorMode === "color";
 
   const usedAssets = determineUsedAssets({
     scenes: projectData.scenes,
@@ -1401,9 +1393,9 @@ const compile = async (
     warnings,
   });
 
-  const customColorsEnabled = projectData.settings.customColorsEnabled;
-  const isSGB = projectData.settings.sgbEnabled;
-
+  const colorEnabled = projectData.settings.colorMode !== "mono";
+  const isCGBOnly = projectData.settings.colorMode === "color";
+  const isSGB = projectData.settings.sgbEnabled && !isCGBOnly;
   const precompiledEngineFields = keyBy(engineFields, "key");
   const customEventsLookup = keyBy(projectData.customEvents, "id");
 
@@ -1843,20 +1835,17 @@ VM_ACTOR_SET_SPRITESHEET_BY_REF .ARG2, .ARG1`,
   // Add background map data
   precompiled.usedBackgrounds.forEach((background) => {
     output[`${background.symbol}.c`] = compileBackground(background, {
-      color: customColorsEnabled,
+      color: colorEnabled,
     });
     output[`${background.symbol}.h`] = compileBackgroundHeader(background);
   });
 
   precompiled.usedTilemaps.forEach((tilemap) => {
-    output[`${tilemap.symbol}.c`] = compileTilemap(
-      tilemap,
-      globalCGBOnly && customColorsEnabled
-    );
+    output[`${tilemap.symbol}.c`] = compileTilemap(tilemap, isCGBOnly);
     output[`${tilemap.symbol}.h`] = compileTilemapHeader(tilemap);
   });
 
-  if (customColorsEnabled) {
+  if (colorEnabled) {
     precompiled.usedTilemapAttrs.forEach((tilemapAttr) => {
       output[`${tilemapAttr.symbol}.c`] = compileTilemapAttr(tilemapAttr);
       output[`${tilemapAttr.symbol}.h`] = compileTilemapAttrHeader(tilemapAttr);
@@ -1868,7 +1857,7 @@ VM_ACTOR_SET_SPRITESHEET_BY_REF .ARG2, .ARG1`,
     output[`${sprite.symbol}.c`] = compileSpriteSheet(
       sprite,
       spriteIndex,
-      globalCGBOnly && customColorsEnabled,
+      isCGBOnly,
       {
         statesOrder: precompiled.statesOrder,
         stateReferences: precompiled.stateReferences,

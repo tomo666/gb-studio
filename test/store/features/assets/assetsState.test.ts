@@ -28,7 +28,7 @@ test("Should be able to set background warnings", () => {
     warnings: ["warning 1", "warning 2"],
     numTiles: 10,
     is360: false,
-    lookup: new Uint8Array(),
+    lookup: [],
   });
   const newState = reducer(state, action);
   expect(newState.backgroundsLoading).toBe(false);
@@ -53,7 +53,7 @@ test("Should replace existing warnings", () => {
         numTiles: 10,
         is360: false,
         timestamp: 0,
-        lookup: new Uint8Array(),
+        lookup: [],
       },
     },
   };
@@ -62,7 +62,7 @@ test("Should replace existing warnings", () => {
     warnings: ["warning 3"],
     numTiles: 15,
     is360: false,
-    lookup: new Uint8Array(),
+    lookup: [],
   });
   const newState = reducer(state, action);
   expect(newState.backgroundsLoading).toBe(false);

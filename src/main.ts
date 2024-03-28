@@ -1048,7 +1048,7 @@ ipcMain.handle(
     const buildStartTime = Date.now();
     const projectRoot = Path.dirname(projectPath);
     const outputRoot = Path.normalize(`${getTmp()}/${buildUUID}`);
-    const colorEnabled = project.settings.customColorsEnabled;
+    const colorMode = project.settings.colorMode;
     const sgbEnabled = project.settings.sgbEnabled;
     const debuggerEnabled =
       options.debugEnabled || project.settings.debuggerEnabled;
@@ -1127,7 +1127,7 @@ ipcMain.handle(
         }
         createPlay(
           `file://${outputRoot}/build/web/index.html`,
-          sgbEnabled && !colorEnabled,
+          sgbEnabled && colorMode === "mono",
           debuggerEnabled
         );
       }

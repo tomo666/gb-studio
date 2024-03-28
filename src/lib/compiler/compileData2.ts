@@ -800,9 +800,7 @@ export const compileSpriteSheet = (
     null,
     stateNames.map((state) => statesOrder.indexOf(state))
   );
-  console.log("=== " + spriteSheet.name + "=================");
   const bank1TileSize = Math.ceil(spriteSheet.data.length / 64) * 2;
-  console.log("=" + bank1TileSize);
 
   return `#pragma bank 255
 // SpriteSheet: ${spriteSheet.name}
@@ -835,13 +833,10 @@ ${spriteSheet.metasprites
       .map((tile) => {
         let tileIndex = tile.tile;
         let tileAttr = tile.props;
-        console.log("INITIAL", { tileIndex, tileAttr });
         if (useSecondBank && tileIndex >= bank1TileSize) {
           tileIndex -= bank1TileSize;
           tileAttr |= FLAG_VRAM_BANK_1;
-          console.log("CJANGED", { tileIndex, tileAttr, bank1TileSize });
         }
-
         return `{ ${tile.y}, ${tile.x}, ${tileIndex}, ${tileAttr} }`;
       })
       .join(", ")}${metasprite.length > 0 ? ",\n    " : ""}{metasprite_end}

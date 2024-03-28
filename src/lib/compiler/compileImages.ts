@@ -31,7 +31,7 @@ const imageBuildCache: Record<
 > = {};
 
 let lastOutput: CompiledImagesResult | null = null;
-let lastOutputIds = "";
+let lastOutputCacheKey = "";
 
 const compileImages = async (
   imgs: BackgroundData[],
@@ -56,7 +56,7 @@ const compileImages = async (
     const img = imgs[i];
 
     const filename = assetFilename(projectPath, "backgrounds", img);
-    let tilesetLookup : TileLookup | undefined;
+    let tilesetLookup: TileLookup | undefined;
 
     const imageModifiedTime = await getFileModifiedTime(filename);
 
@@ -108,8 +108,16 @@ const compileImages = async (
   // If previous build generated the same images all unmodified
   // no need to recalculate image tiles and tile lookups,
   // just reuse last compile
-  const ids = imgs.map((img) => img.id).join();
-  if (uncachedCount === 0 && ids === lastOutputIds && lastOutput) {
+  const outputCacheKey = JSON.stringify({
+    ids: imgs.map((img) => img.id).join(),
+    generate360Ids,
+    cgbOnly,
+  });
+  if (
+    uncachedCount === 0 &&
+    outputCacheKey === lastOutputCacheKey &&
+    lastOutput
+  ) {
     return lastOutput;
   }
 
@@ -157,7 +165,9 @@ const compileImages = async (
       const tiles = tileLookupToTileData(tilesetLookups[i] ?? {});
       const tileSetIndex = output.tilesets.length;
       const bank1Tiles = cgbOnly ? tiles.slice(0, 192 * 16) : tiles;
-      const bank2Tiles = cgbOnly ? tiles.slice(192 * 16, 192 * 16 * 2) : new Uint8Array();
+      const bank2Tiles = cgbOnly
+        ? tiles.slice(192 * 16, 192 * 16 * 2)
+        : new Uint8Array();
 
       output.tilesets.push(bank1Tiles);
       if (bank2Tiles.length > 0) {
@@ -169,12 +179,15 @@ const compileImages = async (
         tilesetLookups[tilesetIndexes[i]] ?? {}
       );
       output.tilemaps[imgs[i].id] = tilemap;
-      output.tilemapsTileset[imgs[i].id] = bank2Tiles.length > 0 ? [tileSetIndex, tileSetIndex+1] : [tileSetIndex];
+      output.tilemapsTileset[imgs[i].id] =
+        bank2Tiles.length > 0
+          ? [tileSetIndex, tileSetIndex + 1]
+          : [tileSetIndex];
     }
   }
 
   lastOutput = output;
-  lastOutputIds = ids;
+  lastOutputCacheKey = outputCacheKey;
 
   return output;
 };

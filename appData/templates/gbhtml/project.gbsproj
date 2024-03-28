@@ -9410,7 +9410,7 @@
         "worldScrollX": 0,
         "worldScrollY": 0,
         "zoom": 100,
-        "customColorsEnabled": false,
+        "colorMode": "mono",
         "sgbEnabled": false,
         "customHead": "",
         "defaultBackgroundPaletteIds": [

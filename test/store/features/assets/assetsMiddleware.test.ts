@@ -18,7 +18,7 @@ test("Should trigger call to check background assets", async () => {
   mockedGetBackgroundInfo.mockResolvedValue({
     numTiles: 10,
     warnings: ["Warning 1"],
-    lookup: new Uint8Array(),
+    lookup: [],
   });
 
   const store = {
@@ -65,7 +65,7 @@ test("Should trigger call to check background assets", async () => {
       numTiles: 10,
       is360: false,
       warnings: ["Warning 1"],
-      lookup: new Uint8Array(),
+      lookup: [],
     })
   );
 });
@@ -75,7 +75,7 @@ test("Should not trigger call to check background assets if already cached asset
   mockedGetBackgroundInfo.mockResolvedValue({
     numTiles: 10,
     warnings: ["Warning 1"],
-    lookup: new Uint8Array(),
+    lookup: [],
   });
 
   const store = {
@@ -132,7 +132,7 @@ test("Should trigger call to check background assets if cache has expired", asyn
   mockedGetBackgroundInfo.mockResolvedValue({
     numTiles: 10,
     warnings: ["Warning 1"],
-    lookup: new Uint8Array(),
+    lookup: [],
   });
 
   const store = {
@@ -186,7 +186,7 @@ test("Should trigger call to check background assets if cache has expired", asyn
       numTiles: 10,
       is360: false,
       warnings: ["Warning 1"],
-      lookup: new Uint8Array(),
+      lookup: [],
     })
   );
 });
