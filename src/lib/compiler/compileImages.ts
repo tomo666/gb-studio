@@ -61,7 +61,9 @@ const compileImages = async (
     const imageModifiedTime = await getFileModifiedTime(filename);
 
     const is360 = generate360Ids.includes(img.id);
-    const cacheKey = `${img.id}${is360 ? "_360" : ""}`;
+    const cacheKey = `${projectPath}_${img.id}_${img.filename}${
+      is360 ? "_360" : ""
+    }${cgbOnly ? "_cgb" : ""}`;
 
     if (
       imageBuildCache[cacheKey] &&
@@ -143,17 +145,6 @@ const compileImages = async (
     }
   }
 
-  // Remove unneeded tilesets
-  for (let i = 0; i < imgs.length - 1; i++) {
-    for (let j = imgs.length - 1; j >= i + 1; j--) {
-      if (tilesetLookups[i] === tilesetLookups[j]) {
-        tilesetIndexes[i] = j;
-        tilesetLookups[i] = null;
-        break;
-      }
-    }
-  }
-
   for (let i = 0; i < imgs.length; i++) {
     if (generate360Ids.includes(imgs[i].id)) {
       // Generate 360 tileset
@@ -162,18 +153,28 @@ const compileImages = async (
       // Generate 360 tilemap
       output.tilemaps[imgs[i].id] = Array.from(Array(360)).map((_, i) => i);
       output.tilemapsTileset[imgs[i].id] = [tileSetIndex];
-    } else {
+    } else if (cgbOnly) {
+      // Color Only mode uses two VRAM banks for tiles
+      // Tiles are split evenly between both banks
+
       const tiles = tileLookupToTileData(tilesetLookups[i] ?? {});
       const tileSetIndex = output.tilesets.length;
-      const bank1Tiles = cgbOnly ? tiles.slice(0, 192 * 16) : tiles;
-      const bank2Tiles = cgbOnly
-        ? tiles.slice(192 * 16, 192 * 16 * 2)
-        : new Uint8Array();
+      const bank1Tiles: number[] = [];
+      const bank2Tiles: number[] = [];
 
-      output.tilesets.push(bank1Tiles);
+      // Split every other tile between vram banks
+      for (let i = 0; i < tiles.length; i++) {
+        if (Math.floor(i / 16) % 2 === 0) {
+          bank1Tiles.push(tiles[i]);
+        } else {
+          bank2Tiles.push(tiles[i]);
+        }
+      }
+
+      output.tilesets.push(new Uint8Array(bank1Tiles));
       if (bank2Tiles.length > 0) {
         // Two banks
-        output.tilesets.push(bank2Tiles);
+        output.tilesets.push(new Uint8Array(bank2Tiles));
       }
       const tilemap = tilesAndLookupToTilemap(
         imgTiles[i],
@@ -184,6 +185,17 @@ const compileImages = async (
         bank2Tiles.length > 0
           ? [tileSetIndex, tileSetIndex + 1]
           : [tileSetIndex];
+    } else {
+      // Monochrome + Mixed color mode uses one VRAM bank for tiles
+      const tiles = tileLookupToTileData(tilesetLookups[i] ?? {});
+      const tileSetIndex = output.tilesets.length;
+      output.tilesets.push(tiles);
+      const tilemap = tilesAndLookupToTilemap(
+        imgTiles[i],
+        tilesetLookups[tilesetIndexes[i]] ?? {}
+      );
+      output.tilemaps[imgs[i].id] = tilemap;
+      output.tilemapsTileset[imgs[i].id] = [tileSetIndex];
     }
   }
 

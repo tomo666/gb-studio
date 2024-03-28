@@ -942,20 +942,17 @@ export const compileTilemap = (
   tilemap: PrecompiledTilemapData,
   useSecondBank: boolean
 ) => {
-  const maxValue = Math.max(...tilemap.data);
-  const bank1Size = clamp(maxValue, 0, TILE_BANK_SIZE);
-  const bank2Size = clamp(
-    (maxValue - TILE_BANK_SIZE) % TILE_BANK_SIZE,
-    0,
-    TILE_BANK_SIZE
-  );
+  const maxValue = Math.max(...tilemap.data) + 1;
+  const bank1Size = useSecondBank ? Math.ceil(maxValue / 2) : maxValue;
+  const bank2Size = useSecondBank ? Math.floor(maxValue / 2) : 0;
+
   const bank1SecondChunkSize = clamp(
-    bank1Size - TILE_FIRST_CHUNK_SIZE + 1,
+    bank1Size - TILE_FIRST_CHUNK_SIZE,
     0,
     TILE_SECOND_CHUNK_MAX_SIZE
   );
   const bank2SecondChunkSize = clamp(
-    bank2Size - TILE_FIRST_CHUNK_SIZE + 1,
+    bank2Size - TILE_FIRST_CHUNK_SIZE,
     0,
     TILE_SECOND_CHUNK_MAX_SIZE
   );
@@ -970,24 +967,25 @@ export const compileTilemap = (
       : // For other scene types reorganise tile indexes
         // to maximise tiles available for sprite data
         Array.from(tilemap.data).map((v) => {
-          if (v < TILE_FIRST_CHUNK_SIZE) {
-            return v;
-          } else if (v < TILE_BANK_SIZE) {
-            return (
-              (v % TILE_BANK_SIZE) +
-              (TILE_SECOND_CHUNK_MAX_SIZE - bank1SecondChunkSize)
-            );
+          const index = useSecondBank ? Math.floor(v / 2) : v;
+
+          // Tiles within first chunk will have the correct index
+          if (index < TILE_FIRST_CHUNK_SIZE) {
+            return index;
           }
-          if (!useSecondBank) {
-            return v;
-          } else if (v < TILE_BANK_SIZE + TILE_FIRST_CHUNK_SIZE) {
-            return v - TILE_BANK_SIZE;
-          } else {
-            return (
-              (v % TILE_BANK_SIZE) +
-              (TILE_SECOND_CHUNK_MAX_SIZE - bank2SecondChunkSize)
-            );
-          }
+
+          // If in second chunk need to figure out which VRAM
+          // bank is being used and how big the chunk is to
+          // calculate tile data offset
+          const secondChunkSize =
+            useSecondBank && v % 2 === 1
+              ? bank2SecondChunkSize
+              : bank1SecondChunkSize;
+
+          return (
+            (index % TILE_BANK_SIZE) +
+            (TILE_SECOND_CHUNK_MAX_SIZE - secondChunkSize)
+          );
         })
     )
       .map(wrap8Bit)

@@ -326,7 +326,9 @@ export const precompileBackgrounds = async (
         tilemapData.length,
         0
       ).map((attr, index) => {
-        if (tilemapData[index] >= 192 && !is360) {
+        // CGB Only games spread background tiles evenly between
+        // each VRAM bank so need to set FLAG_VRAM_BANK_1 on odd tiles
+        if (cgbOnly && tilemapData[index] % 2 === 1 && !is360) {
           return attr | FLAG_VRAM_BANK_1;
         }
         return attr;

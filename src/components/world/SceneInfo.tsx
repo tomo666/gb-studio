@@ -5,7 +5,6 @@ import {
   MAX_ACTORS_SMALL,
   MAX_NESTED_SCRIPT_DEPTH,
   MAX_ONSCREEN,
-  MAX_SPRITE_TILES_CGB,
   MAX_TRIGGERS,
   SCREEN_HEIGHT,
   SCREEN_WIDTH,
@@ -400,9 +399,7 @@ const SceneInfo = () => {
   const triggerCount = scene.triggers.length;
   const maxSpriteTiles =
     scene.type !== "LOGO"
-      ? isCGBOnly
-        ? MAX_SPRITE_TILES_CGB
-        : maxSpriteTilesForBackgroundTilesLength(backgroundNumTiles)
+      ? maxSpriteTilesForBackgroundTilesLength(backgroundNumTiles, isCGBOnly)
       : MAX_LOGO_SPRITE_TILES;
 
   return (
