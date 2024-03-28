@@ -628,7 +628,7 @@ app.on("ready", async () => {
     if (host === "project") {
       // Load an asset from the current project
       const projectRoot = Path.dirname(projectPath);
-      const filename = Path.join(projectRoot, pathname);
+      const filename = Path.join(projectRoot, decodeURI(pathname));
       // Check project has permission to access this asset
       guardAssetWithinProject(filename, projectRoot);
       return callback({ path: filename });
