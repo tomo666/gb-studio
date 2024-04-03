@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import {
   metaspriteSelectors,
@@ -6,6 +6,7 @@ import {
   spriteSheetSelectors,
 } from "store/features/entities/entitiesState";
 import editorActions from "store/features/editor/editorActions";
+import entitiesActions from "store/features/entities/entitiesActions";
 import l10n from "shared/lib/lang/l10n";
 import { SceneSelect } from "components/forms/SceneSelect";
 import { SelectMenu, selectMenuStyleProps } from "ui/form/Select";
@@ -14,6 +15,7 @@ import { TooltipWrapper } from "ui/tooltips/Tooltip";
 import { FixedSpacer } from "ui/spacing/Spacing";
 import { sceneName } from "shared/lib/entities/entitiesHelpers";
 import { useAppDispatch, useAppSelector } from "store/hooks";
+import { CheckboxField } from "ui/form/CheckboxField";
 
 interface MetaspriteEditorPreviewSettingsProps {
   spriteSheetId: string;
@@ -44,6 +46,11 @@ const Pill = styled.button`
   :active {
     background: ${(props) => props.theme.colors.list.selectedBackground};
   }
+`;
+
+const CheckboxWrapper = styled.div`
+  margin-left: 5px;
+  margin-top: -3px;
 `;
 
 const Info = styled.div`
@@ -90,6 +97,9 @@ const MetaspriteEditorPreviewSettings = ({
   const sceneIndex = scenes.indexOf(value);
   const colorsEnabled = useAppSelector(
     (state) => state.project.present.settings.colorMode !== "mono"
+  );
+  const isCGBOnly = useAppSelector(
+    (state) => state.project.present.settings.colorMode === "color"
   );
 
   useEffect(() => {
@@ -162,6 +172,17 @@ const MetaspriteEditorPreviewSettings = ({
     dispatch(editorActions.setPreviewAsSceneId(newValue));
   };
 
+  const onChangeDMGCompatible = useCallback(() => {
+    dispatch(
+      entitiesActions.editSpriteSheetSettings({
+        spriteSheetId,
+        changes: {
+          dmgCompatible: !spriteSheet?.settings?.dmgCompatible,
+        },
+      })
+    );
+  }, [dispatch, spriteSheet?.settings?.dmgCompatible, spriteSheetId]);
+
   if (!spriteSheet || !metasprite) {
     return null;
   }
@@ -214,7 +235,17 @@ const MetaspriteEditorPreviewSettings = ({
           {l10n("FIELD_UNIQUE")}={spriteSheet.numTiles}
         </Info>
       </TooltipWrapper>
-      <FixedSpacer width={5} />
+      {isCGBOnly && (
+        <CheckboxWrapper>
+          <CheckboxField
+            name="dmgCompatible"
+            label={l10n("FIELD_MONOCHROME_COMPATIBLE")}
+            title={l10n("FIELD_MONOCHROME_COMPATIBLE_INFO")}
+            checked={spriteSheet?.settings?.dmgCompatible ?? false}
+            onChange={onChangeDMGCompatible}
+          />
+        </CheckboxWrapper>
+      )}
     </Wrapper>
   );
 };

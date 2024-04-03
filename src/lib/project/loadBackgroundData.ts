@@ -21,6 +21,10 @@ export interface BackgroundAssetData {
   imageWidth: number;
   imageHeight: number;
   plugin?: string;
+  tileColors: number[];
+  settings: {
+    dmgCompatible: boolean;
+  };
   inode: string;
   _v: number;
 }
@@ -50,6 +54,10 @@ const loadBackgroundData =
         imageWidth: width,
         imageHeight: height,
         filename: file,
+        tileColors: [],
+        settings: {
+          dmgCompatible: false,
+        },
         inode,
         _v: Date.now(),
       };

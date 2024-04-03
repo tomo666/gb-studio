@@ -34,6 +34,9 @@ export interface SpriteAssetData {
   animSpeed: number | null;
   states: string[];
   numFrames: number;
+  settings: {
+    dmgCompatible: boolean;
+  };
 }
 
 const loadSpriteData =
@@ -70,6 +73,9 @@ const loadSpriteData =
         boundsWidth: 16,
         boundsHeight: 16,
         animSpeed: 15,
+        settings: {
+          dmgCompatible: false,
+        },
         _v: Date.now(),
       };
     } catch (e) {

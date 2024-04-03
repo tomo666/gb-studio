@@ -92,11 +92,20 @@ const loadProject = async (
             oldBackground?.tileColors !== undefined
               ? oldBackground.tileColors
               : [],
+          settings:
+            oldBackground.settings !== undefined
+              ? oldBackground.settings
+              : {
+                  dmgCompatible: false,
+                },
         };
       }
       return {
         ...background,
         tileColors: [],
+        settings: {
+          dmgCompatible: false,
+        },
       };
     })
     .sort(sortByName);

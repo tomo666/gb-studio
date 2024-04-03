@@ -119,9 +119,10 @@ export const compileSprite = async (
 ): Promise<PrecompiledSpriteSheetData> => {
   const filename = assetFilename(projectRoot, "sprites", spriteSheet);
 
-  const tileAllocationStrategy = cgbOnly
-    ? spriteTileAllocationColorOnly
-    : spriteTileAllocationDefault;
+  const tileAllocationStrategy =
+    cgbOnly && !spriteSheet.settings?.dmgCompatible
+      ? spriteTileAllocationColorOnly
+      : spriteTileAllocationDefault;
 
   const metasprites = spriteSheet.states
     .map((state) => state.animations)

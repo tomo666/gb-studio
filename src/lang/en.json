@@ -745,6 +745,8 @@
   "FIELD_SUPPORTED_PLATFORMS": "Supported Platforms",
   "FIELD_MONOCHROME_ONLY": "Monochrome only",
   "FIELD_SGB_UNAVAILABLE": "Super GB Mode is not supported for 'Color Only' games",
+  "FIELD_MONOCHROME_COMPATIBLE": "Monochrome Compatible",
+  "FIELD_MONOCHROME_COMPATIBLE_INFO": "As your game is set to 'Color Only' this asset may get placed in memory not available on incompatible devices. Setting this option allows keeping compatiblity with older devices for this asset, for example this could be useful to display a message that your game is only supported on color hardware.",
 
   "// 7": "Asset Viewer ---------------------------------------------",
   "ASSET_SEARCH": "Search...",

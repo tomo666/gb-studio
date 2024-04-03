@@ -133,6 +133,9 @@ export const dummyBackground: Background = {
   imageWidth: 1,
   imageHeight: 1,
   tileColors: [0],
+  settings: {
+    dmgCompatible: false,
+  },
   inode: "0",
   _v: 0,
 };
@@ -154,6 +157,9 @@ export const dummySpriteSheet: SpriteSheet = {
   boundsHeight: 16,
   states: [],
   animSpeed: 4,
+  settings: {
+    dmgCompatible: false,
+  },
   inode: "1",
   _v: 0,
 };
@@ -184,6 +190,9 @@ export const dummyPrecompiledSpriteSheet: PrecompiledSprite = {
   height: 32,
   animSpeed: 15,
   vramData: [[], []],
+  settings: {
+    dmgCompatible: false,
+  },
 };
 
 export const dummyMusic: Music = {

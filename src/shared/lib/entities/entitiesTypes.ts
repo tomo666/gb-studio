@@ -138,6 +138,10 @@ export type TriggerNormalized = Omit<Trigger, "script" | "leaveScript"> & {
   leaveScript: string[];
 };
 
+export type BackgroundSettings = {
+  dmgCompatible?: boolean;
+};
+
 export type Background = {
   id: string;
   name: string;
@@ -148,6 +152,7 @@ export type Background = {
   imageWidth: number;
   imageHeight: number;
   tileColors: number[];
+  settings: BackgroundSettings;
   plugin?: string;
   inode: string;
   _v: number;
@@ -317,6 +322,10 @@ export type SpriteAnimationData = Omit<SpriteAnimation, "frames"> & {
   frames: MetaspriteData[];
 };
 
+export type SpriteSettings = {
+  dmgCompatible?: boolean;
+};
+
 export type SpriteSheet = {
   id: string;
   name: string;
@@ -337,6 +346,7 @@ export type SpriteSheet = {
   boundsHeight: number;
   animSpeed: number | null;
   states: string[];
+  settings: SpriteSettings;
 };
 
 export type SpriteSheetData = Omit<SpriteSheet, "states" | "_v" | "inode"> & {

@@ -104,9 +104,10 @@ const compileImage = async (
     };
   }
 
-  const tileAllocationStrategy = cgbOnly
-    ? imageTileAllocationColorOnly
-    : imageTileAllocationDefault;
+  const tileAllocationStrategy =
+    cgbOnly && !img.settings?.dmgCompatible
+      ? imageTileAllocationColorOnly
+      : imageTileAllocationDefault;
 
   const tilesetLookup = toTileLookup(tileData) ?? {};
   const uniqueTiles = Object.values(tilesetLookup);

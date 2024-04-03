@@ -75,6 +75,8 @@ import {
   ScriptEventsRef,
   ScriptEventParentType,
   Sound,
+  BackgroundSettings,
+  SpriteSettings,
 } from "shared/lib/entities/entitiesTypes";
 import {
   normalizeEntities,
@@ -276,7 +278,7 @@ const loadBackground: CaseReducer<
     state.backgrounds,
     backgroundsAdapter,
     action.payload.data,
-    ["id", "symbol"]
+    ["id", "symbol", "settings"]
   );
   fixAllScenesWithModifiedBackgrounds(state);
   ensureSymbolsUnique(state);
@@ -314,6 +316,7 @@ const loadSprite: CaseReducer<
       "boundsHeight",
       "animSpeed",
       "numTiles",
+      "settings",
     ]
   );
   fixAllSpritesWithMissingStates(state);
@@ -1245,6 +1248,27 @@ const setBackgroundSymbol: CaseReducer<
   );
 };
 
+const editBackgroundSettings: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ backgroundId: string; changes: Partial<BackgroundSettings> }>
+> = (state, action) => {
+  const background = localBackgroundSelectors.selectById(
+    state,
+    action.payload.backgroundId
+  );
+  if (background) {
+    backgroundsAdapter.updateOne(state.backgrounds, {
+      id: background.id,
+      changes: {
+        settings: {
+          ...background.settings,
+          ...action.payload.changes,
+        },
+      },
+    });
+  }
+};
+
 /**************************************************************************
  * Sprite Sheets
  */
@@ -1277,6 +1301,27 @@ const setSpriteSheetSymbol: CaseReducer<
     action.payload.spriteSheetId,
     action.payload.symbol
   );
+};
+
+const editSpriteSheetSettings: CaseReducer<
+  EntitiesState,
+  PayloadAction<{ spriteSheetId: string; changes: Partial<SpriteSettings> }>
+> = (state, action) => {
+  const spriteSheet = localSpriteSheetSelectors.selectById(
+    state,
+    action.payload.spriteSheetId
+  );
+  if (spriteSheet) {
+    spriteSheetsAdapter.updateOne(state.spriteSheets, {
+      id: spriteSheet.id,
+      changes: {
+        settings: {
+          ...spriteSheet.settings,
+          ...action.payload.changes,
+        },
+      },
+    });
+  }
 };
 
 /**************************************************************************
@@ -2955,6 +3000,7 @@ const entitiesSlice = createSlice({
      */
 
     setBackgroundSymbol,
+    editBackgroundSettings,
 
     /**************************************************************************
      * Sprites
@@ -2962,6 +3008,7 @@ const entitiesSlice = createSlice({
 
     editSpriteSheet,
     setSpriteSheetSymbol,
+    editSpriteSheetSettings,
 
     /**************************************************************************
      * Metasprites

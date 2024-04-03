@@ -6,6 +6,7 @@ import {
 } from "store/features/entities/entitiesState";
 import editorActions from "store/features/editor/editorActions";
 import electronActions from "store/features/electron/electronActions";
+import entitiesActions from "store/features/entities/entitiesActions";
 import { SceneSelect } from "components/forms/SceneSelect";
 import { SelectMenu, selectMenuStyleProps } from "ui/form/Select";
 import { RelativePortal } from "ui/layout/RelativePortal";
@@ -14,6 +15,7 @@ import l10n from "shared/lib/lang/l10n";
 import { sceneName } from "shared/lib/entities/entitiesHelpers";
 import { useAppDispatch, useAppSelector } from "store/hooks";
 import { assetPath } from "shared/lib/helpers/assets";
+import { CheckboxField } from "ui/form/CheckboxField";
 
 interface BackgroundPreviewSettingsProps {
   backgroundId: string;
@@ -43,6 +45,11 @@ const Pill = styled.button`
   :active {
     background: ${(props) => props.theme.colors.list.selectedBackground};
   }
+`;
+
+const CheckboxWrapper = styled.div`
+  margin-left: 5px;
+  margin-top: -3px;
 `;
 
 const ButtonCover = styled.div`
@@ -75,6 +82,9 @@ const BackgroundPreviewSettings = ({
 
   const colorsEnabled = useAppSelector(
     (state) => state.project.present.settings.colorMode !== "mono"
+  );
+  const isCGBOnly = useAppSelector(
+    (state) => state.project.present.settings.colorMode === "color"
   );
 
   useEffect(() => {
@@ -158,6 +168,17 @@ const BackgroundPreviewSettings = ({
     }
   }, [background, dispatch]);
 
+  const onChangeDMGCompatible = useCallback(() => {
+    dispatch(
+      entitiesActions.editBackgroundSettings({
+        backgroundId,
+        changes: {
+          dmgCompatible: !background?.settings?.dmgCompatible,
+        },
+      })
+    );
+  }, [dispatch, background?.settings?.dmgCompatible, backgroundId]);
+
   return (
     <Wrapper>
       {isOpen && <ButtonCover onMouseDown={delayedButtonFocus} />}
@@ -198,6 +219,17 @@ const BackgroundPreviewSettings = ({
       <Pill ref={buttonRef} onClick={onEdit}>
         {l10n("FIELD_EDIT_IMAGE")}
       </Pill>
+      {isCGBOnly && (
+        <CheckboxWrapper>
+          <CheckboxField
+            name="dmgCompatible"
+            label={l10n("FIELD_MONOCHROME_COMPATIBLE")}
+            title={l10n("FIELD_MONOCHROME_COMPATIBLE_INFO")}
+            checked={background?.settings?.dmgCompatible ?? false}
+            onChange={onChangeDMGCompatible}
+          />
+        </CheckboxWrapper>
+      )}
     </Wrapper>
   );
 };
