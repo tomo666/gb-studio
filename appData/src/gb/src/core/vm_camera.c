@@ -34,14 +34,14 @@ void vm_camera_move_to(SCRIPT_CTX * THIS, INT16 idx, UBYTE speed, UBYTE after_lo
     // Move camera towards destination
     if ((game_time & speed) == 0) {
         if (camera_x > params->X) {
-            camera_x--;
+            camera_x-=8;
         } else if (camera_x < params->X) {
-            camera_x++;
+            camera_x+=8;
         }
         if (camera_y > params->Y) {
-            camera_y--;
+            camera_y-=8;
         } else if (camera_y < params->Y) {
-            camera_y++;
+            camera_y+=8;
         }
     }
 
