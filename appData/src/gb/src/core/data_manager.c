@@ -185,6 +185,8 @@ inline void load_sprite_palette(const palette_t * palette, UBYTE bank) {
     DMG_palette[2] = (UBYTE)(data >> 8);
 }
 
+UBYTE scene_counter = 0;
+
 UBYTE load_scene(const scene_t * scene, UBYTE bank, UBYTE init_data) BANKED {
     UBYTE i;
     scene_t scn;
@@ -250,6 +252,13 @@ UBYTE load_scene(const scene_t * scene, UBYTE bank, UBYTE init_data) BANKED {
 
     if (init_data) {
         camera_reset();
+
+        // When transitioning from right to left set offset
+        camera_x = 0;
+        if ((scene_counter%4) == 1) {
+            camera_x = 240;
+        }
+        scene_counter++;
 
         // Copy scene player hit scripts to player actor
         memcpy(&PLAYER.script, &scn.script_p_hit1, sizeof(far_ptr_t));

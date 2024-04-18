@@ -25,7 +25,7 @@ void remove_LCD_ISRs(void) BANKED {
 
 void simple_LCD_isr(void) NONBANKED {
     if (LYC_REG == LYC_SYNC_VALUE) {
-        SCX_REG = draw_scroll_x;
+        SCX_REG = draw_scroll_x + (origin_x * 8u);
         SCY_REG = draw_scroll_y;
         if (WY_REG) {
             if (WY_REG < MENU_CLOSED_Y) LYC_REG = WY_REG - 1;

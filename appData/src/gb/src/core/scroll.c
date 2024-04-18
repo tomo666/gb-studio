@@ -40,6 +40,9 @@ UBYTE pending_w_x, pending_w_y;
 UBYTE pending_w_i;
 INT16 current_row, new_row;
 INT16 current_col, new_col;
+UBYTE origin_x, origin_y;
+
+UBYTE counter = 3;
 
 void scroll_init(void) BANKED {
     draw_scroll_x   = 0;
@@ -48,6 +51,7 @@ void scroll_init(void) BANKED {
     scroll_y_max    = 0;
     scroll_offset_x = 0;
     scroll_offset_y = 0;
+    counter = 0;
     scroll_reset();
 }
 
@@ -56,6 +60,30 @@ void scroll_reset(void) BANKED {
     pending_h_i     = 0;
     scroll_x        = 0x7FFF;
     scroll_y        = 0x7FFF;
+    origin_x        = 0;
+    origin_y        = 0;
+
+    // From East to Transition
+    if (counter == 4) {
+        origin_x        = 0xC;    
+    }
+
+    // From West to Transition
+    if (counter == 6) {
+        origin_x        = 0xC;    
+    }
+ 
+    // From Transition to East
+    if (counter == 8) {
+        origin_x        = 0xC;    
+    }
+
+    // From East to Transition
+    if (counter == 12) {
+        origin_x        = 0xC;    
+    }
+
+    counter++;
 
     game_time       = 0; // was in scroll_render_rows() - that is insane, here is not the best place either 
 }

@@ -48,6 +48,15 @@ _set_bkg_submap::
 
         ldhl    sp, #2
         ld      a, (hl+)        ; d = x
+
+        ; Add origin x 
+        push    bc
+        push    af            
+        ld      a, (_origin_x) 
+        pop     bc             
+        add     a, b           
+        pop     bc
+
         and     #0x1f
         ld      d, a
         ld      a, (hl)         ; e = y
