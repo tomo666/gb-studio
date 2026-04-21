@@ -47,7 +47,7 @@ import navigationActions from "store/features/navigation/navigationActions";
 import entitiesActions from "store/features/entities/entitiesActions";
 import { PaletteSelect } from "components/forms/PaletteSelect";
 import { Brush } from "store/features/editor/editorState";
-import { cloneDeep } from "lodash";
+import cloneDeep from "lodash/cloneDeep";
 import { NavigationSection } from "store/features/navigation/navigationState";
 import styled, { css } from "styled-components";
 import { FloatingPanel, FloatingPanelDivider } from "ui/panels/FloatingPanel";
@@ -329,7 +329,7 @@ const BrushToolbar = ({ hasFocusForKeyboardShortcuts }: BrushToolbarProps) => {
       setModalColorIndex(-1);
     }
   }, [selectedTool]);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const startReplacePalette = (paletteIndex: number) => () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);

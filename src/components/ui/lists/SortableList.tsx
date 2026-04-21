@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { SortableItem } from "ui/lists/SortableItem";
 import { StyledSortableList } from "./style";
-import { throttle } from "lodash";
+import throttle from "lodash/throttle";
 
 export type SortableListOrientation = "horizontal" | "vertical";
 

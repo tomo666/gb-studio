@@ -1,10 +1,11 @@
 import styled from "styled-components";
 import WindowedSelect from "react-windowed-select";
 import CRSelect from "react-select/creatable";
-import React, { FC, ReactNode } from "react";
+import React, { FC, JSX, ReactNode } from "react";
 import { setDefault } from "shared/lib/helpers/setDefault";
 import { SearchIcon } from "ui/icons/Icons";
 import L10NText from "./L10NText";
+import API from "renderer/lib/api";
 
 export interface Option {
   value: string;
@@ -28,7 +29,7 @@ interface OptionLabelWithInfoProps {
 }
 
 interface SingleValueWithPreviewProps {
-  preview: ReactNode;
+  preview?: ReactNode;
   children: ReactNode;
 }
 
@@ -54,15 +55,17 @@ const menuPortalEl = document.getElementById("MenuPortal");
 export const Select: typeof WindowedSelect = styled(WindowedSelect).attrs(
   (props) => ({
     className: "CustomSelect",
-    classNamePrefix: "CustomSelect",
+    classNamePrefix: props.classNamePrefix
+      ? `${props.classNamePrefix} CustomSelect`
+      : "CustomSelect",
     styles: {
       option: (base) => ({
         ...base,
-        height: 26,
+        height: API.env === "web" && window.innerWidth < 840 ? 38 : 26,
       }),
     },
     inputId: props.name,
-    menuPlacement: "auto",
+    menuPlacement: props.menuPlacement ?? "auto",
     menuPortalTarget: setDefault(props.menuPortalTarget, menuPortalEl),
   }),
 )`
@@ -156,6 +159,20 @@ export const Select: typeof WindowedSelect = styled(WindowedSelect).attrs(
   input:focus {
     box-shadow: none !important;
   }
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    .CustomSelect__control {
+      height: 38px;
+      font-size: 14px;
+    }
+
+    .CustomSelect__option {
+      padding: 10px;
+      font-size: 14px;
+    }
+  }`}
 `;
 
 const ValuePreview = styled.div`
@@ -278,11 +295,13 @@ export const SingleValueWithPreview: FC<SingleValueWithPreviewProps> = ({
   children,
 }) => (
   <SingleValueWithPreviewWrapper>
-    <SingleValuePreview>
-      <SingleValuePreviewOffset>
-        <ValuePreview>{preview}</ValuePreview>
-      </SingleValuePreviewOffset>
-    </SingleValuePreview>
+    {preview && (
+      <SingleValuePreview>
+        <SingleValuePreviewOffset>
+          <ValuePreview>{preview}</ValuePreview>
+        </SingleValuePreviewOffset>
+      </SingleValuePreview>
+    )}
     {children}
   </SingleValueWithPreviewWrapper>
 );

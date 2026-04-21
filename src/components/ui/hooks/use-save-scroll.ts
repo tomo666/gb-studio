@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 
 export function useSaveScroll<T extends HTMLElement>(
-  ref: React.RefObject<T>,
+  ref: React.RefObject<T | null>,
   onSave: (scrollTop: number) => void,
   delayMs = 200,
 ) {

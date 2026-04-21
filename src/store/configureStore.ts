@@ -15,13 +15,11 @@ import entitiesMiddleware from "./features/entities/entitiesMiddleware";
 import settingsMiddleware from "./features/settings/settingsMiddleware";
 import consoleMiddleware from "./features/console/consoleMiddleware";
 
-export type RootState = ReturnType<typeof rootReducer>;
-
 const store = configureStore({
   reducer: rootReducer,
   devTools: {
     latency: 200,
-    actionsDenylist: ["editor/sceneHover"],
+    actionsDenylist: ["editor/sceneHover", "tracker/setHover"],
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -48,5 +46,6 @@ const store = configureStore({
 export type AppDispatch = typeof store.dispatch;
 export type AppStore = typeof store;
 export type AppState = ReturnType<typeof store.getState>;
+export type { RootState, AppThunk } from "./storeTypes";
 
 export default store;

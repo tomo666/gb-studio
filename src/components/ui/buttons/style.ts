@@ -1,3 +1,4 @@
+import API from "renderer/lib/api";
 import styled, { css } from "styled-components";
 
 // #region Button
@@ -12,13 +13,19 @@ interface StyledButtonProps {
     | "anchor";
   readonly $active?: boolean;
   readonly disabled?: boolean;
+  readonly "data-variant"?: StyledButtonProps["$variant"];
 }
 
-export const StyledButton = styled.button<StyledButtonProps>`
+export const StyledButton = styled.button.attrs<StyledButtonProps>((props) => ({
+  "data-variant": props.$variant,
+}))`
   user-select: none;
   display: inline-flex;
   justify-content: center;
   align-items: center;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   font-size: ${(props) => props.theme.typography.fontSize};
   border-radius: ${(props) => props.theme.borderRadius}px;
   height: 28px;
@@ -40,6 +47,14 @@ export const StyledButton = styled.button<StyledButtonProps>`
     fill: ${(props) => props.theme.colors.button.text};
     opacity: ${(props) => (props.disabled ? 0.3 : 1)};
   }
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    min-width: 32px;
+    height: 38px;
+  }
+  `}
 
   ${(props) => (props.$size === "small" ? smallStyles : "")}
   ${(props) => (props.$size === "large" ? largeStyles : "")}
@@ -86,6 +101,12 @@ const normalStyles = css<StyledButtonProps>`
   &:active {
     background: ${(props) => props.theme.colors.button.activeBackground};
   }
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    height: 38px;
+  }`}
 `;
 
 const primaryStyles = css<StyledButtonProps>`
@@ -410,7 +431,6 @@ export const StyledDropdownSubMenu = styled.div<StyledDropdownMenuProps>`
   position: absolute;
   margin-top: 2px;
   z-index: 10001;
-  background: blue;
   height: 10px;
   right: 0;
 
@@ -479,18 +499,18 @@ export const StyledButtonGroup = styled.div`
   display: flex;
   gap: 0px;
 
-  ${StyledButton} {
+  && ${StyledButton} {
     flex-grow: 1;
     border-radius: 0px;
     border-right-width: 0;
   }
 
-  ${StyledButton}:first-child {
+  && ${StyledButton}:first-child {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
   }
 
-  ${StyledButton}:last-child {
+  && ${StyledButton}:last-child {
     border-right-width: 1px;
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;

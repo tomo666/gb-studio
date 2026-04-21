@@ -1,75 +1,16 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import trackerDocumentActions from "store/features/trackerDocument/trackerDocumentActions";
 import { DutyInstrument } from "shared/lib/uge/types";
 import { FormDivider, FormField, FormRow } from "ui/form/layout/FormLayout";
-import { Select } from "ui/form/Select";
-import { SliderField } from "ui/form/SliderField";
-import { InstrumentLengthForm } from "./InstrumentLengthForm";
-import { InstrumentVolumeEditor } from "./InstrumentVolumeEditor";
-import { Button } from "ui/buttons/Button";
-import { Alert, AlertItem } from "ui/alerts/Alert";
-import API from "renderer/lib/api";
 import l10n from "shared/lib/lang/l10n";
-import { useAppDispatch } from "store/hooks";
-import { SingleValue } from "react-select";
-import { ButtonGroup } from "ui/buttons/ButtonGroup";
-import { testNotes } from "./helpers";
-import throttle from "lodash/throttle";
-import { OCTAVE_SIZE } from "consts";
-
-const dutyOptions = [
-  {
-    value: "0",
-    label: "12.5%",
-  },
-  {
-    value: "1",
-    label: "25%",
-  },
-  {
-    value: "2",
-    label: "50%",
-  },
-  {
-    value: "3",
-    label: "75%",
-  },
-];
-
-const sweepTimeOptions = [
-  {
-    value: "0",
-    label: "Off",
-  },
-  {
-    value: "1",
-    label: "1/128Hz",
-  },
-  {
-    value: "2",
-    label: "2/128Hz",
-  },
-  {
-    value: "3",
-    label: "3/128Hz",
-  },
-  {
-    value: "4",
-    label: "4/128Hz",
-  },
-  {
-    value: "5",
-    label: "5/128Hz",
-  },
-  {
-    value: "6",
-    label: "6/128Hz",
-  },
-  {
-    value: "7",
-    label: "7/128Hz",
-  },
-];
+import { useAppDispatch, useAppSelector } from "store/hooks";
+import { Alert, AlertItem } from "ui/alerts/Alert";
+import { InstrumentEnvelopeEditor } from "components/music/sidebar/InstrumentEnvelopeEditor";
+import { InstrumentEnvelopePreview } from "components/music/sidebar/InstrumentEnvelopePreview";
+import { Slider } from "ui/form/Slider";
+import { FlexGrow } from "ui/spacing/Spacing";
+import { DutyCycleSelect } from "components/music/form/DutyCycleSelect";
+import { SweepTimeSelect } from "components/music/form/SweepTimeSelect";
 
 interface InstrumentDutyEditorProps {
   id: string;
@@ -80,171 +21,146 @@ export const InstrumentDutyEditor = ({
   instrument,
 }: InstrumentDutyEditorProps) => {
   const dispatch = useAppDispatch();
+  const selectedChannel = useAppSelector(
+    (state) => state.tracker.selectedChannel,
+  );
 
-  const throttledTestInstrument = useRef(
-    throttle(
-      (instrument: DutyInstrument) => {
-        API.music.sendToMusicWindow({
-          action: "preview",
-          note: OCTAVE_SIZE * 2, // C5
-          type: "duty",
-          instrument,
-          square2: false,
-        });
-      },
-      250,
-      { leading: true, trailing: true },
-    ),
-  ).current;
+  const instrumentId = instrument?.index;
 
+  const lastSweepTimeRef = useRef(instrument?.frequency_sweep_time || 4);
   useEffect(() => {
-    return () => {
-      throttledTestInstrument.cancel();
-    };
-  }, [throttledTestInstrument]);
-
-  const lastAutoPreview = useRef("");
-  const hasMounted = useRef(false);
-
-  useEffect(() => {
-    const instrumentKey = JSON.stringify(instrument);
-
-    if (
-      instrument &&
-      hasMounted.current &&
-      instrumentKey !== lastAutoPreview.current
-    ) {
-      throttledTestInstrument(instrument);
+    const newSweepTime = instrument?.frequency_sweep_time;
+    if (typeof newSweepTime === "number" && newSweepTime !== 0) {
+      lastSweepTimeRef.current = newSweepTime;
     }
+  }, [instrument?.frequency_sweep_time]);
 
-    lastAutoPreview.current = instrumentKey;
-    hasMounted.current = true;
-  }, [instrument, throttledTestInstrument]);
-
-  if (!instrument) return <></>;
-
-  const selectedDuty = dutyOptions.find(
-    (i) => parseInt(i.value, 10) === instrument.duty_cycle,
-  );
-
-  const selectedSweepTime = sweepTimeOptions.find(
-    (i) => parseInt(i.value, 10) === instrument.frequency_sweep_time,
-  );
-
-  const onChangeField =
+  const onChangeField = useCallback(
     <T extends keyof DutyInstrument>(key: T) =>
-    (editValue: DutyInstrument[T]) => {
-      dispatch(
-        trackerDocumentActions.editDutyInstrument({
-          instrumentId: instrument.index,
-          changes: {
-            [key]: editValue,
-          },
-        }),
-      );
-    };
-
-  const onChangeFieldSelect =
-    <T extends keyof DutyInstrument>(key: T) =>
-    (e: SingleValue<{ value: string; label: string }>) => {
-      if (e) {
-        const editValue = e.value;
+      (editValue: DutyInstrument[T]) => {
+        if (instrumentId === undefined) {
+          return;
+        }
         dispatch(
           trackerDocumentActions.editDutyInstrument({
-            instrumentId: instrument.index,
+            instrumentId,
             changes: {
               [key]: editValue,
             },
           }),
         );
-      }
-    };
+      },
+    [dispatch, instrumentId],
+  );
 
-  const onTestInstrument = (note: number) => () => {
-    API.music.sendToMusicWindow({
-      action: "preview",
-      note,
-      type: "duty",
-      instrument: instrument,
-      square2: false,
-    });
-  };
+  const onChangeEnvelopeLength = useMemo(
+    () => onChangeField("length"),
+    [onChangeField],
+  );
+
+  const onChangeEnvelopeVolume = useMemo(
+    () => onChangeField("initial_volume"),
+    [onChangeField],
+  );
+
+  const onChangeEnvelopeSweep = useMemo(
+    () => onChangeField("volume_sweep_change"),
+    [onChangeField],
+  );
+
+  const onChangeDutyCycle = useMemo(
+    () => onChangeField("duty_cycle"),
+    [onChangeField],
+  );
+
+  const onChangeSweepShift = useCallback(
+    (value: number) => {
+      if (value === 0) {
+        onChangeField("frequency_sweep_time")(0);
+      } else if (Number(instrument?.frequency_sweep_time) === 0) {
+        onChangeField("frequency_sweep_time")(lastSweepTimeRef.current);
+      }
+      onChangeField("frequency_sweep_shift")(value);
+    },
+    [instrument?.frequency_sweep_time, onChangeField],
+  );
+
+  const onChangeSweepTime = useCallback(
+    (value: number) => {
+      if (value !== 0 && Number(instrument?.frequency_sweep_shift) === 0) {
+        onChangeField("frequency_sweep_shift")(7);
+      } else if (value === 0) {
+        onChangeField("frequency_sweep_shift")(0);
+      }
+      onChangeField("frequency_sweep_time")(value);
+    },
+    [instrument?.frequency_sweep_shift, onChangeField],
+  );
+
+  if (!instrument) {
+    return null;
+  }
 
   return (
     <>
-      <InstrumentLengthForm
-        value={instrument.length}
-        onChange={onChangeField("length")}
-      />
-      <FormDivider />
-      <InstrumentVolumeEditor
-        initialVolume={instrument.initial_volume}
-        volumeSweepChange={instrument.volume_sweep_change}
+      <InstrumentEnvelopeEditor
+        volume={instrument.initial_volume}
+        sweep={instrument.volume_sweep_change}
         length={instrument.length}
-        onChange={onChangeField}
+        onChangeVolume={onChangeEnvelopeVolume}
+        onChangeSweep={onChangeEnvelopeSweep}
+        onChangeLength={onChangeEnvelopeLength}
       />
+      <FormRow>
+        <InstrumentEnvelopePreview
+          volume={instrument.initial_volume}
+          sweep={instrument.volume_sweep_change}
+          length={instrument.length}
+        />
+      </FormRow>
       <FormDivider />
       <FormRow>
-        <FormField name="frequency_sweep_time" label={l10n("FIELD_SWEEP_TIME")}>
-          <Select
-            name="frequency_sweep_time"
-            value={selectedSweepTime}
-            options={sweepTimeOptions}
-            onChange={onChangeFieldSelect("frequency_sweep_time")}
+        <FormField name="dutyCycle" label={l10n("FIELD_DUTY_CYCLE")}>
+          <DutyCycleSelect
+            name="dutyCycle"
+            value={instrument.duty_cycle}
+            onChange={onChangeDutyCycle}
+            menuPlacement="top"
           />
         </FormField>
       </FormRow>
-      {Number(instrument.frequency_sweep_time) !== 0 && (
-        <FormRow>
-          <SliderField
-            name="frequency_sweep_shift"
-            label={l10n("FIELD_SWEEP_SHIFT")}
-            value={instrument.frequency_sweep_shift || 0}
-            min={-7}
-            max={7}
-            onChange={(value) => {
-              onChangeField("frequency_sweep_shift")(value || 0);
-            }}
-          />
-        </FormRow>
-      )}
-      <FormDivider />
-      <FormRow>
-        <FormField name="duty_cycle" label={l10n("FIELD_DUTY")}>
-          <Select
-            name="duty_cycle"
-            value={selectedDuty}
-            options={dutyOptions}
-            onChange={onChangeFieldSelect("duty_cycle")}
-          />
-        </FormField>
-      </FormRow>
+
       <FormDivider />
       <FormRow>
         <FormField
-          name="test_instrument_C5"
-          label={l10n("FIELD_TEST_INSTRUMENT")}
+          name="frequency_sweep_time"
+          label={l10n("FIELD_SWEEP_SHIFT")}
         >
-          <ButtonGroup>
-            {testNotes.map(({ label, value }) => (
-              <Button
-                key={`test_instrument_${label}`}
-                id={`test_instrument_${label}`}
-                onClick={onTestInstrument(value)}
-              >
-                {label}
-              </Button>
-            ))}
-          </ButtonGroup>
+          <Slider
+            value={instrument.frequency_sweep_shift || 0}
+            min={-7}
+            max={7}
+            onChange={onChangeSweepShift}
+          />
+        </FormField>
+        <FormField name="frequencySweepTime" label={l10n("FIELD_SWEEP_TIME")}>
+          <SweepTimeSelect
+            name={"frequencySweepTime"}
+            value={instrument.frequency_sweep_time}
+            onChange={onChangeSweepTime}
+            menuPlacement="top"
+          />
         </FormField>
       </FormRow>
-      {instrument.subpattern_enabled && (
-        <FormRow>
-          <Alert variant="info">
-            <AlertItem>{l10n("MESSAGE_NOT_PREVIEW_SUBPATTERN")}</AlertItem>
-          </Alert>
-        </FormRow>
-      )}
+      {Number(instrument.frequency_sweep_time) !== 0 &&
+        selectedChannel === 1 && (
+          <FormRow>
+            <Alert variant="info">
+              <AlertItem>{l10n("MESSAGE_SWEEP_ONLY_DUTY1")}</AlertItem>
+            </Alert>
+          </FormRow>
+        )}
+      <FlexGrow />
     </>
   );
 };

@@ -16,7 +16,7 @@ export const extractMenuAccelerator = (children: ReactNode): string | null => {
 
   Children.forEach(children, (child) => {
     if (
-      isValidElement(child) &&
+      isValidElement<{ accelerator?: string }>(child) &&
       child.type === MenuAccelerator &&
       typeof child.props.accelerator === "string"
     ) {
@@ -100,6 +100,15 @@ export const MenuSection = styled.div`
   padding: 5px 10px;
   font-size: ${(props) => props.theme.typography.menuFontSize};
   white-space: nowrap;
+`;
+
+export const MenuItemDisabled = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: ${(props) => props.theme.typography.menuFontSize};
+  white-space: nowrap;
+  opacity: 0.5;
 `;
 
 export const MenuDivider = () => <StyledMenuDivider />;

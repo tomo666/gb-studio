@@ -1,3 +1,4 @@
+import API from "renderer/lib/api";
 import styled, { css } from "styled-components";
 
 // #region FormFieldInput
@@ -136,6 +137,12 @@ export const StyledFormHeader = styled.div<StyledFormHeaderProps>`
           }
         `
       : ""}
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    height: 52px;
+  }`}
 `;
 
 // #endregion FormHeader
@@ -222,6 +229,37 @@ export const StyledFormSectionTitle = styled.div<StyledFormSectionTitleProps>`
           margin-bottom: 0;
         `
       : ""}
+      
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    font-size: 14px;
+    height: 40px;
+  }`}
 `;
 
 // #endregion FormSectionTitle
+
+// #region FormSection
+
+export const StyledFormSection = styled.div`
+  border-bottom: 1px solid ${(props) => props.theme.colors.input.border};
+`;
+
+// #endregion FormSection
+
+// #region FormColumns
+
+export const StyledFormColumns = styled.div`
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  padding-top: 0px;
+`;
+
+export const StyledFormColumn = styled.div`
+  width: 100%;
+`;
+
+// #endregion FormSection

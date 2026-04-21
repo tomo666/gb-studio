@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from "react";
+import API from "renderer/lib/api";
 import styled from "styled-components";
 
 type ToggleButtonGroupOption<T> = {
@@ -45,6 +46,13 @@ export const ToggleButtonGroupWrapper = styled.div`
   & > *:last-child {
     border-right: 0px;
   }
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    height: 38px;
+    font-size: 14px;
+  }`}
 `;
 
 const Option = styled.div`

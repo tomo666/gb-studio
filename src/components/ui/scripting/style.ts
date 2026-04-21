@@ -1,3 +1,4 @@
+import API from "renderer/lib/api";
 import styled, { css } from "styled-components";
 import { StyledButton } from "ui/buttons/style";
 import { CheckboxContainer } from "ui/form/Checkbox";
@@ -136,7 +137,6 @@ export const StyledScriptEventHeader = styled.div<StyledScriptEventHeaderProps>`
     content: "⋮";
     position: absolute;
     left: 3px;
-    top: 6px;
   }
 
   ${(props) =>
@@ -243,6 +243,14 @@ export const StyledScriptEventHeader = styled.div<StyledScriptEventHeaderProps>`
           cursor: not-allowed;
         `
       : ""}
+
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    height: 38px;
+    font-size: 14px;
+  }`}
 `;
 
 interface StyledScriptEventHeaderCaretProps {

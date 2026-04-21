@@ -4,6 +4,7 @@ import type {
   MusicDataPacket,
   MusicDataReceivePacket,
 } from "shared/lib/music/types";
+import type { MusicMidiState } from "shared/lib/music/midi";
 import {
   ensurePromisedNumber,
   ensurePromisedString,
@@ -16,6 +17,7 @@ import type {
 import type { SettingsState } from "store/features/settings/settingsState";
 import type { BackgroundInfo } from "lib/helpers/validation";
 import type { Song } from "shared/lib/uge/types";
+import type { UGIInstrument } from "shared/lib/uge/ugiHelper";
 import type { PrecompiledSpriteSheetData } from "lib/compiler/compileSprites";
 import type { NavigationSection } from "store/features/navigation/navigationState";
 import type { ScriptEventDefs } from "shared/lib/scripts/scriptDefHelpers";
@@ -73,6 +75,14 @@ export type RecentProjectData = {
   path: string;
 };
 
+export interface ProjectWindowMenuState {
+  showCollisions: SettingsState["showCollisions"];
+  showConnections: SettingsState["showConnections"];
+  showNavigator: SettingsState["showNavigator"];
+  showSceneScreenGrid: SettingsState["showSceneScreenGrid"];
+  navigationSection: NavigationSection;
+}
+
 const createSubscribeAPI = <
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends (event: IpcRendererEvent, ...args: any[]) => void,
@@ -117,6 +127,7 @@ const createWatchSubscribeAPI = <T>(channel: string) => {
 
 const APISetup = {
   platform: process.platform,
+  env: "electron",
   test: () => console.log("Hello World"),
   app: {
     openExternal: (path: string) => ipcRenderer.invoke("open-external", path),
@@ -229,8 +240,8 @@ const APISetup = {
       ipcRenderer.invoke("project:get-resource-checksums"),
     createProject: (input: CreateProjectInput) =>
       ipcRenderer.invoke("create-project", input),
-    updateProjectWindowMenu: (settings: SettingsState) =>
-      ipcRenderer.invoke("project:update-project-window-menu", settings),
+    updateProjectWindowMenu: (state: ProjectWindowMenuState) =>
+      ipcRenderer.invoke("project:update-project-window-menu", state),
     close: () => ipcRenderer.invoke("close-project"),
     build: (data: ProjectResources, options: BuildOptions) =>
       ipcRenderer.invoke("project:build", data, options),
@@ -327,6 +338,8 @@ const APISetup = {
       ipcRenderer.send("music:data-send", data),
     sendToProjectWindow: (data: MusicDataReceivePacket) =>
       ipcRenderer.send("music:data-receive", data),
+    updateMidiInputMenuState: (state: MusicMidiState) =>
+      ipcRenderer.send("music:midi-menu-state", state),
     playUGE: (filename: string): Promise<void> =>
       ipcRenderer.invoke("music:play-uge", filename),
     playMOD: (filename: string, speedConversion: boolean): Promise<void> =>
@@ -343,12 +356,22 @@ const APISetup = {
   tracker: {
     addNewUGEFile: (path: string): Promise<MusicResourceAsset> =>
       ipcRenderer.invoke("tracker:new", path),
-    loadUGEFile: (path: string): Promise<Song | null> =>
+    loadUGEFile: (path: string): Promise<Song> =>
       ipcRenderer.invoke("tracker:load", path),
     saveUGEFile: (song: Song): Promise<void> =>
       ipcRenderer.invoke("tracker:save", song),
     convertModToUge: (asset: MusicAsset): Promise<MusicResourceAsset> =>
       ipcRenderer.invoke("tracker:convert-mod", asset),
+    exportInstrument: (instrument: UGIInstrument): Promise<void> =>
+      ipcRenderer.invoke("tracker:export-instrument", instrument),
+    importInstrument: (): Promise<UGIInstrument | null> =>
+      ipcRenderer.invoke("tracker:import-instrument"),
+    exportWave: (wave: Uint8Array, suggestedName: string): Promise<void> =>
+      ipcRenderer.invoke("tracker:export-wave", Array.from(wave), suggestedName),
+    importWave: (): Promise<Uint8Array | null> =>
+      ipcRenderer.invoke("tracker:import-wave").then(
+        (result: number[] | null) => result ? new Uint8Array(result) : null,
+      ),
   },
   sprite: {
     compileSprite: (
@@ -416,6 +439,12 @@ const APISetup = {
       pasteInPlace: createSubscribeAPI<(event: IpcRendererEvent) => void>(
         "menu:paste-in-place",
       ),
+      midiInputToggle: createSubscribeAPI<(event: IpcRendererEvent) => void>(
+        "menu:midi-input-toggle",
+      ),
+      midiInputSelect: createSubscribeAPI<
+        (event: IpcRendererEvent, inputId: string) => void
+      >("menu:midi-input-select"),
       setSection:
         createSubscribeAPI<
           (event: IpcRendererEvent, section: NavigationSection) => void

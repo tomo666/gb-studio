@@ -2,6 +2,7 @@ import "focus-visible";
 import { createGlobalStyle } from "styled-components";
 import pixelFont from "assets/fonts/PublicPixel.woff2";
 import React from "react";
+import API from "renderer/lib/api";
 
 // Load font for use in Canvas elements
 new FontFace("Public Pixel", `url("${pixelFont}")`).load().then((font) => {
@@ -52,6 +53,23 @@ const GlobalStyle = createGlobalStyle`
     --instrument-12-color: #f48cb6;
     --instrument-13-color: #f7b69e;
     --instrument-14-color: #9b9c82;
+
+    --instrument-0-text-color: #000000;
+    --instrument-1-text-color: #000000;
+    --instrument-2-text-color: #ffffff;
+    --instrument-3-text-color: #ffffff;
+    --instrument-4-text-color: #ffffff;
+    --instrument-5-text-color: #ffffff;
+    --instrument-6-text-color: #000000;
+    --instrument-7-text-color: #000000;
+    --instrument-8-text-color: #000000;
+    --instrument-9-text-color: #ffffff;
+    --instrument-10-text-color: #ffffff;
+    --instrument-11-text-color: #ffffff;
+    --instrument-12-text-color: #000000;
+    --instrument-13-text-color: #000000;
+    --instrument-14-text-color: #000000;
+
   }
 
   @font-face {
@@ -59,13 +77,21 @@ const GlobalStyle = createGlobalStyle`
       src: url('${pixelFont}') format('woff2');
       font-weight: normal;
       font-style: normal;
+      font-display: swap;
+  }
+
+  html {
+    overscroll-behavior: none;
   }
 
   html,
   body {
     width: 100%;
     height: 100%;
+    width: 100dvw;
+    height: 100dvh;    
     overflow: hidden;
+    position: fixed;
   }
 
   body {
@@ -75,9 +101,13 @@ const GlobalStyle = createGlobalStyle`
     Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     font-size: 13px;
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;    
     caret-color: ${(props) => props.theme.colors.highlight};
     background: ${(props) => props.theme.colors.background};
     color: ${(props) => props.theme.colors.text};
+    overscroll-behavior-x: none;
+    overflow: hidden;
   }
 
   input {
@@ -86,6 +116,7 @@ const GlobalStyle = createGlobalStyle`
   }
 
   #App {
+    display: flex;
     width: 100%;
     height: 100%;
   }
@@ -138,8 +169,18 @@ const GlobalStyle = createGlobalStyle`
 
   body .CustomSelect__menu {
     z-index: 100;
-    min-width: 200px;
+    min-width: 100px;
+    max-width: calc(100vw - 20px);
     right: 0;
+  }
+
+  body .CustomSelect--Left.CustomSelect__menu {
+    right: auto;
+    left: 0;
+  }
+
+  body .CustomSelect--WidthAuto.CustomSelect__menu {
+    width: auto;
   }
 
   body .CustomSelect__menu-list {
@@ -172,6 +213,15 @@ const GlobalStyle = createGlobalStyle`
   body .CustomSelect__input-container {
     color: ${(props) => props.theme.colors.input.text};
   }
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+      body .CustomSelect__option {
+        padding: 10px;
+        font-size: 14px;
+      }
+    }`}
 
   .label--red {
     background: #e20e2b;

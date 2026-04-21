@@ -5,6 +5,8 @@ import type {
   WaveInstrument,
 } from "shared/lib/uge/types";
 
+export type InstrumentType = "duty" | "wave" | "noise";
+
 export type MusicExportFormat = "wav" | "mp3" | "flac";
 
 export type MusicDataPacket =
@@ -20,13 +22,15 @@ export type MusicDataPacket =
       action: "play";
       song: Song;
       position?: [number, number];
-    }
-  | {
-      action: "play-sound";
+      metronomeEnabled?: boolean;
     }
   | {
       action: "stop";
       position?: [number, number];
+    }
+  | {
+      action: "set-metronome-enabled";
+      enabled: boolean;
     }
   | {
       action: "position";
@@ -34,11 +38,29 @@ export type MusicDataPacket =
     }
   | {
       action: "preview";
-      type: "duty" | "wave" | "noise";
+      type: "duty";
       note: number;
-      instrument: DutyInstrument | NoiseInstrument | WaveInstrument;
-      square2: boolean;
-      waveForms?: Uint8Array[];
+      instrument: DutyInstrument;
+      channel: 0 | 1;
+      effectCode: number;
+      effectParam: number;
+    }
+  | {
+      action: "preview";
+      type: "wave";
+      note: number;
+      instrument: WaveInstrument;
+      waveForm: Uint8Array;
+      effectCode: number;
+      effectParam: number;
+    }
+  | {
+      action: "preview";
+      type: "noise";
+      note: number;
+      instrument: NoiseInstrument;
+      effectCode: number;
+      effectParam: number;
     }
   | {
       action: "export-song";
@@ -75,7 +97,7 @@ export type MusicDataReceivePacket =
     }
   | {
       action: "muted";
-      channels: boolean[];
+      channels: [boolean, boolean, boolean, boolean];
     }
   | {
       action: "exported-song";

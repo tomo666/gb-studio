@@ -1,4 +1,10 @@
-import React, { ReactNode } from "react";
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLayoutEffect } from "react";
 import { AutoFocusInside } from "react-focus-lock";
 import { Button } from "ui/buttons/Button";
@@ -20,11 +26,63 @@ interface CreditsProps {
   children?: ReactNode;
 }
 
+const isCoarsePointerDevice = () => {
+  if (
+    typeof window === "undefined" ||
+    typeof window.matchMedia !== "function"
+  ) {
+    return false;
+  }
+  return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+};
+
 export const Credits = ({ onClose, duration = 60, children }: CreditsProps) => {
+  const [paused, setPaused] = useState(false);
+  const resumeTimeoutRef = useRef<number | undefined>(undefined);
+
+  const clearResumeTimeout = useCallback(() => {
+    if (resumeTimeoutRef.current !== undefined) {
+      window.clearTimeout(resumeTimeoutRef.current);
+      resumeTimeoutRef.current = undefined;
+    }
+  }, []);
+
+  const pauseTemporarily = useCallback(() => {
+    if (!isCoarsePointerDevice()) {
+      return;
+    }
+
+    setPaused(true);
+    clearResumeTimeout();
+
+    resumeTimeoutRef.current = window.setTimeout(() => {
+      setPaused(false);
+      resumeTimeoutRef.current = undefined;
+    }, 1000);
+  }, [clearResumeTimeout]);
+
+  useEffect(() => {
+    return () => {
+      clearResumeTimeout();
+    };
+  }, [clearResumeTimeout]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Escape") {
+        onClose?.();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
   return (
-    <StyledCredits>
+    <StyledCredits onTouchStart={pauseTemporarily}>
       <CreditsBackground />
-      <StyledCreditsContent $duration={duration}>
+      <StyledCreditsContent $duration={duration} $paused={paused}>
         {children}
       </StyledCreditsContent>
       {onClose && (
@@ -59,15 +117,27 @@ export const CreditsSubHeading = ({ children }: CreditsSubHeadingProps) => {
 interface CreditsPersonProps {
   children?: ReactNode;
   gold?: boolean;
+  href?: string;
+  target?: string;
+  rel?: string;
   onClick?: () => void;
 }
 
 export const CreditsPerson = ({
   children,
   gold,
+  href,
+  target,
+  rel,
   onClick,
 }: CreditsPersonProps) => (
-  <StyledCreditsPerson $gold={gold} onClick={onClick}>
+  <StyledCreditsPerson
+    $gold={gold}
+    onClick={onClick}
+    href={href}
+    target={target}
+    rel={rel}
+  >
     <span>{children}</span>
   </StyledCreditsPerson>
 );

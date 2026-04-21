@@ -7,7 +7,6 @@ interface StyledToolbarProps {
 
 export const StyledToolbar = styled.div<StyledToolbarProps>`
   display: flex;
-  box-sizing: border-box;
   height: 38px;
   font-size: ${(props) => props.theme.typography.toolbarFontSize};
   flex-shrink: 0;
@@ -22,6 +21,7 @@ export const StyledToolbar = styled.div<StyledToolbarProps>`
   z-index: 1;
   -webkit-app-region: drag;
   position: relative;
+  padding-top: env(safe-area-inset-top);
   z-index: 1000;
 
   .Platform__darwin & {
@@ -30,10 +30,6 @@ export const StyledToolbar = styled.div<StyledToolbarProps>`
 
   .full-screen & {
     padding-left: 10px;
-  }
-
-  & > *:not(:last-child) {
-    margin-right: 5px;
   }
 
   input {
@@ -66,4 +62,27 @@ export const StyledToolbarTitle = styled.div`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+`;
+
+export const StyledToolbarLeft = styled.div`
+  display: flex;
+  flex-grow: 1;
+  justify-content: flex-start;
+  flex-basis: 1px;
+  gap: 5px;
+`;
+
+export const StyledToolbarCentre = styled.div`
+  display: flex;
+  flex-grow: 1;
+  justify-content: center;
+  gap: 5px;
+`;
+
+export const StyledToolbarRight = styled.div`
+  display: flex;
+  flex-grow: 1;
+  justify-content: flex-end;
+  flex-basis: 1px;
+  gap: 5px;
 `;

@@ -24,12 +24,46 @@ const APIMock = {
     closeMusic: () => {},
     sendToMusicWindow: () => {},
     sendToProjectWindow: () => {},
+    updateMidiInputMenuState: () => {},
+  },
+  settings: {
+    get: () => Promise.resolve(undefined),
+    getString: (_key: string, fallback: string) => Promise.resolve(fallback),
+    getNumber: (_key: string, fallback: number) => Promise.resolve(fallback),
+    set: () => Promise.resolve(),
+    delete: () => Promise.resolve(),
+    app: {
+      openExternal: () => {},
+      setUIScale: () => Promise.resolve(),
+      getUIScale: () => Promise.resolve(0),
+      setTrackerKeyBindings: () => Promise.resolve(),
+      getTrackerKeyBindings: () => Promise.resolve(0),
+    },
+  },
+  tracker: {
+    addNewUGEFile: () => Promise.resolve({}),
+    loadUGEFile: () => Promise.resolve(null),
+    saveUGEFile: () => Promise.resolve(),
+    convertModToUge: () => Promise.resolve({}),
+  },
+  dialog: {
+    confirmUnsavedChangesTrackerDialog: () => Promise.resolve(2),
   },
   clipboard: {
     readText: () => {},
     readBuffer: () => {},
     writeText: () => {},
     writeBuffer: () => {},
+  },
+  events: {
+    menu: {
+      midiInputToggle: {
+        subscribe: () => () => undefined,
+      },
+      midiInputSelect: {
+        subscribe: () => () => undefined,
+      },
+    },
   },
 } as unknown as typeof API;
 

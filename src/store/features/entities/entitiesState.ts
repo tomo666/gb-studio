@@ -32,7 +32,7 @@ import {
 } from "consts";
 import { ScriptEventDefs } from "shared/lib/scripts/scriptDefHelpers";
 import clamp from "shared/lib/helpers/clamp";
-import { RootState } from "store/configureStore";
+import { RootState } from "store/storeTypes";
 import settingsActions from "store/features/settings/settingsActions";
 import uuid from "uuid";
 import {
@@ -91,7 +91,7 @@ import { addNewSongFile } from "store/features/trackerDocument/trackerDocumentSt
 import type { LoadProjectResult } from "lib/project/loadProjectData";
 import { decompressProjectResources } from "shared/lib/resources/compression";
 import { omit } from "shared/types";
-import { isEqual } from "lodash";
+import isEqual from "lodash/isEqual";
 import {
   AvatarAsset,
   AvatarResourceAsset,

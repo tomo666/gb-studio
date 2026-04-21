@@ -90,6 +90,42 @@ const consoleSlice = createSlice({
         state.warnings.push(line);
       }
     },
+    appendMany: (
+      state,
+      action: PayloadAction<
+        Array<
+          | { type: "out"; text: string; link?: ConsoleLink }
+          | { type: "err"; text: string; link?: ConsoleLink }
+        >
+      >,
+    ) => {
+      if (!action.payload?.length) {
+        return;
+      }
+
+      for (const item of action.payload) {
+        if (item.type === "out") {
+          if (
+            state.status !== "cancelled" ||
+            item.text === l10n("BUILD_CANCELLED")
+          ) {
+            state.output.push({
+              type: "out",
+              text: item.text,
+              link: item.link,
+            });
+          }
+        } else {
+          const line: ConsoleErrorLine = {
+            type: "err",
+            text: item.text,
+            link: item.link,
+          };
+          state.output.push(line);
+          state.warnings.push(line);
+        }
+      }
+    },
   },
 });
 

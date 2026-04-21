@@ -1,6 +1,7 @@
 import React, { FC, useContext } from "react";
 import styled, { css, ThemeContext } from "styled-components";
 import { Range, getTrackBackground } from "react-range";
+import API from "renderer/lib/api";
 
 interface SliderProps {
   value: number;
@@ -11,37 +12,136 @@ interface SliderProps {
   onChange?: (value: number) => void;
 }
 
+const TRACK_PADDING = 14;
+const TRACK_RADIUS = 20;
+const THUMB_SIZE = 20;
+const EDGE_FILL_SIZE = 20;
+const EDGE_FILL_OFFSET = -10;
+
 const RangeInner = styled.div`
   display: flex;
   width: 100%;
   height: 28px;
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    height: 38px;
+  }`}
 `;
 
 const RangeTrack = styled.div`
+  position: relative;
   width: 100%;
-  height: 4px;
-  border-radius: 4px;
+  height: 28px;
+  border-radius: ${TRACK_RADIUS}px;
   align-self: center;
-  background: ${(props) => props.theme.colors.input.border};
+  background: ${(props) => props.theme.colors.input.background};
+  border: 1px solid ${(props) => props.theme.colors.input.border};
+  box-sizing: border-box;
+  padding: 0 ${TRACK_PADDING}px;
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    height: 38px;
+    padding: 0 18px;
+  }`}
 `;
 
-interface RangeThumbProps {
-  $isDragged: boolean;
+interface RangeTrackFillProps {
+  $showStartCap: boolean;
 }
 
-const RangeThumb = styled.div<RangeThumbProps>`
-  height: 12px;
-  width: 12px;
-  border-radius: 12px;
-  background: ${(props) => props.theme.colors.button.background};
-  border: 1px solid ${(props) => props.theme.colors.input.border};
+const RangeTrackFill = styled.div<RangeTrackFillProps>`
+  position: absolute;
+  top: 3px;
+  left: ${TRACK_PADDING}px;
+  right: ${TRACK_PADDING}px;
+  bottom: 3px;
+
   ${(props) =>
-    props.$isDragged
+    props.$showStartCap
       ? css`
-          background: ${(props) => props.theme.colors.highlight};
-          border: 1px solid ${(props) => props.theme.colors.highlight};
+          &:before {
+            content: "";
+            display: block;
+            position: absolute;
+            width: ${EDGE_FILL_SIZE}px;
+            top: 0;
+            bottom: 0;
+            left: ${EDGE_FILL_OFFSET}px;
+            background: ${props.theme.colors.highlight};
+            border-radius: ${TRACK_RADIUS}px;
+          }
         `
       : ""}
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    left: 18px;
+    right: 18px;
+
+    &:before {
+      width: 28px;
+      left: -14px;
+      border-radius: 32px;
+    }
+  }`}
+`;
+
+const RangeTrackInner = styled.div`
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+`;
+
+interface ZeroMarkerProps {
+  $leftPercent: number;
+}
+
+const ZeroMarker = styled.div<ZeroMarkerProps>`
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  left: calc(50% - 1px);
+  border-radius: 999px;
+  background: ${(props) => props.theme.colors.input.border};
+  pointer-events: none;
+`;
+
+const RangeThumb = styled.div`
+  height: ${THUMB_SIZE}px;
+  width: ${THUMB_SIZE}px;
+  border-radius: 20px;
+  background: ${(props) => props.theme.colors.input.background};
+  border: 2px solid ${(props) => props.theme.colors.highlight};
+  box-sizing: border-box;
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    width: 30px;
+    height: 30px;
+  }`}
+`;
+
+const ShadowBorder = styled.div`
+  position: absolute;
+  height: ${THUMB_SIZE - 4}px;
+  width: ${THUMB_SIZE - 4}px;
+  border-radius: 80px;
+  box-shadow: 0px 0px 3px 1px ${(props) => props.theme.colors.text} inset;
+  opacity: 0.3;
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    width: 26px;
+    height: 26px;
+  }`}
 `;
 
 const clampAndSnap = (
@@ -55,17 +155,77 @@ const clampAndSnap = (
   return Number(snapped.toFixed(10));
 };
 
+const normalizeValue = (value: number, min: number, max: number) => {
+  if (max <= min) {
+    return 0;
+  }
+  return (value - min) / (max - min);
+};
+
+const buildTrackBackground = (
+  value: number,
+  min: number,
+  max: number,
+  fillColor: string,
+  backgroundColor: string,
+) => {
+  const isBipolar = min < 0 && max > 0;
+
+  if (!isBipolar) {
+    return getTrackBackground({
+      values: [value],
+      colors: [fillColor, backgroundColor],
+      min,
+      max,
+    });
+  }
+
+  const zeroPercent = normalizeValue(0, min, max) * 100;
+  const valuePercent = normalizeValue(value, min, max) * 100;
+
+  if (value === 0) {
+    return backgroundColor;
+  }
+
+  if (value < 0) {
+    return `linear-gradient(
+      to right,
+      ${backgroundColor} 0%,
+      ${backgroundColor} ${valuePercent}%,
+      ${fillColor} ${valuePercent}%,
+      ${fillColor} ${zeroPercent}%,
+      ${backgroundColor} ${zeroPercent}%,
+      ${backgroundColor} 100%
+    )`;
+  }
+
+  return `linear-gradient(
+    to right,
+    ${backgroundColor} 0%,
+    ${backgroundColor} ${zeroPercent}%,
+    ${fillColor} ${zeroPercent}%,
+    ${fillColor} ${valuePercent}%,
+    ${backgroundColor} ${valuePercent}%,
+    ${backgroundColor} 100%
+  )`;
+};
+
 export const Slider: FC<SliderProps> = ({
   labelledBy,
   value,
   min,
   max,
-  step,
+  step = 1,
   onChange,
 }) => {
   const themeContext = useContext(ThemeContext);
 
-  const safeValue = clampAndSnap(value ?? 0, min, max, step ?? 1);
+  const safeValue = clampAndSnap(value ?? 0, min, max, step);
+  const isBipolar = min < 0 && max > 0;
+  const zeroPercent = normalizeValue(0, min, max) * 100;
+
+  const fillColor = themeContext?.colors.highlight ?? "black";
+  const backgroundColor = themeContext?.colors.input.background ?? "white";
 
   return (
     <Range
@@ -81,26 +241,28 @@ export const Slider: FC<SliderProps> = ({
           onTouchStart={props.onTouchStart}
           style={props.style}
         >
-          <RangeTrack
-            ref={props.ref}
-            style={{
-              background: getTrackBackground({
-                values: [value],
-                colors: [
-                  themeContext?.colors.highlight ?? "black",
-                  themeContext?.colors.input.border ?? "white",
-                ],
-                min,
-                max,
-              }),
-            }}
-          >
-            {children}
+          <RangeTrack>
+            <RangeTrackFill
+              $showStartCap={!isBipolar}
+              style={{
+                background: buildTrackBackground(
+                  safeValue,
+                  min,
+                  max,
+                  fillColor,
+                  backgroundColor,
+                ),
+              }}
+            />
+            {isBipolar && <ZeroMarker $leftPercent={zeroPercent} />}
+            <RangeTrackInner ref={props.ref}>{children}</RangeTrackInner>
           </RangeTrack>
         </RangeInner>
       )}
-      renderThumb={({ props, isDragged }) => (
-        <RangeThumb {...props} $isDragged={isDragged} style={props.style} />
+      renderThumb={({ props }) => (
+        <RangeThumb {...props} style={props.style}>
+          <ShadowBorder />
+        </RangeThumb>
       )}
     />
   );

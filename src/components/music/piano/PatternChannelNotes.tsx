@@ -1,18 +1,18 @@
 import React from "react";
 import { PatternCell } from "shared/lib/uge/types";
+import { PIANO_ROLL_CELL_SIZE, TOTAL_NOTES } from "consts";
 import {
-  PIANO_ROLL_CELL_SIZE,
-  TOTAL_NOTES,
-  TRACKER_PATTERN_LENGTH,
-} from "consts";
-import { StyledPianoRollNote, StyledPatternChannelNotes } from "./style";
+  StyledPianoRollNote,
+  StyledPatternChannelNotes,
+  StyledPianoRollNoteTouchBlocker,
+} from "./style";
+import { useAppSelector } from "store/hooks";
 
 interface PatternChannelNotesProps {
+  patternId: number;
   channelId: number;
   isActive: boolean;
-  sequenceId: number;
-  pattern: PatternCell[][];
-  selectedPatternCells: number[];
+  selectedRowIds?: ReadonlySet<number>;
   isDragging: boolean;
 }
 
@@ -21,28 +21,59 @@ const ARPEGGIO_CODE = 0;
 const noteBottom = (note: number) =>
   (note % TOTAL_NOTES) * PIANO_ROLL_CELL_SIZE;
 
+const arePatternCellsEqual = (
+  a: PatternCell[] | undefined,
+  b: PatternCell[] | undefined,
+): boolean => {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
+
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 export const PatternChannelNotes = React.memo(
   ({
+    patternId,
     channelId,
     isActive,
-    sequenceId,
-    pattern,
-    selectedPatternCells,
+    selectedRowIds,
     isDragging,
   }: PatternChannelNotesProps) => {
+    const channelCells = useAppSelector<PatternCell[] | undefined>((state) => {
+      const pattern = state.trackerDocument.present.song?.patterns[patternId];
+      if (!pattern) {
+        return undefined;
+      }
+
+      return pattern.map((row) => row[channelId]);
+    }, arePatternCellsEqual);
+
+    if (!channelCells) {
+      return null;
+    }
+
     let instrument: number | null = null;
 
     return (
       <StyledPatternChannelNotes $active={isActive}>
-        {pattern?.map((column, columnIdx) => {
-          const cell = column[channelId];
-          if (!cell || cell.note === null) return null;
-
-          const absoluteColumn =
-            sequenceId * TRACKER_PATTERN_LENGTH + columnIdx;
+        {channelCells.map((cell, rowIndex) => {
+          if (!cell || cell.note === null) {
+            return null;
+          }
 
           const isSelected =
-            isActive && selectedPatternCells.indexOf(absoluteColumn) !== -1;
+            isActive && (selectedRowIds?.has(rowIndex) ?? false);
 
           if (cell.instrument !== null) {
             instrument = cell.instrument;
@@ -54,15 +85,15 @@ export const PatternChannelNotes = React.memo(
           const usingPreviousInstrument =
             cell.instrument === null && instrument !== null;
 
-          const left = columnIdx * PIANO_ROLL_CELL_SIZE;
+          const left = rowIndex * PIANO_ROLL_CELL_SIZE;
           const effect = cell.effectparam ?? 0;
 
           return (
-            <React.Fragment key={`note_${columnIdx}_${channelId}`}>
+            <React.Fragment key={`note_${rowIndex}_${channelId}`}>
               <StyledPianoRollNote
                 data-type="note"
                 data-note={cell.note}
-                data-column={columnIdx}
+                data-row={rowIndex}
                 $instrument={noteInstrument}
                 $usingPreviousInstrument={usingPreviousInstrument}
                 $isSelected={isSelected}
@@ -71,8 +102,13 @@ export const PatternChannelNotes = React.memo(
                   left,
                   bottom: noteBottom(cell.note),
                 }}
-              />
-              {cell.effectcode === ARPEGGIO_CODE && (
+              >
+                {isActive ? (
+                  <StyledPianoRollNoteTouchBlocker $isSelected={isSelected} />
+                ) : null}
+              </StyledPianoRollNote>
+
+              {cell.effectcode === ARPEGGIO_CODE ? (
                 <>
                   <StyledPianoRollNote
                     data-param={effect >> 4}
@@ -95,7 +131,7 @@ export const PatternChannelNotes = React.memo(
                     }}
                   />
                 </>
-              )}
+              ) : null}
             </React.Fragment>
           );
         })}

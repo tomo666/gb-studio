@@ -1,3 +1,4 @@
+import API from "renderer/lib/api";
 import styled, { css, keyframes } from "styled-components";
 import { StyledButton } from "ui/buttons/style";
 
@@ -28,10 +29,18 @@ export const StyledCredits = styled.div`
   top: 0;
   left: 0;
   overflow: hidden;
+  overflow: clip;
   animation: ${fadeIn} 1s linear;
   animation-fill-mode: forwards;
   -webkit-app-region: drag;
   background: red;
+  z-index: 100000;
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    position: fixed;
+  }`}
 `;
 
 export const StyledCreditsTitle = styled.div`
@@ -41,6 +50,12 @@ export const StyledCreditsTitle = styled.div`
   font-weight: bold;
   text-decoration: none;
   margin-bottom: 80px;
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    font-size: 30px;
+  }`}
 `;
 
 export const StyledCreditsSubHeading = styled.div`
@@ -51,6 +66,12 @@ export const StyledCreditsSubHeading = styled.div`
   text-decoration: none;
   margin-top: 80px;
   margin-bottom: 60px;
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    font-size: 20px;
+  }`}
 `;
 
 interface StyledCreditsPersonProps {
@@ -64,12 +85,13 @@ const goldPersonAnimation = keyframes`
     100% {background-position: 200px 0px}
   `;
 
-export const StyledCreditsPerson = styled.div<StyledCreditsPersonProps>`
+export const StyledCreditsPerson = styled.a<StyledCreditsPersonProps>`
   display: block;
   color: #fff;
   font-size: 20px;
   text-decoration: none;
   margin-bottom: 30px;
+  touch-action: manipulation;
 
   ${(props) =>
     props.onClick
@@ -99,10 +121,17 @@ export const StyledCreditsPerson = styled.div<StyledCreditsPersonProps>`
           animation: ${goldPersonAnimation} 2s linear infinite;
         `
       : ""}
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    align-self: center;
+  }`}
 `;
 
 interface StyledCreditsContentProps {
   $duration: number;
+  $paused: boolean;
 }
 
 export const StyledCreditsContent = styled.div<StyledCreditsContentProps>`
@@ -114,10 +143,19 @@ export const StyledCreditsContent = styled.div<StyledCreditsContentProps>`
   display: flex;
   flex-direction: column;
   animation: ${scrollAnim} ${(props) => props.$duration}s linear infinite;
+  animation-play-state: ${(props) => (props.$paused ? "paused" : "running")};
 
   &:has(${StyledCreditsPerson} > span:hover) {
     animation-play-state: paused;
   }
+
+  ${(props) =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    &:has(${StyledCreditsPerson} > span:hover) {
+      animation-play-state: ${props.$paused ? "paused" : "running"};
+    }
+  }`}
 `;
 
 export const StyledCreditsCloseButton = styled.div`
@@ -149,4 +187,12 @@ export const StyledCreditsGrid = styled.div`
   & > * {
     width: 30%;
   }
+
+  ${() =>
+    API.env === "web" &&
+    `@media (max-width: 840px) {
+    & > * {
+      width: 50%;
+    }
+  }`}
 `;

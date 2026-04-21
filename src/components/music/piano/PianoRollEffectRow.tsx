@@ -1,8 +1,7 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { PatternCell } from "shared/lib/uge/types";
 import trackerActions from "store/features/tracker/trackerActions";
 import trackerDocumentActions from "store/features/trackerDocument/trackerDocumentActions";
-import editorActions from "store/features/editor/editorActions";
 import { useAppDispatch, useAppSelector } from "store/hooks";
 import { StyledPianoRollEffectCell, StyledPianoRollEffectRow } from "./style";
 import { PIANO_ROLL_CELL_SIZE } from "consts";
@@ -10,7 +9,7 @@ import { PIANO_ROLL_CELL_SIZE } from "consts";
 interface PianoRollEffectRowProps {
   patternId: number;
   sequenceId: number;
-  channelId: number;
+  channelId: 0 | 1 | 2 | 3;
 }
 
 type EffectCellChanges = {
@@ -41,16 +40,11 @@ const clearEffect = (): EffectCellChanges => ({
   effectparam: null,
 });
 
-const selectEffectCell = (sequenceId: number, column: number) => [
-  editorActions.setSelectedSequence(sequenceId),
-  trackerActions.setSelectedEffectCell(column),
-];
-
 const hasEffect = (cell?: PatternCell) =>
   Boolean(cell && (cell.effectcode !== null || cell.effectparam !== null));
 
 export const PianoRollEffectRow = React.memo(
-  ({ patternId, sequenceId, channelId }: PianoRollEffectRowProps) => {
+  ({ sequenceId, patternId, channelId }: PianoRollEffectRowProps) => {
     const dispatch = useAppDispatch();
 
     const tool = useAppSelector((state) => state.tracker.tool);
@@ -58,9 +52,21 @@ export const PianoRollEffectRow = React.memo(
     const selectedEffectCell = useAppSelector(
       (state) => state.tracker.selectedEffectCell,
     );
-    const selectedSequence = useAppSelector(
-      (state) => state.editor.selectedSequence,
+    const selectedPatternCells = useAppSelector(
+      (state) => state.tracker.selectedPatternCells,
     );
+
+    const selectedRowIds = useMemo(() => {
+      return new Set(
+        selectedPatternCells
+        .filter(
+          (cell) =>
+            cell.sequenceId === sequenceId && cell.channelId === channelId,
+        )
+        .map((cell) => cell.rowId),
+      );
+    }, [channelId, selectedPatternCells, sequenceId]);
+
     const songDocument = useAppSelector(
       (state) => state.trackerDocument.present.song,
     );
@@ -74,31 +80,43 @@ export const PianoRollEffectRow = React.memo(
         const col = Math.floor(e.nativeEvent.offsetX / PIANO_ROLL_CELL_SIZE);
         const cell = renderPattern[col]?.[channelId] as PatternCell | undefined;
 
-        const lastPatternId = songDocument?.sequence[selectedSequence];
         const lastCell =
-          lastPatternId !== undefined && selectedEffectCell !== null
-            ? (songDocument?.patterns[lastPatternId]?.[selectedEffectCell]?.[
-                channelId
-              ] as PatternCell | undefined)
+          selectedEffectCell !== null
+            ? (songDocument?.patterns[selectedEffectCell.patternId]?.[
+                selectedEffectCell.rowId
+              ]?.[selectedEffectCell.channelId] as PatternCell | undefined)
             : undefined;
 
         if (e.button === 0 && tool !== "eraser") {
           const changes = computeEffectChanges(cell, lastCell);
 
           if (changes) {
-            const selectionActions = selectEffectCell(sequenceId, col);
-
+            if (tool === "pencil") {
+              dispatch(
+                trackerDocumentActions.editPatternCell({
+                  patternId,
+                  cell: [col, channelId],
+                  changes,
+                }),
+              );
+            }
             dispatch(
-              trackerDocumentActions.editPatternCell({
+              trackerActions.setSelectedEffectCell({
+                sequenceId,
                 patternId,
-                cell: [col, channelId],
-                changes,
+                rowId: col,
+                channelId,
               }),
             );
-
-            selectionActions.forEach((action) => {
-              dispatch(action);
-            });
+            dispatch(
+              trackerActions.setSelectedPatternCells([
+                {
+                  sequenceId,
+                  rowId: col,
+                  channelId,
+                },
+              ]),
+            );
           }
         } else if (e.button === 2 || (tool === "eraser" && e.button === 0)) {
           if (hasEffect(cell)) {
@@ -115,13 +133,12 @@ export const PianoRollEffectRow = React.memo(
       [
         renderPattern,
         channelId,
+        selectedEffectCell,
+        songDocument?.patterns,
         tool,
         dispatch,
         patternId,
         sequenceId,
-        selectedEffectCell,
-        selectedSequence,
-        songDocument,
       ],
     );
 
@@ -132,13 +149,9 @@ export const PianoRollEffectRow = React.memo(
         {renderPattern?.map((column: PatternCell[], columnIdx: number) => {
           const cell = column[channelId];
 
-          const isSelected =
-            selectedSequence === sequenceId && selectedEffectCell === columnIdx;
+          const isSelected = selectedRowIds.has(columnIdx);
 
-          if (
-            !cell ||
-            (cell.effectcode === null && cell.effectparam === null)
-          ) {
+          if (!cell || cell.effectcode === null) {
             return null;
           }
 
@@ -146,9 +159,10 @@ export const PianoRollEffectRow = React.memo(
             <StyledPianoRollEffectCell
               key={`fx_${columnIdx}_${channelId}`}
               data-type="note"
-              data-column={columnIdx}
+              data-row={columnIdx}
               $isSelected={isSelected}
               style={{ left: `${columnIdx * PIANO_ROLL_CELL_SIZE}px` }}
+              $instrument={cell.instrument ?? undefined}
             >
               <span>{cell.effectcode?.toString(16).toUpperCase()}</span>
             </StyledPianoRollEffectCell>

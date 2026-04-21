@@ -1,71 +1,47 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import styled, { ThemeContext } from "styled-components";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import styled from "styled-components";
 import {
-  PlayIcon,
-  PauseIcon,
   SaveIcon,
   ExportIcon,
   PencilIcon,
   EraserIcon,
-  TrackerIcon,
   SelectionIcon,
-  PianoIcon,
-  PianoInverseIcon,
-  StopIcon,
-  PlayStartIcon,
+  VirtualKeyboardIcon,
+  RecordIcon,
+  CheckIcon,
+  BlankIcon,
 } from "ui/icons/Icons";
 import { FloatingPanel, FloatingPanelDivider } from "ui/panels/FloatingPanel";
 import trackerActions from "store/features/tracker/trackerActions";
 import { Button } from "ui/buttons/Button";
-import { MenuOverlay } from "ui/menu/Menu";
+import { MenuItem, MenuOverlay } from "ui/menu/Menu";
 import { saveSongFile } from "store/features/trackerDocument/trackerDocumentState";
-import { InstrumentSelect } from "./InstrumentSelect";
-import { Select } from "ui/form/Select";
 import { RelativePortal } from "ui/layout/RelativePortal";
-import { PianoRollToolType } from "store/features/tracker/trackerState";
-import { InstrumentType } from "store/features/editor/editorState";
+import {
+  PianoRollToolType,
+  QuantizeSnapSetting,
+} from "store/features/tracker/trackerState";
 import API from "renderer/lib/api";
 import { useAppDispatch, useAppSelector } from "store/hooks";
-import { SingleValue } from "react-select";
 import { MusicAsset } from "shared/lib/resources/types";
-import SongExportForm from "./SongExportForm";
+import SongExportForm from "components/music/form/SongExportForm";
 import l10n from "shared/lib/lang/l10n";
-
-interface OctaveOffsetOptions {
-  value: number;
-  label: string;
-}
-
-interface StepOption {
-  value: number;
-  label: string;
-}
+import { InstrumentSelectButton } from "components/music/form/InstrumentSelectButton";
+import { StyledFloatingPanel } from "ui/panels/style";
+import { StyledButton } from "ui/buttons/style";
+import { OctaveOffsetSelectButton } from "components/music/form/OctaveOffsetSelectButton";
+import { TrackerStepSelectButton } from "components/music/form/TrackerStepSelectButton";
+import { musicMidiController } from "components/music/midi/musicMidiController";
+import { useMusicMidiState } from "components/music/midi/useMusicMidi";
+import { DropdownButton } from "ui/buttons/DropdownButton";
 
 interface SongEditorToolsPanelProps {
-  selectedSong?: MusicAsset;
+  musicAsset?: MusicAsset;
 }
 
-const FloatingPanelSwitchView = styled(FloatingPanel)`
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-`;
+const FloatingPanelFiles = styled(FloatingPanel)``;
 
 const FloatingPanelTools = styled(FloatingPanel)`
-  position: absolute;
-  top: 10px;
-  left: 64px;
-  z-index: 10;
-
-  .OctaveSelect,
   .StepSelect {
     width: 50px;
   }
@@ -76,19 +52,39 @@ const ExportButtonWrapper = styled.div`
   flex-shrink: 0;
 `;
 
-const getPlayButtonLabel = (play: boolean, playbackFromStart: boolean) => {
-  if (play) {
-    return l10n("FIELD_PAUSE");
-  } else {
-    if (playbackFromStart) {
-      return l10n("FIELD_RESTART");
-    } else {
-      return l10n("FIELD_PLAY");
+const MidiRecordButton = styled(Button)<{ $recordingEnabled: boolean }>`
+  &&[data-is-active="true"] svg {
+    fill: ${(props) =>
+      props.$recordingEnabled ? "#d92d20" : props.theme.colors.button.text};
+    circle {
+      stroke: ${(props) => props.theme.colors.input.background};
+      stroke-width: 2px;
     }
   }
-};
+`;
 
-const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
+const SongToolsPanel = styled.div`
+  display: flex;
+  padding: 10px;
+  box-sizing: border-box;
+  justify-content: space-between;
+
+  @media (max-width: 900px) {
+    background: ${(props) => props.theme.colors.panel.background};
+    border-bottom: 1px solid ${(props) => props.theme.colors.panel.border};
+
+    padding: 5px;
+    ${StyledFloatingPanel} {
+      border-color: transparent;
+      background: transparent;
+      ${StyledButton} {
+        border-radius: 4px;
+      }
+    }
+  }
+`;
+
+const SongEditorToolsPanel = ({ musicAsset }: SongEditorToolsPanelProps) => {
   const dispatch = useAppDispatch();
 
   const play = useAppSelector((state) => state.tracker.playing);
@@ -97,10 +93,15 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
     (state) => state.tracker.subpatternEditorFocus,
   );
 
-  const modified = useAppSelector(
-    (state) => state.trackerDocument.present.modified,
+  const modified = useAppSelector((state) => state.tracker.modified);
+  const hasSong = useAppSelector(
+    (state) => !!state.trackerDocument.present.song,
   );
-  const song = useAppSelector((state) => state.trackerDocument.present.song);
+  const midiState = useMusicMidiState();
+  const metronomeEnabled = useAppSelector(
+    (state) => state.tracker.metronomeEnabled,
+  );
+  const quantizeSnap = useAppSelector((state) => state.tracker.quantizeSnap);
 
   const view = useAppSelector((state) => state.tracker.view);
 
@@ -115,24 +116,6 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
   const [playbackFromStart, setPlaybackFromStart] = useState(false);
   const exporting = useAppSelector((state) => state.tracker.exporting);
   const [showExportPanel, setShowExportPanel] = useState(false);
-
-  const octaveOffsetOptions: OctaveOffsetOptions[] = useMemo(
-    () =>
-      [0, 1, 2, 3].map((i) => ({
-        value: i,
-        label: `${l10n("FIELD_OCTAVE")} ${i + 3}`,
-      })),
-    [],
-  );
-
-  const stepOptions: StepOption[] = useMemo(
-    () =>
-      Array.from({ length: 64 }).map((_, i) => ({
-        value: i,
-        label: `${l10n("FIELD_STEP")} ${i}`,
-      })),
-    [],
-  );
 
   const togglePlay = useCallback(() => {
     if (!playerReady) return;
@@ -155,14 +138,6 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
     playerReady,
   ]);
 
-  const stopPlayback = useCallback(() => {
-    dispatch(trackerActions.stopTracker());
-    API.music.sendToMusicWindow({
-      action: "stop",
-      position: defaultStartPlaybackPosition,
-    });
-  }, [defaultStartPlaybackPosition, dispatch]);
-
   const toggleView = useCallback(() => {
     if (view === "tracker") {
       dispatch(trackerActions.setViewAndSave("roll"));
@@ -180,10 +155,10 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
   );
 
   const saveSong = useCallback(() => {
-    if (selectedSong && modified) {
+    if (musicAsset && modified) {
       dispatch(saveSongFile());
     }
-  }, [dispatch, modified, selectedSong]);
+  }, [dispatch, modified, musicAsset]);
 
   const onOpenExportPanel = useCallback(() => {
     setShowExportPanel((isOpen) => !isOpen);
@@ -193,20 +168,13 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
     setShowExportPanel(false);
   }, []);
 
-  const defaultInstruments = useAppSelector(
-    (state) => state.tracker.defaultInstruments,
+  const selectedInstrumentId = useAppSelector(
+    (state) => state.tracker.selectedInstrumentId,
   );
 
-  const setDefaultInstruments = useCallback(
+  const setSelectedInstrumentId = useCallback(
     (instrument: number) => {
-      dispatch(
-        trackerActions.setDefaultInstruments([
-          instrument,
-          instrument,
-          instrument,
-          instrument,
-        ]),
-      );
+      dispatch(trackerActions.setSelectedInstrumentId(instrument));
     },
     [dispatch],
   );
@@ -228,6 +196,21 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
     [dispatch],
   );
 
+  const setQuantizeSnap = useCallback(
+    (value: QuantizeSnapSetting) => {
+      dispatch(trackerActions.setQuantizeSnapAndSave(value));
+    },
+    [dispatch],
+  );
+
+  const toggleTool = useCallback(() => {
+    if (tool === "pencil") {
+      dispatch(trackerActions.setTool("eraser"));
+    } else {
+      dispatch(trackerActions.setTool("pencil"));
+    }
+  }, [dispatch, tool]);
+
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.target && (e.target as Node).nodeName === "INPUT") {
@@ -236,6 +219,12 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
       if (!tmpSelectionMode && e.shiftKey) {
         setTmpSelectionMode(true);
         setTool("selection");
+      }
+      if (e.code === "KeyS" && (e.ctrlKey || e.metaKey)) {
+        if (API.env === "web") {
+          e.preventDefault();
+        }
+        saveSong();
       }
       if (e.ctrlKey || e.shiftKey) {
         return;
@@ -253,25 +242,29 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
       if (view !== "roll") {
         return;
       }
-      if (!subpatternEditorFocus) {
+      if (e.code === "KeyT") {
+        e.preventDefault();
+        toggleTool();
+      }
+      if (!subpatternEditorFocus && !e.ctrlKey && !e.metaKey) {
         if (e.code === "Digit1") {
-          setDefaultInstruments(0);
+          setSelectedInstrumentId(0);
         } else if (e.code === "Digit2") {
-          setDefaultInstruments(1);
+          setSelectedInstrumentId(1);
         } else if (e.code === "Digit3") {
-          setDefaultInstruments(2);
+          setSelectedInstrumentId(2);
         } else if (e.code === "Digit4") {
-          setDefaultInstruments(3);
+          setSelectedInstrumentId(3);
         } else if (e.code === "Digit5") {
-          setDefaultInstruments(4);
+          setSelectedInstrumentId(4);
         } else if (e.code === "Digit6") {
-          setDefaultInstruments(5);
+          setSelectedInstrumentId(5);
         } else if (e.code === "Digit7") {
-          setDefaultInstruments(6);
+          setSelectedInstrumentId(6);
         } else if (e.code === "Digit8") {
-          setDefaultInstruments(7);
+          setSelectedInstrumentId(7);
         } else if (e.code === "Digit9") {
-          setDefaultInstruments(8);
+          setSelectedInstrumentId(8);
         }
       }
     },
@@ -280,9 +273,11 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
       view,
       subpatternEditorFocus,
       setTool,
+      saveSong,
       toggleView,
       togglePlay,
-      setDefaultInstruments,
+      toggleTool,
+      setSelectedInstrumentId,
     ],
   );
 
@@ -299,6 +294,19 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
     [tmpSelectionMode, setTool, previousTool],
   );
 
+  const showVirtualKeyboard = useAppSelector(
+    (state) => state.tracker.showVirtualKeyboard,
+  );
+
+  const toggleVirtualKeyboard = useCallback(() => {
+    dispatch(trackerActions.setShowVirtualKeyboard(!showVirtualKeyboard));
+  }, [dispatch, showVirtualKeyboard]);
+
+  const showMidiRecordButton =
+    midiState.enabled && midiState.selectedInputId !== null;
+  const showMidiRecordOptions =
+    showMidiRecordButton && midiState.recordingEnabled && view === "roll";
+
   useEffect(() => {
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -308,117 +316,31 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
     };
   });
 
-  const selectedChannel = useAppSelector(
-    (state) => state.tracker.selectedChannel,
-  );
-  const [instrumentType, setInstrumentType] = useState<
-    InstrumentType | undefined
-  >();
-  useEffect(() => {
-    if (view === "roll") {
-      switch (selectedChannel) {
-        case 0:
-        case 1:
-          setInstrumentType("duty");
-          break;
-        case 2:
-          setInstrumentType("wave");
-          break;
-        case 3:
-          setInstrumentType("noise");
-          break;
-      }
-    } else {
-      setInstrumentType(undefined);
-    }
-  }, [view, setInstrumentType, song, selectedChannel]);
-
   const prevExporting = useRef(exporting);
   useEffect(() => {
-    if (!song || !playerReady) {
+    if (!hasSong || !playerReady) {
       setShowExportPanel(false);
     }
     if (!exporting && prevExporting.current) {
       setShowExportPanel(false);
     }
     prevExporting.current = exporting;
-  }, [song, playerReady, exporting]);
-
-  const themeContext = useContext(ThemeContext);
-
-  const themePianoIcon =
-    themeContext?.type === "light" ? <PianoIcon /> : <PianoInverseIcon />;
+  }, [hasSong, playerReady, exporting]);
 
   return (
-    <>
-      <FloatingPanelSwitchView>
-        <Button
-          variant="transparent"
-          onClick={toggleView}
-          title={
-            view === "roll"
-              ? l10n("TOOL_TRACKER_VIEW")
-              : l10n("TOOL_PIANO_ROLL_VIEW")
-          }
-        >
-          {view === "roll" ? <TrackerIcon /> : themePianoIcon}
-        </Button>
-      </FloatingPanelSwitchView>
-
+    <SongToolsPanel>
       <FloatingPanelTools>
-        <Button
-          variant="transparent"
-          disabled={!selectedSong || !modified}
-          onClick={saveSong}
-          title={l10n("FIELD_SAVE")}
-        >
-          <SaveIcon />
-        </Button>
-        <ExportButtonWrapper>
-          <Button
-            variant="transparent"
-            disabled={!song || !playerReady || exporting}
-            title={l10n("TOOLBAR_EXPORT_AS")}
-            onClick={onOpenExportPanel}
-            active={showExportPanel}
-          >
-            <ExportIcon />
-          </Button>
-          {showExportPanel && selectedSong && (
-            <>
-              <MenuOverlay onClick={onCloseExportPanel} />
-              <RelativePortal pin="top-left" offsetY={10} zIndex={10001}>
-                <SongExportForm name={selectedSong.filename} />
-              </RelativePortal>
-            </>
-          )}
-        </ExportButtonWrapper>
+        <InstrumentSelectButton
+          name="instrument"
+          value={selectedInstrumentId}
+          onChange={(newValue) => {
+            setSelectedInstrumentId(newValue);
+          }}
+          previewNoteOnChange
+        />
         <FloatingPanelDivider />
-        <Button
-          variant="transparent"
-          disabled={!playerReady || exporting}
-          onClick={togglePlay}
-          title={getPlayButtonLabel(play, playbackFromStart)}
-        >
-          {play ? (
-            <PauseIcon />
-          ) : playbackFromStart ? (
-            <PlayStartIcon />
-          ) : (
-            <PlayIcon />
-          )}
-        </Button>
-        <Button
-          variant="transparent"
-          disabled={!playerReady || exporting}
-          onClick={stopPlayback}
-          title={l10n("FIELD_STOP")}
-        >
-          <StopIcon />
-        </Button>
         {view === "roll" && (
           <>
-            <FloatingPanelDivider />
             <Button
               variant="transparent"
               onClick={() => setTool("pencil")}
@@ -444,43 +366,139 @@ const SongEditorToolsPanel = ({ selectedSong }: SongEditorToolsPanelProps) => {
             </Button>
           </>
         )}
-        <FloatingPanelDivider />
-        <InstrumentSelect
-          name="instrument"
-          value={`${defaultInstruments[0]}`}
-          onChange={(newValue) => {
-            setDefaultInstruments(parseInt(newValue));
-          }}
-          instrumentType={instrumentType}
-        />
         {view === "tracker" && (
           <>
-            <FloatingPanelDivider />
-            <Select
-              className="OctaveSelect"
-              value={octaveOffsetOptions.find((i) => i.value === octaveOffset)}
-              options={octaveOffsetOptions}
-              onChange={(newValue: SingleValue<OctaveOffsetOptions>) => {
-                if (newValue) {
-                  setOctaveOffset(newValue.value);
-                }
-              }}
+            <OctaveOffsetSelectButton
+              value={octaveOffset}
+              onChange={setOctaveOffset}
+              name={"octaveOffset"}
             />
             <FloatingPanelDivider />
-            <Select
-              className="StepSelect"
-              value={stepOptions.find((i) => i.value === editStep)}
-              options={stepOptions}
-              onChange={(newValue: SingleValue<StepOption>) => {
-                if (newValue) {
-                  setEditStep(newValue.value);
-                }
-              }}
+            <TrackerStepSelectButton
+              value={editStep}
+              onChange={setEditStep}
+              name="editStep"
             />
+            <FloatingPanelDivider />
+
+            <Button
+              variant="transparent"
+              active={showVirtualKeyboard}
+              onClick={toggleVirtualKeyboard}
+            >
+              <VirtualKeyboardIcon />
+            </Button>
+          </>
+        )}
+        {showMidiRecordButton && (
+          <>
+            <FloatingPanelDivider />
+            <MidiRecordButton
+              variant="transparent"
+              active={midiState.recordingEnabled}
+              $recordingEnabled={midiState.recordingEnabled}
+              onClick={() => {
+                musicMidiController.toggleRecordingEnabled();
+              }}
+              title={l10n("FIELD_RECORD_MIDI")}
+              aria-pressed={midiState.recordingEnabled}
+            >
+              <RecordIcon />
+            </MidiRecordButton>
+            {showMidiRecordOptions && (
+              <DropdownButton
+                size="small"
+                variant="transparent"
+                menuDirection="left"
+              >
+                <MenuItem
+                  icon={metronomeEnabled ? <CheckIcon /> : <BlankIcon />}
+                  onClick={() => {
+                    dispatch(
+                      trackerActions.setMetronomeEnabledAndSave(
+                        !metronomeEnabled,
+                      ),
+                    );
+                  }}
+                >
+                  {l10n("FIELD_METRONOME")}
+                </MenuItem>
+                <MenuItem
+                  icon={quantizeSnap !== "none" ? <CheckIcon /> : <BlankIcon />}
+                  subMenu={[
+                    <MenuItem
+                      key="none"
+                      icon={
+                        quantizeSnap === "none" ? <CheckIcon /> : <BlankIcon />
+                      }
+                      onClick={() => setQuantizeSnap("none")}
+                    >
+                      {l10n("FIELD_NONE")}
+                    </MenuItem>,
+                    <MenuItem
+                      key="halfbeat"
+                      icon={
+                        quantizeSnap === "halfbeat" ? (
+                          <CheckIcon />
+                        ) : (
+                          <BlankIcon />
+                        )
+                      }
+                      onClick={() => setQuantizeSnap("halfbeat")}
+                    >
+                      ½ {l10n("FIELD_BEAT")}
+                    </MenuItem>,
+                    <MenuItem
+                      key="beat"
+                      icon={
+                        quantizeSnap === "beat" ? <CheckIcon /> : <BlankIcon />
+                      }
+                      onClick={() => setQuantizeSnap("beat")}
+                    >
+                      1 {l10n("FIELD_BEAT")}
+                    </MenuItem>,
+                  ]}
+                >
+                  {l10n("FIELD_QUANTIZE")}
+                </MenuItem>
+              </DropdownButton>
+            )}
           </>
         )}
       </FloatingPanelTools>
-    </>
+
+      <FloatingPanelFiles>
+        <Button
+          variant="transparent"
+          disabled={!musicAsset || !modified}
+          onClick={saveSong}
+          title={l10n("FIELD_SAVE")}
+        >
+          <SaveIcon />
+        </Button>
+        <FloatingPanelDivider />
+
+        <ExportButtonWrapper>
+          <Button
+            variant="transparent"
+            disabled={!hasSong || !playerReady || exporting}
+            title={l10n("TOOLBAR_EXPORT_AS")}
+            onClick={onOpenExportPanel}
+            active={showExportPanel}
+          >
+            <ExportIcon />
+          </Button>
+          {showExportPanel && musicAsset && (
+            <div style={{ position: "absolute", top: "100%", left: "100%" }}>
+              <MenuOverlay onClick={onCloseExportPanel} />
+              <RelativePortal pin="top-right" offsetY={5} zIndex={10001}>
+                <SongExportForm name={musicAsset.filename} />
+              </RelativePortal>
+            </div>
+          )}
+        </ExportButtonWrapper>
+      </FloatingPanelFiles>
+    </SongToolsPanel>
   );
 };
 

@@ -40,7 +40,11 @@ interface InstrumentData {
   noise_macro: number[];
 }
 
-export const loadUGESong = (buffer: Buffer): Song | null => {
+/**
+ * Parses a `.uge` binary buffer and returns a fully populated Song object.
+ * Supports all versions of the hUGETracker format up to version 6.
+ */
+export const loadUGESong = (buffer: Buffer): Song => {
   const data = buffer.buffer.slice(
     buffer.byteOffset,
     buffer.byteOffset + buffer.byteLength,
@@ -436,6 +440,10 @@ export const loadUGESong = (buffer: Buffer): Song | null => {
   return song;
 };
 
+/**
+ * Serialises a Song object into a `.uge` binary buffer that is compatible
+ * with hUGETracker version 6.
+ */
 export const saveUGESong = (song: Song): Buffer => {
   const buffer = new ArrayBuffer(1024 * 1024);
   const view = new DataView(buffer);
@@ -465,11 +473,11 @@ export const saveUGESong = (song: Song): Buffer => {
     addInt8(i.subpattern_enabled ? 1 : 0);
     for (let n = 0; n < 64; n++) {
       const subpattern = i.subpattern[n];
-      addUint32(subpattern.note ?? 90);
+      addUint32(subpattern?.note ?? 90);
       addUint32(0);
-      addUint32(subpattern.jump ?? 0);
-      addUint32(subpattern.effectcode ?? 0);
-      addUint8(subpattern.effectparam ?? 0);
+      addUint32(subpattern?.jump ?? 0);
+      addUint32(subpattern?.effectcode ?? 0);
+      addUint8(subpattern?.effectparam ?? 0);
     }
   }
   function addDutyInstrument(type: number, i: DutyInstrument) {
@@ -621,6 +629,14 @@ const patternEqual = function (a: PatternCell[], b: PatternCell[]) {
   return true;
 };
 
+/**
+ * Exports a Song to a GBDK-compatible C source file. The output contains
+ * instrument definitions, wave data, patterns, and sequence data ready for
+ * inclusion in a GB Studio game ROM.
+ *
+ * @param song - The song to export.
+ * @param trackName - C identifier used as the base name for exported symbols.
+ */
 export const exportToC = (song: Song, trackName: string): string => {
   const decHex = (n: number, maxLength = 2) => {
     return "0x" + n.toString(16).toUpperCase().padStart(maxLength, "0");

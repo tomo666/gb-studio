@@ -1,6 +1,5 @@
 import { combineReducers } from "redux";
-import undoable from "redux-undo";
-import console from "./features/console/consoleState";
+import undoable from "redux-undo";import console from "./features/console/consoleState";
 import music from "./features/music/musicState";
 import assets from "./features/assets/assetsState";
 import entities from "./features/entities/entitiesState";
@@ -38,12 +37,15 @@ const rootReducer = combineReducers({
   tracker,
   trackerDocument: undoable(trackerDocument, {
     limit: 20,
-    initTypes: ["@@TRACKER_INIT"],
+    initTypes: [
+      "trackerDocument/loadSong/pending",
+      "trackerDocument/unloadSong",
+    ],
     filter: (action, currentState, previousHistory) => {
       if (
-        action.type.startsWith("tracker/loadSong/fulfilled") ||
-        action.type.startsWith("tracker/addSequence") ||
-        action.type.startsWith("tracker/removeSequence")
+        action.type.startsWith("trackerDocument/loadSong/fulfilled") ||
+        action.type.startsWith("trackerDocument/addSequence") ||
+        action.type.startsWith("trackerDocument/removeSequence")
       ) {
         return true;
       }
@@ -55,10 +57,14 @@ const rootReducer = combineReducers({
         return false;
       }
       lastTrackerUndoStateTime = Date.now();
+
       return (
-        action.type.startsWith("tracker/edit") ||
-        action.type.startsWith("tracker/transpose") ||
-        action.type.startsWith("tracker/moveSequence")
+        action.type.startsWith("trackerDocument/") &&
+        !action.type.startsWith("trackerDocument/loadSong") &&
+        !action.type.startsWith("trackerDocument/saveSong") &&
+        !action.type.startsWith("trackerDocument/addNewSong") &&
+        !action.type.startsWith("trackerDocument/requestAddNewSong") &&
+        !action.type.startsWith("trackerDocument/setSongFilename")
       );
     },
     ignoreInitialState: true,

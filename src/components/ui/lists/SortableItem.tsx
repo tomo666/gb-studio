@@ -1,6 +1,11 @@
-import React from "react";
+import React, { JSX } from "react";
 import { DropTargetMonitor, useDrag, useDrop } from "react-dnd";
 import type { SortableListOrientation } from "./SortableList";
+
+type SortableDragItem<T> = {
+  index: number;
+  data: T;
+};
 
 interface SortableItemProps<T> {
   itemType: string;
@@ -9,11 +14,20 @@ interface SortableItemProps<T> {
   orientation: SortableListOrientation;
   renderItem: (
     item: T,
-    { isOver, isDragging }: { isOver: boolean; isDragging: boolean },
+    {
+      isOver,
+      isDragging,
+      dragHandleRef,
+    }: {
+      isOver: boolean;
+      isDragging: boolean;
+      dragHandleRef?: React.Ref<HTMLDivElement>;
+    },
   ) => JSX.Element;
   onSelect: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
   moveItems: (dragIndex: number, hoverIndex: number) => void;
   setDragging: (isDragging: boolean) => void;
+  useDragHandle?: boolean;
 }
 
 export const SortableItem = <T,>({
@@ -25,10 +39,16 @@ export const SortableItem = <T,>({
   onSelect,
   moveItems,
   setDragging,
+  useDragHandle = false,
 }: SortableItemProps<T>) => {
   const ref = React.useRef<HTMLDivElement>(null);
+  const dragHandleRef = React.useRef<HTMLDivElement>(null);
 
-  const [{ isOver }, drop] = useDrop({
+  const [{ isOver }, drop] = useDrop<
+    SortableDragItem<T>,
+    void,
+    { isOver: boolean }
+  >({
     accept: itemType,
     hover(_, monitor: DropTargetMonitor) {
       if (!ref.current) {
@@ -119,7 +139,11 @@ export const SortableItem = <T,>({
     },
   });
 
-  const [{ isDragging }, drag, dragPreview] = useDrag(() => ({
+  const [{ isDragging }, drag, dragPreview] = useDrag<
+    SortableDragItem<T>,
+    void,
+    { isDragging: boolean }
+  >(() => ({
     type: itemType,
     collect: (monitor) => {
       return {
@@ -136,12 +160,25 @@ export const SortableItem = <T,>({
     end: () => setDragging(false),
   }));
 
-  drag(drop(ref));
+  if (useDragHandle) {
+    drop(ref);
+    drag(dragHandleRef);
+  } else {
+    drag(drop(ref));
+  }
 
   return (
-    <div ref={dragPreview}>
+    <div
+      ref={(node) => {
+        dragPreview(node);
+      }}
+    >
       <div ref={ref} onMouseDown={onSelect}>
-        {renderItem(item, { isDragging, isOver })}
+        {renderItem(item, {
+          isDragging,
+          isOver,
+          dragHandleRef: useDragHandle ? dragHandleRef : undefined,
+        })}
       </div>
     </div>
   );

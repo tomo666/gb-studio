@@ -1,9 +1,11 @@
+/* eslint-disable camelcase */
 import type {
   MusicDataPacket,
   MusicDataReceivePacket,
 } from "shared/lib/music/types";
 import player, { PlaybackPosition } from "./player";
-import { playNotePreview } from "./notePreview";
+import { Song } from "shared/lib/uge/types";
+import { createPattern, createSong } from "shared/lib/uge/song";
 
 type MusicSessionListener = (data: MusicDataReceivePacket) => void;
 
@@ -13,7 +15,7 @@ export interface MusicSession {
   subscribe: (listener: MusicSessionListener) => () => void;
 }
 
-export const createMusicSession = (): MusicSession => {
+const createMusicSession = (): MusicSession => {
   let isInitialized = false;
   let isOpening = false;
   let openedSfx: string | undefined;
@@ -42,6 +44,7 @@ export const createMusicSession = (): MusicSession => {
       case "load-song":
         player.reset();
         player.loadSong(data.song);
+        position = [0, 0];
         emit({
           action: "log",
           message: "load song",
@@ -58,18 +61,15 @@ export const createMusicSession = (): MusicSession => {
           position = data.position;
         }
         player.reset();
+        player.setMetronomeEnabled(data.metronomeEnabled ?? false);
         player.play(data.song, position);
         emit({
           action: "log",
           message: "playing",
         });
         break;
-      case "play-sound":
-        player.playSound();
-        emit({
-          action: "log",
-          message: "playing SFX",
-        });
+      case "set-metronome-enabled":
+        player.setMetronomeEnabled(data.enabled);
         break;
       case "stop":
         if (data.position) {
@@ -88,6 +88,10 @@ export const createMusicSession = (): MusicSession => {
           action: "log",
           message: "position",
         });
+        emit({
+          action: "update",
+          update: position,
+        });
         break;
       case "set-mute":
         emit({
@@ -102,25 +106,43 @@ export const createMusicSession = (): MusicSession => {
         });
         break;
       case "preview": {
-        let waves = data.waveForms || [];
-        const song = player.getCurrentSong();
-        if (waves.length === 0 && song) {
-          waves = song.waves;
+        if (!data.instrument) {
+          break;
         }
-        playNotePreview(
-          data.note,
-          data.type,
-          data.instrument,
-          data.square2,
-          waves,
-        );
-        emit({
-          action: "log",
-          message: "preview",
-        });
+        const previewSong: Song = createSong();
+        const previewPattern = createPattern();
+        previewSong.patterns = [previewPattern];
+        previewSong.sequence = [0];
+        if (data.type === "duty") {
+          previewPattern[0][data.channel].note = data.note;
+          previewPattern[0][data.channel].instrument = 0;
+          previewPattern[0][data.channel].effectcode = data.effectCode;
+          previewPattern[0][data.channel].effectparam = data.effectParam;
+          previewSong.duty_instruments = [data.instrument];
+        } else if (data.type === "wave") {
+          previewPattern[0][2].note = data.note;
+          previewPattern[0][2].instrument = 0;
+          previewPattern[0][2].effectcode = data.effectCode;
+          previewPattern[0][2].effectparam = data.effectParam;
+          previewSong.wave_instruments = [
+            {
+              ...data.instrument,
+              wave_index: 0,
+            },
+          ];
+          previewSong.waves = [data.waveForm];
+        } else if (data.type === "noise") {
+          previewPattern[0][3].note = data.note;
+          previewPattern[0][3].instrument = 0;
+          previewPattern[0][3].effectcode = data.effectCode;
+          previewPattern[0][3].effectparam = data.effectParam;
+          previewSong.noise_instruments = [data.instrument];
+        }
+        player.playPreview(previewSong, 500);
         break;
       }
       case "export-song": {
+        player.reset();
         void player
           .exportSong(data.song, data.format, data.loopCount)
           .then((fileData) => {

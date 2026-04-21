@@ -82,21 +82,31 @@ export const DropdownButton: FC<DropdownButtonProps & ButtonProps> = React.memo(
     const currentMenuIndex = useRef<number>(-1);
     const currentSubMenuIndex = useRef<number>(-1);
 
-    const childArray = Children.toArray(children);
-    const menuItemChildren = childArray.filter((child) => {
-      return isValidElement<MenuItemProps>(child) && child.type === MenuItem;
-    }) as ReactElement[];
+    const childArray = useMemo(() => Children.toArray(children), [children]);
+    const menuItemChildren = useMemo(
+      () =>
+        childArray.filter((child) => {
+          return (
+            isValidElement<MenuItemProps>(child) && child.type === MenuItem
+          );
+        }) as ReactElement[],
+      [childArray],
+    );
 
     const parentMenu = menuItemChildren[
       parentMenuIndex
     ] as ReactElement<MenuItemProps>;
     const subMenuChildArray = parentMenu?.props.subMenu ?? emptyArr;
 
-    const subMenuItemChildren = subMenuChildArray.filter(
-      (child: React.ReactNode) => {
-        return isValidElement<MenuItemProps>(child) && child.type === MenuItem;
-      },
-    ) as ReactElement[];
+    const subMenuItemChildren = useMemo(
+      () =>
+        subMenuChildArray.filter((child: React.ReactNode) => {
+          return (
+            isValidElement<MenuItemProps>(child) && child.type === MenuItem
+          );
+        }) as ReactElement[],
+      [subMenuChildArray],
+    );
 
     const closeMenu = useCallback(() => {
       setIsOpen(false);
@@ -118,36 +128,61 @@ export const DropdownButton: FC<DropdownButtonProps & ButtonProps> = React.memo(
 
     // Handle listening for clicks and auto-hiding the menu
     useEffect(() => {
-      // This function is designed to handle every click
-      const handleEveryClick = (event: MouseEvent) => {
-        // Ignore if the menu isn't open
-        if (!isOpen) {
+      if (!isOpen) {
+        return;
+      }
+
+      const shouldCloseFromTarget = (target: EventTarget | null) => {
+        if (!(target instanceof Node)) {
+          return false;
+        }
+
+        const clickedInsideMenu =
+          menuRef.current?.contains(target) ||
+          subMenuRef.current?.contains(target);
+
+        const clickedButton = buttonRef.current?.contains(target);
+
+        return !clickedInsideMenu && !clickedButton;
+      };
+
+      const handleMouseDownCapture = (event: MouseEvent) => {
+        if (!shouldCloseFromTarget(event.target)) {
           return;
         }
 
-        // Make this happen asynchronously
-        setTimeout(() => {
-          // Type guard
-          if (!(event.target instanceof Element)) {
-            return;
-          }
-
-          // Ignore if we're clicking inside the menu
-          if (event.target.closest('[role="menu"]') instanceof Element) {
-            return;
-          }
-
-          // Hide dropdown
-          closeMenu();
-        }, 10);
+        closeMenu();
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
       };
 
-      // Add listener
-      document.addEventListener("click", handleEveryClick);
+      const handleTouchStartCapture = (event: TouchEvent) => {
+        if (!shouldCloseFromTarget(event.target)) {
+          return;
+        }
 
-      // Return function to remove listener
-      return () => document.removeEventListener("click", handleEveryClick);
-    }, [closeMenu, isOpen]);
+        closeMenu();
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+      };
+
+      document.addEventListener("mousedown", handleMouseDownCapture, true);
+      document.addEventListener("touchstart", handleTouchStartCapture, {
+        capture: true,
+        passive: false,
+      });
+
+      return () => {
+        document.removeEventListener("mousedown", handleMouseDownCapture, true);
+        document.removeEventListener(
+          "touchstart",
+          handleTouchStartCapture,
+          true,
+        );
+      };
+    }, [isOpen, closeMenu]);
 
     // Disable scroll when the menu is opened, and revert back when the menu is closed
     useEffect(() => {
@@ -163,7 +198,9 @@ export const DropdownButton: FC<DropdownButtonProps & ButtonProps> = React.memo(
     }, [isOpen]);
 
     // Clear submenu timer on unmount
-    const closeTimer = useRef<ReturnType<typeof setTimeout>>();
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+      undefined,
+    );
     useEffect(() => {
       return () => {
         if (closeTimer.current) {
@@ -187,7 +224,7 @@ export const DropdownButton: FC<DropdownButtonProps & ButtonProps> = React.memo(
         if (itemIndex !== parentMenuIndex) {
           closeTimer.current = setTimeout(() => {
             setParentMenuIndex(itemIndex);
-          }, 300);
+          }, 500);
         }
       },
       [parentMenuIndex],
@@ -464,16 +501,13 @@ export const DropdownButton: FC<DropdownButtonProps & ButtonProps> = React.memo(
 
     // When clicking button toggle open state
     // and close any sub menus
-    const onButtonClick = useCallback(
-      (_e: React.MouseEvent) => {
-        clickedOpen.current = !isOpen;
-        requestAnimationFrame(() => {
-          setIsOpen(!isOpen);
-          setParentMenuIndex(-1);
-        });
-      },
-      [isOpen, setIsOpen],
-    );
+    const onButtonClick = useCallback(() => {
+      setIsOpen((prev) => {
+        clickedOpen.current = !prev;
+        return !prev;
+      });
+      setParentMenuIndex(-1);
+    }, []);
 
     // Store menu width for using to offset sub menu to
     // left or right depending on space available
@@ -500,9 +534,13 @@ export const DropdownButton: FC<DropdownButtonProps & ButtonProps> = React.memo(
       if (isInitialMount.current) {
         return;
       }
+
+      const parentItem = menuItemChildren[parentMenuIndex];
+
       if (
         parentMenuIndex > -1 &&
-        menuItemChildren[parentMenuIndex]?.props.subMenu
+        isValidElement<{ subMenu?: React.ReactElement[] }>(parentItem) &&
+        parentItem.props.subMenu
       ) {
         // If sub menu open focus on first element
         moveFocus(currentMenuIndex.current, 0);

@@ -5,74 +5,114 @@ export const StyledTrackerWrapper = styled.div`
   position: relative;
   display: flex;
   width: 100%;
-  height: 100%;
   flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
 `;
 
-export const StyledTrackerOrderSidebar = styled.div`
-  width: 100px;
-  flex-shrink: 0;
+export const StyledTrackerScrollWrapper = styled.div`
+  overflow: auto;
+  flex-grow: 1;
+  flex-basis: 0;
+  min-height: 0;
+  overscroll-behavior: none;
 `;
 
-export const StyledTrackerContentWrapper = styled.div`
-  display: flex;
+export const StyledTrackerScrollCanvas = styled.div`
+  max-width: 0;
 `;
 
-export const StyledTrackerHeader = styled.div`
-  display: flex;
+interface StyledTrackerContentTableProps {
+  $type: "pattern" | "subpattern";
+}
+
+export const StyledTrackerContentTable = styled.table<StyledTrackerContentTableProps>`
+  min-width: 640px;
+  display: table;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  ${(props) =>
+    props.$type === "pattern" &&
+    css`
+      & tr td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+      }
+    `}
+
+  ${(props) =>
+    props.$type === "subpattern" &&
+    css`
+      width: 100%;
+      min-width: 0;
+      max-width: 270px;
+      & tr td:first-child {
+        width: 56px;
+      }
+      & tr td:last-child {
+        text-align: left;
+        padding: 0 5px;
+      }
+
+      td {
+        scroll-margin-top: 110px;
+        scroll-margin-bottom: 320px;
+      }
+    `}
+`;
+
+export const StyledTrackerTableHeader = styled.thead`
   width: 100%;
-  height: 30px;
+  height: 40px;
   white-space: nowrap;
   box-shadow: 0 3px 5px rgb(0 0 0 / 20%);
   flex-shrink: 0;
-  position: relative;
-  z-index: 1;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 `;
 
-export const StyledTrackerPattern = styled.div`
-  overflow: auto;
-  width: 100%;
-  white-space: nowrap;
-  border-width: 0 0 0 1px;
-  border-color: ${(props) => props.theme.colors.sidebar.border};
-  border-style: solid;
-
-  &&& {
-    box-shadow: none;
-    z-index: 0;
-  }
+export const StyledTrackerTableBody = styled.tbody`
+  box-shadow: none !important;
 `;
 
-export const StyledTrackerHeaderSpacer = styled.div`
-  flex-grow: 1;
-  background: rgba(0, 0, 0, 0.5);
-  background: ${(props) => props.theme.colors.sidebar.background};
-  border-bottom: 1px solid ${(props) => props.theme.colors.sidebar.border};
-`;
+export const StyledTrackerTableHeaderRow = styled.tr``;
 
 interface StyledTrackerHeaderCellProps {
-  $type: "channel" | "patternIndex" | "order";
+  $type: "channel" | "patternIndex";
   $muted?: boolean;
   $solo?: boolean;
 }
 
-export const StyledTrackerHeaderCell = styled.span<StyledTrackerHeaderCellProps>`
-  position: relative;
+export const StyledTrackerHeaderCellContents = styled.div`
   display: flex;
+  align-items: center;
+  border-right-width: 1px;
+  border-right-style: solid;
+  border-right-color: inherit;
+  border-left-width: 1px;
+  border-left-style: solid;
+  border-left-color: inherit;
+  padding: 0px;
+  height: 40px;
+`;
+
+export const StyledTrackerHeaderCell = styled.th<StyledTrackerHeaderCellProps>`
+  position: relative;
   align-items: center;
   text-transform: uppercase;
   font-size: 11px;
   font-weight: bold;
-  padding: 0px 10px;
-  padding-right: 5px;
-  padding-left: 10px;
   height: 30px;
   flex-shrink: 0;
   color: black;
   box-sizing: border-box;
-  border-width: 0 1px 0 0;
-  border-color: rgba(0, 0, 0, 0.1);
+  border-width: 0;
+  border-color: inherit;
   border-style: solid;
+  padding: 0;
 
   svg {
     fill: #000;
@@ -81,35 +121,31 @@ export const StyledTrackerHeaderCell = styled.span<StyledTrackerHeaderCellProps>
   ${(props) =>
     props.$type === "patternIndex" &&
     css`
-      width: 47px;
+      padding: 0px;
+      width: 52px;
+      min-width: 52px;
       text-align: center;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      padding: 0;
+      position: sticky;
+      left: 0px;
+      z-index: 1;
     `}
 
   ${(props) =>
     props.$type === "channel" &&
     css`
       width: 133px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-
       &:hover {
         background: rgba(255, 255, 255, 0.2);
       }
-      &:nth-last-child(2) {
-        border-right-color: ${(props) => props.theme.colors.tracker.border};
+      ${StyledTrackerHeaderCellContents} {
+        padding-left: 10px;
+        padding-right: 5px;
+        span {
+          text-align: left;
+        }
       }
     `}
-
-  ${(props) =>
-    props.$type === "order" &&
-    css`
-      width: 101px;
-      background: ${(props) => props.theme.colors.sidebar.background};
-      color: ${(props) => props.theme.colors.text};
-      border-right: 1px solid ${(props) => props.theme.colors.sidebar.border};
-      border-bottom: 1px solid ${(props) => props.theme.colors.sidebar.border};
-    `}
-
 
   span {
     display: block;
@@ -121,6 +157,12 @@ export const StyledTrackerHeaderCell = styled.span<StyledTrackerHeaderCellProps>
     border-color: rgba(0 0 0 / 0.3);
     border-color: transparent;
     color: #000;
+    font-weight: bold;
+
+    @media (max-width: 840px) {
+      min-width: 30px;
+      height: 30px;
+    }
   }
 
   ${StyledButtonGroup} {
@@ -128,10 +170,10 @@ export const StyledTrackerHeaderCell = styled.span<StyledTrackerHeaderCellProps>
     box-shadow:
       2px 2px 3px rgba(0 0 0 / 30%),
       -2px -2px 3px rgba(255 255 255 / 30%);
-  }
 
-  ${StyledButton}:last-child {
-    border-left-color: rgba(0 0 0 / 15%);
+    ${StyledButton}:last-child {
+      border-left-color: rgba(0 0 0 / 15%);
+    }
   }
 
   ${(props) =>
@@ -163,20 +205,37 @@ export const StyledTrackerHeaderCell = styled.span<StyledTrackerHeaderCellProps>
     `}
 `;
 
-export const StyledTrackerRow = styled.div`
-  display: flex;
+interface StyledTrackerRowProps {
+  $isStepMarker?: boolean;
+  $isActive?: boolean;
+}
+
+export const StyledTrackerRow = styled.tr<StyledTrackerRowProps>`
+  background-color: ${(props) => props.theme.colors.tracker.background};
+
+  ${(props) =>
+    props.$isStepMarker
+      ? css`
+          td {
+            background-color: ${props.theme.colors.tracker.activeBackground};
+          }
+        `
+      : ""}
+
+  ${(props) =>
+    props.$isActive
+      ? css`
+          background-color: ${props.theme.colors.tracker.activeBackground};
+        `
+      : ""}
 `;
 
 interface StyledTrackerCellProps {
-  $n: number;
-  $isActive: boolean;
-  $isPlaying: boolean;
-  $isMuted: boolean;
-  $size?: "normal" | "small";
+  $isDefaultPlayhead?: boolean;
+  $isMuted?: boolean;
 }
 
-export const StyledTrackerCell = styled.div<StyledTrackerCellProps>`
-  display: inline-flex;
+export const StyledTrackerCell = styled.td<StyledTrackerCellProps>`
   font-family: "Public Pixel", monospace;
   font-size: 12px;
   font-weight: bold;
@@ -185,42 +244,57 @@ export const StyledTrackerCell = styled.div<StyledTrackerCellProps>`
   border-color: ${(props) => props.theme.colors.tracker.border};
   border-style: solid;
   margin: 0;
-  height: 25px;
+  height: 28px;
   justify-content: center;
   align-items: center;
+  text-align: center;
+  padding: 0 11px;
+
+  &:first-child {
+    padding: 0px;
+    background-color: ${(props) => props.theme.colors.tracker.background};
+  }
 
   ${(props) =>
-    props.$size === "small"
+    props.$isDefaultPlayhead
       ? css`
-          width: 46px;
-          text-align: center;
-        `
-      : css`
-          width: 132px;
-        `}
-  background-color: ${(props) => props.theme.colors.tracker.background};
-  ${(props) =>
-    props.$n % 8 === 0
-      ? css`
-          background-color: ${props.theme.colors.tracker.activeBackground};
-        `
-      : ""}
-  ${(props) =>
-    props.$isActive
-      ? css`
-          background-color: ${props.theme.colors.tracker.activeBackground};
-        `
-      : ""}
-  ${(props) =>
-    props.$isPlaying
-      ? css`
-          background-color: ${props.theme.colors.highlight};
-          color: ${props.theme.colors.highlightText};
+          && {
+            position: relative;
+            background-color: ${props.theme.colors.tracker.border};
+            color: ${props.theme.colors.tracker.text};
+
+            &:after {
+              content: "";
+              position: absolute;
+              top: 0px;
+              right: -14px;
+              border-top: 14px solid transparent;
+              border-bottom: 14px solid transparent;
+              border-left: 14px solid ${props.theme.colors.tracker.border};
+            }
+          }
           ${StyledTrackerField} {
-            color: ${props.theme.colors.highlightText};
+            color: ${props.theme.colors.tracker.text};
           }
         `
       : ""}
+
+  &[data-playing="true"] {
+    position: relative;
+    background-color: ${(props) => props.theme.colors.highlight};
+    color: ${(props) => props.theme.colors.highlightText};
+
+    &:after {
+      content: "";
+      position: absolute;
+      top: 0px;
+      right: -14px;
+      border-top: 14px solid transparent;
+      border-bottom: 14px solid transparent;
+      border-left: 14px solid ${(props) => props.theme.colors.highlight};
+    }
+  }
+
   ${(props) =>
     props.$isMuted
       ? css`
@@ -229,7 +303,7 @@ export const StyledTrackerCell = styled.div<StyledTrackerCellProps>`
       : ""}
 `;
 
-export const StyledTrackerField = styled.span<{
+const StyledTrackerField = styled.span<{
   $active?: boolean;
   $selected?: boolean;
 }>`
@@ -275,10 +349,58 @@ export const StyledTrackerInstrumentField = styled(StyledTrackerField)`
   color: ${(props) => props.theme.colors.tracker.instrument};
 `;
 
+export const StyledTrackerJumpField = styled(StyledTrackerField)`
+  color: ${(props) => props.theme.colors.tracker.instrument};
+`;
+
 export const StyledTrackerEffectCodeField = styled(StyledTrackerField)`
   color: ${(props) => props.theme.colors.tracker.effectCode};
+  padding-right: 1px;
 `;
 
 export const StyledTrackerEffectParamField = styled(StyledTrackerField)`
   color: ${(props) => props.theme.colors.tracker.effectParam};
+  padding-left: 1px;
+`;
+
+export const StyledAddPatternButton = styled.button`
+  display: flex;
+  color: ${(props) => props.theme.colors.panel.text};
+  background: ${(props) => props.theme.colors.panel.background};
+  border: 1px solid ${(props) => props.theme.colors.panel.border};
+  border-radius: 4px;
+  padding: 0;
+  border-radius: 3px;
+  width: 200px;
+  height: 50px;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    fill: ${(props) => props.theme.colors.panel.icon};
+    width: 20px;
+    height: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+
+  &:hover {
+    background: ${(props) => props.theme.colors.panel.hoverBackground};
+  }
+
+  &:active {
+    background: ${(props) => props.theme.colors.panel.activeBackground};
+  }
+`;
+
+export const StyledAddPatternWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  position: sticky;
+  left: 0px;
+  height: 90px;
+  border-top: 1px solid ${(props) => props.theme.colors.sidebar.border};
+  max-width: 640px;
 `;

@@ -1,6 +1,5 @@
 import { ThunkMiddleware } from "redux-thunk";
-import { RootState } from "store/configureStore";
-import editorActions from "store/features/editor/editorActions";
+import { RootState } from "store/storeTypes";
 import { musicSelectors } from "store/features/entities/entitiesState";
 import navigationActions from "store/features/navigation/navigationActions";
 import {
@@ -13,6 +12,7 @@ import electronActions from "store/features/electron/electronActions";
 import l10n from "shared/lib/lang/l10n";
 import API from "renderer/lib/api";
 import projectActions from "store/features/project/projectActions";
+import trackerActions from "store/features/tracker/trackerActions";
 
 const trackerMiddleware: ThunkMiddleware<RootState> =
   (store) => (next) => async (action) => {
@@ -21,25 +21,23 @@ const trackerMiddleware: ThunkMiddleware<RootState> =
     if (
       (navigationActions.setSection.match(action) &&
         action.payload !== "music") ||
-      (editorActions.setSelectedSongId.match(action) &&
-        action.payload !== state.editor.selectedSongId) ||
+      (trackerActions.setSelectedSongId.match(action) &&
+        action.payload !== state.tracker.selectedSongId) ||
       requestAddNewSongFile.match(action)
     ) {
-      if (state.trackerDocument.present.modified) {
+      if (state.tracker.modified) {
         // Display confirmation and stop action if
         const songsLookup = musicSelectors.selectEntities(state);
-        const selectedSong = songsLookup[state.editor.selectedSongId];
+        const selectedSong = songsLookup[state.tracker.selectedSongId];
         const option = await API.dialog.confirmUnsavedChangesTrackerDialog(
           selectedSong?.name ?? "",
         );
         switch (option) {
           case 0: // Save and continue
             store.dispatch(saveSongFile());
-            store.dispatch({ type: "@@TRACKER_INIT" });
             break;
           case 1: // continue without saving
             store.dispatch(trackerDocumentActions.unloadSong());
-            store.dispatch({ type: "@@TRACKER_INIT" });
             break;
           case 2: // cancel
           default:
@@ -56,7 +54,7 @@ const trackerMiddleware: ThunkMiddleware<RootState> =
 
     if (
       projectActions.saveProject.pending.match(action) &&
-      state.trackerDocument.present.modified
+      state.tracker.modified
     ) {
       store.dispatch(saveSongFile());
     }
