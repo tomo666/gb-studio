@@ -11,7 +11,7 @@ import trackerDocumentActions from "store/features/trackerDocument/trackerDocume
 import { getKeys } from "renderer/lib/keybindings/keyBindings";
 import trackerActions from "store/features/tracker/trackerActions";
 import API from "renderer/lib/api";
-import { useAppDispatch, useAppSelector } from "store/hooks";
+import { useAppDispatch, useAppSelector, useAppStore } from "store/hooks";
 import {
   StyledTrackerWrapper,
   StyledTrackerScrollWrapper,
@@ -57,6 +57,7 @@ import {
   useMusicMidiState,
 } from "components/music/midi/useMusicMidi";
 import { PlusIcon } from "ui/icons/Icons";
+import { useSelectAllShortcut } from "ui/hooks/use-select-all";
 
 type TrackerInput =
   | { type: "keyboard"; code: string }
@@ -83,6 +84,7 @@ const getPatternIdAtSequence = (
 ) => sequence?.[sequenceId] ?? 0;
 
 export const SongTracker = () => {
+  const store = useAppStore();
   const dispatch = useAppDispatch();
   const playPreview = useMusicNotePreview();
   const midiState = useMusicMidiState();
@@ -274,10 +276,26 @@ export const SongTracker = () => {
     setSelectionRectState(value);
   }, []);
 
-  const setActiveField = useCallback((value: number | undefined) => {
-    activeFieldRefValue.current = value;
-    setActiveFieldState(value);
-  }, []);
+  const setActiveField = useCallback(
+    (value: number | undefined) => {
+      const state = store.getState();
+      if (state.tracker.playing) {
+        return;
+      }
+      activeFieldRefValue.current = value;
+      setActiveFieldState(value);
+      const currentSequenceId = value
+        ? getSequenceIdFromGlobalField(value)
+        : state.tracker.selectedSequence;
+      const loopSequenceId = state.tracker.loopSequenceId;
+      const isFiltered =
+        loopSequenceId !== undefined && loopSequenceId !== currentSequenceId;
+      if (isFiltered) {
+        dispatch(trackerActions.setLoopSequenceId(undefined));
+      }
+    },
+    [dispatch, store],
+  );
 
   const getMaxField = useCallback(() => {
     const currentSequenceLength = songSequenceRef.current?.length ?? 0;
@@ -689,11 +707,6 @@ export const SongTracker = () => {
   }, [sequenceId, setActiveField]);
 
   const onSelectAll = useCallback(() => {
-    const selection = window.getSelection();
-    if (!selection || selection.focusNode) {
-      return;
-    }
-
     const noSelection =
       !selectionRectRef.current ||
       selectionRectRef.current.width === 0 ||
@@ -1519,58 +1532,10 @@ export const SongTracker = () => {
 
   // #region Select All Effects
 
-  useEffect(() => {
-    if (subpatternEditorFocus) {
-      return;
-    }
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.code === "KeyA") {
-        const target = e.target as HTMLElement | null;
-        const isEditable =
-          target instanceof HTMLInputElement ||
-          target instanceof HTMLTextAreaElement ||
-          target?.isContentEditable === true;
-
-        if (isEditable) {
-          return;
-        }
-
-        e.preventDefault();
-        onSelectAll();
-      }
-    };
-
-    let lastSelectionChange = 0;
-
-    const onSelectionChange = (e: Event) => {
-      if (Date.now() < lastSelectionChange + 100) {
-        return;
-      }
-
-      lastSelectionChange = Date.now();
-
-      const selection = window.getSelection();
-      if (!selection || selection.focusNode) {
-        return;
-      }
-
-      window.getSelection()?.empty();
-      e.preventDefault();
-      onSelectAll();
-    };
-
-    if (API.env === "web") {
-      document.addEventListener("keydown", onKeyDown);
-    } else {
-      document.addEventListener("selectionchange", onSelectionChange);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("selectionchange", onSelectionChange);
-    };
-  }, [onSelectAll, subpatternEditorFocus]);
+  useSelectAllShortcut({
+    enabled: !subpatternEditorFocus,
+    onSelectAll,
+  });
 
   // #endregion Select All Effects
 

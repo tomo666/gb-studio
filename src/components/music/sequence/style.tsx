@@ -14,8 +14,8 @@ export const StyledSequenceEditorWrapper = styled.div`
 `;
 
 interface StyledSequenceItemProps {
-  $active: boolean;
   $selected: boolean;
+  $filtered: boolean;
 }
 
 export const StyledSequenceItem = styled.div<StyledSequenceItemProps>`
@@ -37,6 +37,16 @@ export const StyledSequenceItem = styled.div<StyledSequenceItemProps>`
           outline: 4px solid ${(props) => props.theme.colors.highlight};
         `
       : ""}
+
+  ${(props) =>
+    props.$filtered &&
+    css`
+      filter: grayscale(1);
+    `}
+
+  & .CustomSelect {
+    max-width: 50px;
+  }
 `;
 
 export const StyledSequenceItemHeader = styled.div<{

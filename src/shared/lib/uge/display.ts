@@ -37,10 +37,9 @@ export const getL10NChannelName = (channelId: 0 | 1 | 2 | 3): string => {
 
 /**
  * Calculates BPM from a ticks-per-row value.
- * Uses the hUGETracker timing constant (59.7275… ticks/sec at 60Hz).
  */
 export const getBPM = (ticksPerRow: number): number => {
-  const BPM_FACTOR = (59.727500569606 * 60) / 4;
+  const BPM_FACTOR = (64 * 60) / 4;
   return BPM_FACTOR / ticksPerRow;
 };
 
@@ -50,6 +49,24 @@ export const getBPM = (ticksPerRow: number): number => {
  */
 export const patternHue = (index: number): number =>
   ((index + 1) * 137.5) % 360;
+
+/**
+ * Derives a visually distinct gradient for a pattern by index.
+ * If pattern is filtered provides a greyscale gradient
+ */
+export const patternGradient = (
+  index: number,
+  isFiltered: boolean,
+  flat?: boolean,
+): string =>
+  isFiltered
+    ? `linear-gradient(0deg, hsl(0deg 0% 50%) 0%, hsl(0deg 0% 60%) 100%)`
+    : `linear-gradient(0deg, hsl(${patternHue(index)}deg 100% 70%) 0%, hsl(${patternHue(index)}deg 100% ${flat ? "80" : "90"}%) 100%)`;
+
+export const patternBorder = (index: number, isFiltered: boolean): string =>
+  isFiltered
+    ? `hsl(0deg 0% 50% / 30%)`
+    : `hsl(${patternHue(index)}deg 80% 50% / 30%)`;
 
 /**
  * Renders a note number as a tracker display string (e.g. `"C-4"`, `"A#5"`).
