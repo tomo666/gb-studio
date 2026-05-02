@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useState,
 } from "react";
-import { PatternCell } from "shared/lib/uge/types";
+import { PatternCell, SequenceItem } from "shared/lib/uge/types";
 import { useAppDispatch, useAppSelector, useAppStore } from "store/hooks";
 import { PianoRollPatternBlock } from "./PianoRollPatternBlock";
 import {
@@ -69,6 +69,7 @@ import {
 } from "components/music/piano/types";
 import { FixedSpacer } from "ui/spacing/Spacing";
 import { PianoRollPlaybackController } from "./PianoRollPlaybackController";
+import { PianoRollSustainOverlay } from "./PianoRollSustainOverlay";
 import {
   useMusicMidiNoteSubscription,
   useMusicMidiState,
@@ -86,7 +87,7 @@ const TWO_FINGER_TAP_MAX_DURATION = 300;
 const NOTE_DRAG_MARGIN_PX = 20;
 const DRAG_COMMIT_TAP_MAX_MOVEMENT = 5;
 
-const emptySequence: number[] = [];
+const emptySequence: SequenceItem[] = [];
 
 const dragPreviewStore = createNoteDragPreviewStore();
 
@@ -171,7 +172,7 @@ export const SongPianoRoll = () => {
     () => calculateDocumentWidth(sequence.length) + 100,
     [sequence.length],
   );
-  const totalAbsRows = (sequence.length ?? 0) * TRACKER_PATTERN_LENGTH;
+  const totalAbsRows = sequence.length * TRACKER_PATTERN_LENGTH;
 
   const playing = useAppSelector((state) => state.tracker.playing);
 
@@ -262,15 +263,12 @@ export const SongPianoRoll = () => {
       );
 
       for (let absRow = rangeStartAbsRow; absRow < rangeEndAbsRow; absRow++) {
-        const resolved = resolveAbsRow(song.sequence, absRow);
+        const resolved = resolveAbsRow(song.sequence, absRow, selectedChannel);
         if (!resolved) {
           continue;
         }
 
-        const cell =
-          song.patterns[resolved.patternId]?.[resolved.rowId]?.[
-            selectedChannel
-          ];
+        const cell = song.patterns[resolved.patternId]?.[resolved.rowId];
 
         if (!cell || cell.note === null) {
           continue;
@@ -325,11 +323,14 @@ export const SongPianoRoll = () => {
           continue;
         }
 
-        const patternId = song.sequence[selectedCell.sequenceId];
-        const cell =
-          song.patterns[patternId]?.[selectedCell.rowId]?.[
+        const patternId =
+          song.sequence[selectedCell.sequenceId]?.channels[
             selectedCell.channelId
           ];
+        const cell =
+          patternId !== undefined
+            ? song.patterns[patternId]?.[selectedCell.rowId]
+            : undefined;
 
         if (!cell || cell.note === null) {
           continue;
@@ -373,7 +374,7 @@ export const SongPianoRoll = () => {
         0,
         totalAbsRows - 1,
       );
-      const resolved = resolveAbsRow(song.sequence, absRow);
+      const resolved = resolveAbsRow(song.sequence, absRow, selectedChannel);
 
       if (!resolved) {
         return {
@@ -392,7 +393,7 @@ export const SongPianoRoll = () => {
         sequenceId: resolved.sequenceId,
       };
     },
-    [store, totalAbsRows],
+    [selectedChannel, store, totalAbsRows],
   );
 
   const resetPointerPreviewState = useCallback(() => {
@@ -558,11 +559,14 @@ export const SongPianoRoll = () => {
         return false;
       }
 
-      const nearbyPatternId = song.sequence[nearbySelectedCell.sequenceId];
-      const nearbyCell =
-        song.patterns[nearbyPatternId]?.[nearbySelectedCell.rowId]?.[
+      const nearbyPatternId =
+        song.sequence[nearbySelectedCell.sequenceId]?.channels[
           nearbySelectedCell.channelId
         ];
+      const nearbyCell =
+        nearbyPatternId !== undefined
+          ? song.patterns[nearbyPatternId]?.[nearbySelectedCell.rowId]
+          : undefined;
 
       if (nearbyCell?.note === null || nearbyCell?.note === undefined) {
         return false;
@@ -624,7 +628,9 @@ export const SongPianoRoll = () => {
       const shouldSelect = options?.select ?? true;
 
       const patternId =
-        state.trackerDocument.present.song?.sequence[sequenceId];
+        state.trackerDocument.present.song?.sequence[sequenceId]?.channels[
+          channelId
+        ];
 
       if (patternId === undefined) {
         return;
@@ -633,7 +639,7 @@ export const SongPianoRoll = () => {
       dispatch(
         trackerDocumentActions.editPatternCell({
           patternId,
-          cell: [rowId, channelId],
+          rowId,
           changes: {
             instrument: selectedInstrumentId,
             note: noteIndex,
@@ -643,14 +649,14 @@ export const SongPianoRoll = () => {
 
       const currentPattern =
         state.trackerDocument.present.song?.patterns[patternId];
-      const currentCell = currentPattern?.[rowId]?.[channelId];
+      const currentCell = currentPattern?.[rowId];
 
       if (shouldPreview) {
         playPreview({
           note: noteIndex,
           instrumentId: selectedInstrumentId,
-          effectCode: currentCell?.effectcode ?? 0,
-          effectParam: currentCell?.effectparam ?? 0,
+          effectCode: currentCell?.effectCode ?? 0,
+          effectParam: currentCell?.effectParam ?? 0,
         });
       }
 
@@ -766,15 +772,15 @@ export const SongPianoRoll = () => {
         return false;
       }
 
-      const playbackPosition = state.tracker.playbackPosition;
-
       const quantizeSnap = state.tracker.quantizeSnap;
-      let quantizedRow = playbackPosition[1];
-      let quantizedSequenceId = playbackPosition[0];
+      const playbackSequence = state.tracker.playbackSequence;
+      const playbackRow = state.tracker.playbackRow;
+      let quantizedRow = playbackRow;
+      let quantizedSequenceId = playbackSequence;
       if (quantizeSnap === "beat") {
-        quantizedRow = 4 * Math.round(playbackPosition[1] / 4);
+        quantizedRow = 4 * Math.round(playbackRow / 4);
       } else if (quantizeSnap === "halfbeat") {
-        quantizedRow = 2 * Math.round(playbackPosition[1] / 2);
+        quantizedRow = 2 * Math.round(playbackRow / 2);
       }
 
       if (quantizedRow >= PATTERN_LENGTH) {
@@ -910,10 +916,15 @@ export const SongPianoRoll = () => {
   );
 
   const onJumpToSongStart = useCallback(() => {
-    dispatch(trackerActions.setDefaultStartPlaybackPosition([0, 0]));
+    dispatch(
+      trackerActions.setDefaultStartPlaybackPosition({
+        sequence: 0,
+        row: 0,
+      }),
+    );
     API.music.sendToMusicWindow({
       action: "position",
-      position: [0, 0],
+      position: { sequence: 0, row: 0 },
     });
   }, [dispatch]);
 
@@ -938,10 +949,13 @@ export const SongPianoRoll = () => {
         selectedPatternCells.length === 1
           ? selectedPatternCells[0].sequenceId
           : sequenceId;
-      const patternId = song.sequence[selectSequenceId];
-      const patternPatternCells: PatternCellAddress[] = song.patterns[patternId]
+      const patternId =
+        song.sequence[selectSequenceId]?.channels[selectedChannel];
+      const patternPatternCells: PatternCellAddress[] = (
+        patternId !== undefined ? song.patterns[patternId] : []
+      )
         .map((patternRow, rowId) =>
-          patternRow[selectedChannel].note !== null
+          patternRow.note !== null
             ? {
                 sequenceId: selectSequenceId,
                 rowId,
@@ -954,15 +968,16 @@ export const SongPianoRoll = () => {
       dispatch(trackerActions.setSelectedPatternCells(patternPatternCells));
     } else {
       const allPatternCells: PatternCellAddress[] = song.sequence
-        .flatMap((patternId, sequenceId) =>
-          song.patterns[patternId].map((patternRow, rowId) =>
-            patternRow[selectedChannel].note !== null
-              ? {
-                  sequenceId,
-                  rowId,
-                  channelId: selectedChannel,
-                }
-              : undefined,
+        .flatMap((sequenceItem, sequenceId) =>
+          (song.patterns[sequenceItem.channels[selectedChannel]] ?? []).map(
+            (patternRow, rowId) =>
+              patternRow.note !== null
+                ? {
+                    sequenceId,
+                    rowId,
+                    channelId: selectedChannel,
+                  }
+                : undefined,
           ),
         )
         .filter((addr) => addr !== undefined) as PatternCellAddress[];
@@ -1543,7 +1558,7 @@ export const SongPianoRoll = () => {
         dispatch(
           trackerDocumentActions.editPatternCell({
             patternId,
-            cell: [patternRow, selectedChannel],
+            rowId: patternRow,
             changes: {
               instrument: null,
               note: null,
@@ -1707,12 +1722,16 @@ export const SongPianoRoll = () => {
           }),
         );
 
-        const originPatternIndex = song.sequence[originSequenceId];
-        const originPattern = song.patterns[originPatternIndex];
-        const selectedCell = originPattern?.[originRowId]?.[selectedChannel];
+        const originPatternIndex =
+          song.sequence[originSequenceId]?.channels[selectedChannel];
+        const originPattern =
+          originPatternIndex !== undefined
+            ? song.patterns[originPatternIndex]
+            : undefined;
+        const selectedCell = originPattern?.[originRowId];
         const instrumentId = selectedCell?.instrument ?? 0;
-        const effectCode = selectedCell?.effectcode ?? 0;
-        const effectParam = selectedCell?.effectparam ?? 0;
+        const effectCode = selectedCell?.effectCode ?? 0;
+        const effectParam = selectedCell?.effectParam ?? 0;
 
         if (lastDragPreviewCellRef.current !== previewCellId) {
           playPreview({
@@ -1776,7 +1795,11 @@ export const SongPianoRoll = () => {
 
         const lastPainted = cellsToPaint[cellsToPaint.length - 1];
         if (lastPainted) {
-          const resolved = resolveAbsRow(song.sequence, lastPainted.absRow);
+          const resolved = resolveAbsRow(
+            song.sequence,
+            lastPainted.absRow,
+            selectedChannel,
+          );
 
           if (resolved) {
             dispatch(
@@ -1789,15 +1812,17 @@ export const SongPianoRoll = () => {
               ]),
             );
 
-            const patternId = song.sequence[resolved.sequenceId];
-            const pattern = song.patterns[patternId];
-            const cell = pattern?.[resolved.rowId]?.[selectedChannel];
+            const patternId =
+              song.sequence[resolved.sequenceId]?.channels[selectedChannel];
+            const pattern =
+              patternId !== undefined ? song.patterns[patternId] : undefined;
+            const cell = pattern?.[resolved.rowId];
 
             playPreview({
               note: lastPainted.note,
               instrumentId: selectedInstrumentId,
-              effectCode: cell?.effectcode ?? 0,
-              effectParam: cell?.effectparam ?? 0,
+              effectCode: cell?.effectCode ?? 0,
+              effectParam: cell?.effectParam ?? 0,
             });
           }
         }
@@ -2054,8 +2079,11 @@ export const SongPianoRoll = () => {
         }),
       );
 
-      const patternId = song.sequence[sequenceId];
-      const cell = song.patterns[patternId][patternRow][selectedChannel];
+      const patternId = song.sequence[sequenceId]?.channels[selectedChannel];
+      const cell =
+        patternId !== undefined
+          ? song.patterns[patternId]?.[patternRow]
+          : undefined;
 
       if (!cell) {
         return;
@@ -2434,7 +2462,7 @@ export const SongPianoRoll = () => {
             <PianoRollSequenceBar>
               <PianoRollPlaybackController
                 scrollElement={scrollElement}
-                sequenceLength={sequence.length ?? 0}
+                sequenceLength={sequence.length}
               />
             </PianoRollSequenceBar>
             <StyledPianoRollScrollLeftWrapper>
@@ -2458,11 +2486,15 @@ export const SongPianoRoll = () => {
               onContextMenu={onSelectionContextMenu}
               onPointerDown={!playing ? onPointerDown : undefined}
             >
+              <PianoRollSustainOverlay
+                displayChannels={displayChannels}
+                selectedChannel={selectedChannel}
+                sequence={sequence}
+              />
               <StyledPianoRollPatternsWrapper>
                 {sequence.map((p, i) => (
                   <PianoRollPatternBlock
                     key={`roll_pattern_${i}:${p}`}
-                    patternId={p}
                     sequenceId={i}
                     displayChannels={displayChannels}
                     isDragging={isDragging}
@@ -2509,7 +2541,7 @@ export const SongPianoRoll = () => {
               {sequence.map((p, i) => (
                 <PianoRollEffectRow
                   key={`roll_pattern_effects_${i}:${p}`}
-                  patternId={p}
+                  patternId={p.channels[selectedChannel]}
                   sequenceId={i}
                   channelId={selectedChannel}
                 />

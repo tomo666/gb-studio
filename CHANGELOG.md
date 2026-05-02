@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add ability use MIDI input in Music Editor. Record button will appear to set if MIDI input should edit song or just preview notes. Piano Roll view also allows recording during playback with optional metronome and quantizing options
 - Add ability to clone current pattern and to insert any pattern before/after in Music Editor from Order bar context menu
 - Add ability to loop playback of a single pattern in the Music Editor
+- Add support for split patterns in the Music Editor, allowing different patterns to be set per channel
+- Add note sustain previews to Piano Roll view
+- Add ability to view current tracker keyboard layout (accessible in Preferences window in main app, and in menu `Input / Tracker Keyboard Layout` on music web app)
 - Ukrainian localisation. [@AmakerGame](https://github.com/AmakerGame)
 
 ### Changed
@@ -49,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Notes in the Piano Roll without an instrument now use the previously set instrument color with a striped pattern
 - Editing or changing instruments in the Music Editor now plays a preview note
 - Music Editor now includes right click context menus allowing access to transpose, interpolate and copy/paste options
+- Piano roll view now highlights rows with sharp notes
+- Smoother playhead movement and auto-scrolling in the Piano Roll view
+- Compiled music no longer includes unused instrument subpatterns
+- Plugins can now specify `preserveFiles` to prevent files from being overwritten when updated in the Plugin Manager
 
 ### Fixed
 
@@ -64,6 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue in song navigator where keyboard navigation could stop working
 - Fix BPM label calculation in Music Editor
 - Fix issue where Select All could stop working in Tracker view
+- Fix issue where multiple context menus could be opened at once
+- Fix issue where colors could appear differently in palette editor to how they appear in game
+- Fix issue where changing one color in a palette could also slightly change the other colors
+- Fix issue where palette editor sliders were not updating after undo and redo
 
 ## [4.2.2] - 2026-02-24
 

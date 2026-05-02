@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import type { MODFile, MODCell, EffectCode } from "./types";
 import { parseMod } from "./parseMod";
 import {
@@ -32,6 +31,7 @@ import {
   SubPatternCell,
   WaveInstrument,
 } from "shared/lib/uge/types";
+import { Tuple } from "shared/types";
 
 /**
  * Convert a MOD file buffer to a UGE song
@@ -51,38 +51,64 @@ const convertMODToUGESong = (mod: MODFile, speedConversion: boolean): Song => {
   initializeInstruments(song);
   initializeWaves(song);
 
-  for (let i = 0; i < mod.patterns.length; i++) {
-    const pattern = transcribePattern(mod.patterns[i]);
-    song.patterns.push(pattern);
+  const patternChannelsByModPattern: [number, number, number, number][] = [];
+
+  for (const modPattern of mod.patterns) {
+    const channelPatterns = transcribePattern(modPattern);
+    const basePatternId = song.patterns.length;
+
+    song.patterns.push(
+      channelPatterns[0],
+      channelPatterns[1],
+      channelPatterns[2],
+      channelPatterns[3],
+    );
+
+    patternChannelsByModPattern.push([
+      basePatternId,
+      basePatternId + 1,
+      basePatternId + 2,
+      basePatternId + 3,
+    ]);
   }
 
-  song.sequence = mod.positions.slice(0, mod.songLen);
+  song.sequence = mod.positions.slice(0, mod.songLen).map((patternIndex) => ({
+    splitPattern: true,
+    channels: patternChannelsByModPattern[patternIndex],
+  }));
 
   applyPlaybackCorrections(song, speedConversion);
 
   return song;
 };
 
-const transcribePattern = (modPattern: MODCell[][]): PatternCell[][] => {
-  const pattern: PatternCell[][] = [];
+const transcribePattern = (
+  modPattern: MODCell[][],
+): [
+  Tuple<PatternCell, 64>,
+  Tuple<PatternCell, 64>,
+  Tuple<PatternCell, 64>,
+  Tuple<PatternCell, 64>,
+] => {
+  const channels: [PatternCell[], PatternCell[], PatternCell[], PatternCell[]] =
+    [[], [], [], []];
 
   for (let row = 0; row < PATTERN_LENGTH; row++) {
-    const rowCells: PatternCell[] = [];
-
     for (let ch = 0; ch < 4; ch++) {
       const modCell = modPattern[row][ch];
 
-      if (ch === CHANNEL_NOISE) {
-        rowCells.push(convertNoiseCell(modCell));
-      } else {
-        rowCells.push(convertCell(modCell));
-      }
+      channels[ch].push(
+        ch === CHANNEL_NOISE ? convertNoiseCell(modCell) : convertCell(modCell),
+      );
     }
-
-    pattern.push(rowCells);
   }
 
-  return pattern;
+  return channels as [
+    Tuple<PatternCell, 64>,
+    Tuple<PatternCell, 64>,
+    Tuple<PatternCell, 64>,
+    Tuple<PatternCell, 64>,
+  ];
 };
 
 /**
@@ -125,8 +151,8 @@ const convertCell = (modRow: MODCell): PatternCell => {
   return {
     note,
     instrument,
-    effectcode: isEmptyEffect ? null : code,
-    effectparam: isEmptyEffect ? null : params,
+    effectCode: isEmptyEffect ? null : code,
+    effectParam: isEmptyEffect ? null : params,
   };
 };
 
@@ -176,8 +202,8 @@ export const convertNoiseCell = (modRow: MODCell): PatternCell => {
   return {
     note,
     instrument: modRow.instrument ? 1 : null,
-    effectcode: isEmptyEffect ? null : code,
-    effectparam: isEmptyEffect ? null : params,
+    effectCode: isEmptyEffect ? null : code,
+    effectParam: isEmptyEffect ? null : params,
   };
 };
 
@@ -281,40 +307,40 @@ export const applyPlaybackCorrections = (
   song: Song,
   speedConversion: boolean,
 ): void => {
-  let baseSpeed = song.ticks_per_row;
-  let speed = scaleSpeed(song.ticks_per_row, speedConversion);
+  let baseSpeed = song.ticksPerRow;
+  let speed = scaleSpeed(song.ticksPerRow, speedConversion);
   let bpm = MOD_INITIAL_BPM;
 
   const freq = [0, 0, 0, 0];
   const lastPlayedNote = [C_5, C_5, C_5, C_5];
   const lastPlayedInstrument = [0, 0, 0, 0];
 
-  song.ticks_per_row = speed;
+  song.ticksPerRow = speed;
 
-  traverseSong(song, (row, firstVisit) => {
-    // Apply speed + bpm scaling and fill in missing note/instruments for volume slides
+  traverseSong(song, (row, firstVisits) => {
     for (let ch = 0; ch < row.length; ch++) {
       const cell = row[ch];
+      const firstVisit = firstVisits[ch];
 
       // SET SPEED / TEMPO
-      if (cell.effectcode === UGE_EFFECTS.SET_SPEED) {
+      if (cell.effectCode === UGE_EFFECTS.SET_SPEED) {
         if (firstVisit) {
-          const param = cell.effectparam ?? 0;
+          const param = cell.effectParam ?? 0;
           if (param >= 0x20) {
             bpm = param;
           } else {
             baseSpeed = param;
           }
           speed = scaleSpeed(baseSpeed, speedConversion, bpm);
-          cell.effectparam = speed;
+          cell.effectParam = speed;
         } else {
           // Already applied speed conversion, use value as is
-          speed = cell.effectparam ?? 0;
+          speed = cell.effectParam ?? 0;
         }
       }
 
       // SET VOLUME
-      if (cell.effectcode === UGE_EFFECTS.SET_VOLUME) {
+      if (cell.effectCode === UGE_EFFECTS.SET_VOLUME) {
         if (cell.instrument === null) {
           cell.instrument = lastPlayedInstrument[ch];
         }
@@ -336,6 +362,7 @@ export const applyPlaybackCorrections = (
     // Fix portamento effects that would overflow/underflow the GB frequency register
     for (let ch = 0; ch < row.length; ch++) {
       const cell = row[ch];
+      const firstVisit = firstVisits[ch];
 
       let startFreq = freq[ch];
       let endFreq = startFreq;
@@ -346,10 +373,10 @@ export const applyPlaybackCorrections = (
         endFreq = startFreq;
       }
 
-      const val = cell.effectparam ?? 0;
+      const val = cell.effectParam ?? 0;
 
       // PORTAMENTO DOWN
-      if (cell.effectcode === UGE_EFFECTS.PORTA_DOWN) {
+      if (cell.effectCode === UGE_EFFECTS.PORTA_DOWN) {
         if (firstVisit) {
           const scaledVal = scaleSpeed(val, speedConversion);
           endFreq = startFreq - scaledVal * activeTicks;
@@ -358,16 +385,16 @@ export const applyPlaybackCorrections = (
             const newVal = Math.floor(startFreq / activeTicks);
             if (newVal > 0) {
               // Reduce effect to prevent overflow
-              cell.effectparam = newVal;
+              cell.effectParam = newVal;
               endFreq = startFreq - newVal * activeTicks;
             } else {
               // Remove if even a single tick would cause overflow
-              cell.effectcode = UGE_EFFECTS.EMPTY;
-              cell.effectparam = 0;
+              cell.effectCode = UGE_EFFECTS.EMPTY;
+              cell.effectParam = 0;
               endFreq = startFreq;
             }
           } else {
-            cell.effectparam = scaledVal;
+            cell.effectParam = scaledVal;
           }
         } else {
           endFreq = startFreq - val * activeTicks;
@@ -375,7 +402,7 @@ export const applyPlaybackCorrections = (
       }
 
       // PORTAMENTO UP
-      if (cell.effectcode === UGE_EFFECTS.PORTA_UP) {
+      if (cell.effectCode === UGE_EFFECTS.PORTA_UP) {
         if (firstVisit) {
           const scaledVal = scaleSpeed(val, speedConversion);
           endFreq = startFreq + scaledVal * activeTicks;
@@ -386,16 +413,16 @@ export const applyPlaybackCorrections = (
 
             if (newVal > 0) {
               // Reduce effect to prevent overflow
-              cell.effectparam = newVal;
+              cell.effectParam = newVal;
               endFreq = startFreq + newVal * activeTicks;
             } else {
               // Remove if even a single tick would cause overflow
-              cell.effectcode = UGE_EFFECTS.EMPTY;
-              cell.effectparam = 0;
+              cell.effectCode = UGE_EFFECTS.EMPTY;
+              cell.effectParam = 0;
               endFreq = startFreq;
             }
           } else {
-            cell.effectparam = scaledVal;
+            cell.effectParam = scaledVal;
           }
         } else {
           endFreq = startFreq + val * activeTicks;
@@ -409,7 +436,7 @@ export const applyPlaybackCorrections = (
 
 export const traverseSong = (
   song: Song,
-  cb: (row: PatternCell[], firstVisit: boolean) => void,
+  cb: (row: PatternCell[], firstVisits: boolean[]) => void,
 ): void => {
   let order = 0;
   let rowIndex = 0;
@@ -426,24 +453,30 @@ export const traverseSong = (
     }
     visitedOrderRow.add(orderRowKey);
 
-    const patternIndex = song.sequence[order];
-    const patternRowKey = `${patternIndex}:${rowIndex}`;
+    const sequenceItem = song.sequence[order];
 
-    const firstVisit = !visitedPatternRow.has(patternRowKey);
-    visitedPatternRow.add(patternRowKey);
+    const currentRowIndex = rowIndex;
 
-    const pattern = song.patterns[patternIndex];
-    const row = pattern[rowIndex];
+    const row = sequenceItem.channels.map(
+      (patternIndex) => song.patterns[patternIndex][currentRowIndex],
+    );
 
-    cb(row, firstVisit);
+    const firstVisits = sequenceItem.channels.map((patternIndex) => {
+      const patternRowKey = `${patternIndex}:${currentRowIndex}`;
+      const firstVisit = !visitedPatternRow.has(patternRowKey);
+      visitedPatternRow.add(patternRowKey);
+      return firstVisit;
+    });
+
+    cb(row, firstVisits);
 
     let nextOrder = order;
     let nextRow = rowIndex + 1;
 
     // Scan row for flow control effects
     for (const cell of row) {
-      const eff = cell.effectcode;
-      const val = cell.effectparam ?? 0;
+      const eff = cell.effectCode;
+      const val = cell.effectParam ?? 0;
 
       // Bxx – position jump
       if (eff === UGE_EFFECTS.JUMP_TO_ORDER) {
@@ -485,29 +518,29 @@ const createBlankSubpattern = (): SubPatternCell[] => {
     return {
       note: null,
       jump: 0,
-      effectcode: null,
-      effectparam: null,
+      effectCode: null,
+      effectParam: null,
     };
   });
 };
 
 const initializeInstruments = (song: Song): void => {
   const duty: DutyInstrument[] = Array.from({ length: 15 }, (_, index) => {
-    let duty_cycle = 2;
-    if (index === 0) duty_cycle = 1;
-    if (index === 1) duty_cycle = 2;
-    if (index === 2) duty_cycle = 3;
-    if (index === 3) duty_cycle = 0;
+    let dutyCycle = 2;
+    if (index === 0) dutyCycle = 1;
+    if (index === 1) dutyCycle = 2;
+    if (index === 2) dutyCycle = 3;
+    if (index === 3) dutyCycle = 0;
     const instr: DutyInstrument = {
       index,
       length: null,
       name: "",
-      duty_cycle,
-      initial_volume: 15,
-      volume_sweep_change: 0,
-      frequency_sweep_time: 0,
-      frequency_sweep_shift: 0,
-      subpattern_enabled: false,
+      dutyCycle,
+      initialVolume: 15,
+      volumeSweepChange: 0,
+      frequencySweepTime: 0,
+      frequencySweepShift: 0,
+      subpatternEnabled: false,
       subpattern: createBlankSubpattern(),
     };
     return instr;
@@ -520,8 +553,8 @@ const initializeInstruments = (song: Song): void => {
       name: "",
       length: null,
       volume: 1,
-      wave_index: idx >= 7 ? idx - 7 : idx,
-      subpattern_enabled: false,
+      waveIndex: idx >= 7 ? idx - 7 : idx,
+      subpatternEnabled: false,
       subpattern: createBlankSubpattern(),
     };
     return instr;
@@ -534,11 +567,10 @@ const initializeInstruments = (song: Song): void => {
       index: idx,
       name: "",
       length: null,
-      initial_volume: 15,
-      volume_sweep_change: 0,
-      bit_count: 15,
-      dividing_ratio: 0,
-      subpattern_enabled: false,
+      initialVolume: 15,
+      volumeSweepChange: 0,
+      bitCount: 15,
+      subpatternEnabled: false,
       subpattern: createBlankSubpattern(),
     };
     return instr;

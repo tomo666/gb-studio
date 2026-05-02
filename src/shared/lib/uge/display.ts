@@ -1,7 +1,7 @@
 import { InstrumentType } from "shared/lib/music/types";
 import { PatternCell } from "shared/lib/uge/types";
 import clamp from "shared/lib/helpers/clamp";
-import { OCTAVE_SIZE } from "consts";
+import { OCTAVE_SIZE, TRACKER_NUM_CHANNELS } from "consts";
 import l10n from "shared/lib/lang/l10n";
 
 /** Note name labels indexed by semitone within an octave (C through B). */
@@ -91,18 +91,18 @@ export const renderInstrument = (instrument: number | null): string => {
 
 /**
  * Renders an effect code as an uppercase hex character (e.g. `"A"`, `"F"`).
- * Returns `"."` when effectcode is null.
+ * Returns `"."` when effectCode is null.
  */
-export const renderEffect = (effectcode: number | null): string => {
-  return effectcode?.toString(16).toUpperCase() || ".";
+export const renderEffect = (effectCode: number | null): string => {
+  return effectCode?.toString(16).toUpperCase() || ".";
 };
 
 /**
  * Renders an effect parameter as a zero-padded 2-digit uppercase hex string (e.g. `"0F"`, `"FF"`).
- * Returns `".."` when effectparam is null.
+ * Returns `".."` when effectParam is null.
  */
-export const renderEffectParam = (effectparam: number | null): string => {
-  return effectparam?.toString(16).toUpperCase().padStart(2, "0") || "..";
+export const renderEffectParam = (effectParam: number | null): string => {
+  return effectParam?.toString(16).toUpperCase().padStart(2, "0") || "..";
 };
 
 /**
@@ -164,6 +164,43 @@ export const renderPatternCell = (
 ): { note: string; instrument: string; effect: string; param: string } => ({
   note: renderNote(cell.note),
   instrument: renderInstrument(cell.instrument),
-  effect: renderEffect(cell.effectcode),
-  param: renderEffectParam(cell.effectparam),
+  effect: renderEffect(cell.effectCode),
+  param: renderEffectParam(cell.effectParam),
 });
+
+/**
+ * Convert raw pattern index to pattern block index where patterns are in blocks of 4 by channel
+ */
+export const patternBlockIndex = (patternIndex: number): number =>
+  Math.floor(patternIndex / TRACKER_NUM_CHANNELS);
+
+/**
+ * Convert raw pattern index to pattern block channel offset
+ */
+export const patternBlockOffset = (patternIndex: number): number =>
+  patternIndex % TRACKER_NUM_CHANNELS;
+
+/**
+ * Convert raw pattern index to pattern labels
+ * when not split just returns block index e.g. patternIndex=9 label=02
+ * when split includes channel index e.g. patternIndex=9 label=02.1
+ */
+export const patternIndexLabel = (
+  patternIndex: number,
+  splitPattern: boolean,
+): string => {
+  const blockIndex = patternBlockIndex(patternIndex);
+  const blockLabel = String(blockIndex).padStart(2, "0");
+  if (!splitPattern) {
+    return blockLabel;
+  }
+  const blockOffset = patternBlockOffset(patternIndex);
+  const offsetLabel = splitPattern ? `.${blockOffset}` : "";
+  return `${blockLabel}${offsetLabel}`;
+};
+
+/**
+ * Convert row index to two digit display value e.g. rowIndex=5 label=05
+ */
+export const rowIndexLabel = (rowIndex: number) =>
+  String(rowIndex).padStart(2, "0");

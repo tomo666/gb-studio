@@ -1,69 +1,164 @@
-export type DutyInstrument = {
-  index: number;
-  name: string;
-  length: number | null;
-  duty_cycle: number;
-  initial_volume: number;
-  volume_sweep_change: number;
-  frequency_sweep_time: number;
-  frequency_sweep_shift: number;
-  subpattern_enabled: boolean;
-  subpattern: SubPatternCell[];
-};
+import { Type, Static } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 
-export type WaveInstrument = {
-  index: number;
-  name: string;
-  length: number | null;
-  volume: number;
-  wave_index: number;
-  subpattern_enabled: boolean;
-  subpattern: SubPatternCell[];
-};
+export const PatternCell = Type.Object({
+  note: Type.Union([Type.Number(), Type.Null()]),
+  instrument: Type.Union([Type.Number(), Type.Null()]),
+  effectCode: Type.Union([Type.Number(), Type.Null()]),
+  effectParam: Type.Union([Type.Number(), Type.Null()]),
+});
 
-export type NoiseInstrument = {
-  index: number;
-  name: string;
-  length: number | null;
-  initial_volume: number;
-  volume_sweep_change: number;
-  dividing_ratio: number;
-  bit_count: 7 | 15;
-  /**
-   * @deprecated noise macros aren't used starting uge v6
-   */
-  noise_macro?: number[];
-  subpattern_enabled: boolean;
-  subpattern: SubPatternCell[];
-};
+export type PatternCell = Static<typeof PatternCell>;
 
-export type PatternCell = {
-  note: number | null;
-  instrument: number | null;
-  effectcode: number | null;
-  effectparam: number | null;
-};
+export const Pattern = Type.Tuple([
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+  PatternCell,
+]);
 
-export type SubPatternCell = {
-  note: number | null;
-  jump: number | null;
-  effectcode: number | null;
-  effectparam: number | null;
-};
+export type Pattern = Static<typeof Pattern>;
 
-export type Song = {
-  version: number;
-  name: string;
-  artist: string;
-  comment: string;
-  filename: string;
-  duty_instruments: DutyInstrument[];
-  wave_instruments: WaveInstrument[];
-  noise_instruments: NoiseInstrument[];
-  waves: Uint8Array[];
-  ticks_per_row: number;
-  timer_enabled: boolean;
-  timer_divider: number;
-  patterns: PatternCell[][][];
-  sequence: number[];
+export const SequenceItem = Type.Object({
+  splitPattern: Type.Boolean(),
+  channels: Type.Tuple([
+    Type.Number(),
+    Type.Number(),
+    Type.Number(),
+    Type.Number(),
+  ]),
+});
+
+export type SequenceItem = Static<typeof SequenceItem>;
+
+export const SubPatternCell = Type.Object({
+  note: Type.Union([Type.Number(), Type.Null()]),
+  jump: Type.Union([Type.Number(), Type.Null()]),
+  effectCode: Type.Union([Type.Number(), Type.Null()]),
+  effectParam: Type.Union([Type.Number(), Type.Null()]),
+});
+
+export type SubPatternCell = Static<typeof SubPatternCell>;
+
+export const DutyInstrument = Type.Object({
+  index: Type.Number(),
+  name: Type.String(),
+  length: Type.Union([Type.Number(), Type.Null()]),
+  dutyCycle: Type.Number(),
+  initialVolume: Type.Number(),
+  volumeSweepChange: Type.Number(),
+  frequencySweepTime: Type.Number(),
+  frequencySweepShift: Type.Number(),
+  subpatternEnabled: Type.Boolean(),
+  subpattern: Type.Array(SubPatternCell),
+});
+
+export type DutyInstrument = Static<typeof DutyInstrument>;
+
+export const WaveInstrument = Type.Object({
+  index: Type.Number(),
+  name: Type.String(),
+  length: Type.Union([Type.Number(), Type.Null()]),
+  volume: Type.Number(),
+  waveIndex: Type.Number(),
+  subpatternEnabled: Type.Boolean(),
+  subpattern: Type.Array(SubPatternCell),
+});
+
+export type WaveInstrument = Static<typeof WaveInstrument>;
+
+export const NoiseInstrument = Type.Object({
+  index: Type.Number(),
+  name: Type.String(),
+  length: Type.Union([Type.Number(), Type.Null()]),
+  initialVolume: Type.Number(),
+  volumeSweepChange: Type.Number(),
+  bitCount: Type.Union([Type.Literal(7), Type.Literal(15)]),
+  subpatternEnabled: Type.Boolean(),
+  subpattern: Type.Array(SubPatternCell),
+});
+
+export type NoiseInstrument = Static<typeof NoiseInstrument>;
+
+export const Song = Type.Object({
+  version: Type.Number(),
+  name: Type.String(),
+  artist: Type.String(),
+  comment: Type.String(),
+  filename: Type.String(),
+  dutyInstruments: Type.Array(DutyInstrument),
+  waveInstruments: Type.Array(WaveInstrument),
+  noiseInstruments: Type.Array(NoiseInstrument),
+  waves: Type.Array(Type.Uint8Array()),
+  ticksPerRow: Type.Number(),
+  timerEnabled: Type.Boolean(),
+  timerDivider: Type.Number(),
+  patterns: Type.Array(Pattern),
+  sequence: Type.Array(SequenceItem),
+});
+
+export type Song = Static<typeof Song>;
+
+export const isSong = (value: unknown): value is Song => {
+  return Value.Check(Song, value);
 };

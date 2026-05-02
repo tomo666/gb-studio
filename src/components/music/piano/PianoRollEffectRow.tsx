@@ -13,8 +13,8 @@ interface PianoRollEffectRowProps {
 }
 
 type EffectCellChanges = {
-  effectcode: number | null;
-  effectparam: number | null;
+  effectCode: number | null;
+  effectParam: number | null;
 };
 
 const computeEffectChanges = (
@@ -26,22 +26,22 @@ const computeEffectChanges = (
   }
 
   return {
-    effectcode:
-      cell.effectcode !== null ? cell.effectcode : (lastCell?.effectcode ?? 0),
-    effectparam:
-      cell.effectparam !== null
-        ? cell.effectparam
-        : (lastCell?.effectparam ?? 0),
+    effectCode:
+      cell.effectCode !== null ? cell.effectCode : (lastCell?.effectCode ?? 0),
+    effectParam:
+      cell.effectParam !== null
+        ? cell.effectParam
+        : (lastCell?.effectParam ?? 0),
   };
 };
 
 const clearEffect = (): EffectCellChanges => ({
-  effectcode: null,
-  effectparam: null,
+  effectCode: null,
+  effectParam: null,
 });
 
 const hasEffect = (cell?: PatternCell) =>
-  Boolean(cell && (cell.effectcode !== null || cell.effectparam !== null));
+  Boolean(cell && (cell.effectCode !== null || cell.effectParam !== null));
 
 export const PianoRollEffectRow = React.memo(
   ({ sequenceId, patternId, channelId }: PianoRollEffectRowProps) => {
@@ -68,25 +68,25 @@ export const PianoRollEffectRow = React.memo(
       );
     }, [channelId, selectedPatternCells, sequenceId]);
 
-    const renderPattern = useAppSelector(
+    const pattern = useAppSelector(
       (state) => state.trackerDocument.present.song?.patterns[patternId],
     );
 
     const handleMouseDown = useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!renderPattern) return;
+        if (!pattern) return;
 
         const state = store.getState();
         const songDocument = state.trackerDocument.present.song;
 
         const col = Math.floor(e.nativeEvent.offsetX / PIANO_ROLL_CELL_SIZE);
-        const cell = renderPattern[col]?.[channelId] as PatternCell | undefined;
+        const cell = pattern[col];
 
         const lastCell =
           selectedEffectCell !== null
-            ? (songDocument?.patterns[selectedEffectCell.patternId]?.[
+            ? songDocument?.patterns[selectedEffectCell.patternId]?.[
                 selectedEffectCell.rowId
-              ]?.[selectedEffectCell.channelId] as PatternCell | undefined)
+              ]
             : undefined;
 
         if (e.button === 0 && tool !== "eraser") {
@@ -97,7 +97,7 @@ export const PianoRollEffectRow = React.memo(
               dispatch(
                 trackerDocumentActions.editPatternCell({
                   patternId,
-                  cell: [col, channelId],
+                  rowId: col,
                   changes,
                 }),
               );
@@ -125,7 +125,7 @@ export const PianoRollEffectRow = React.memo(
             dispatch(
               trackerDocumentActions.editPatternCell({
                 patternId,
-                cell: [col, channelId],
+                rowId: col,
                 changes: clearEffect(),
               }),
             );
@@ -133,7 +133,7 @@ export const PianoRollEffectRow = React.memo(
         }
       },
       [
-        renderPattern,
+        pattern,
         store,
         channelId,
         selectedEffectCell,
@@ -148,12 +148,10 @@ export const PianoRollEffectRow = React.memo(
       <StyledPianoRollEffectRow
         onMouseDown={!playing ? handleMouseDown : undefined}
       >
-        {renderPattern?.map((column: PatternCell[], columnIdx: number) => {
-          const cell = column[channelId];
-
+        {pattern?.map((cell, columnIdx: number) => {
           const isSelected = selectedRowIds.has(columnIdx);
 
-          if (!cell || cell.effectcode === null) {
+          if (!cell || cell.effectCode === null) {
             return null;
           }
 
@@ -166,7 +164,7 @@ export const PianoRollEffectRow = React.memo(
               style={{ left: `${columnIdx * PIANO_ROLL_CELL_SIZE}px` }}
               $instrument={cell.instrument ?? undefined}
             >
-              <span>{cell.effectcode?.toString(16).toUpperCase()}</span>
+              <span>{cell.effectCode?.toString(16).toUpperCase()}</span>
             </StyledPianoRollEffectCell>
           );
         })}

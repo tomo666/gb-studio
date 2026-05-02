@@ -1,6 +1,9 @@
-/* eslint-disable camelcase */
 import { createSlice, PayloadAction, UnknownAction } from "@reduxjs/toolkit";
-import type { InstrumentType, MusicExportFormat } from "shared/lib/music/types";
+import type {
+  InstrumentType,
+  MusicExportFormat,
+  MusicPosition,
+} from "shared/lib/music/types";
 import clamp from "shared/lib/helpers/clamp";
 import { MAX_EXPORT_LOOPS, MIN_EXPORT_LOOPS } from "shared/lib/music/constants";
 import {
@@ -15,6 +18,12 @@ import API from "renderer/lib/api";
 import { parseClipboardToPattern } from "shared/lib/uge/clipboard";
 import { PatternCellAddress } from "shared/lib/uge/editor/types";
 import { defaultMusicMidiState, MusicMidiState } from "shared/lib/music/midi";
+import {
+  applyTrackerGridState,
+  applyTrackerGridToSequenceStart,
+  TrackerSelectionOrigin,
+  TrackerSelectionRect,
+} from "./trackerHelpers";
 
 export type PianoRollToolType = "pencil" | "eraser" | "selection" | null;
 
@@ -83,12 +92,20 @@ export interface TrackerState {
   hoverNote: number | null;
   hoverColumn: number | null;
   hoverSequence: number | null;
-  playbackPosition: [number, number];
-  startPlaybackPosition: [number, number];
-  defaultStartPlaybackPosition: [number, number];
+  playbackSequence: number;
+  playbackRow: number;
+  playbackCurrentTick: number;
+  playbackTicksPerRow: number;
+  playbackFollowScrollRevision: number;
+  defaultStartPlaybackSequence: number;
+  defaultStartPlaybackRow: number;
   selectedSongId: string;
   selectedInstrument: SelectedInstrument;
   selectedSequence: number;
+  trackerActiveField?: number;
+  trackerSelectionOrigin?: TrackerSelectionOrigin;
+  trackerSelectionRect?: TrackerSelectionRect;
+  selectedTrackerFields: number[];
   selectedPatternCells: PatternCellAddress[];
   selection: [number, number, number, number];
   selectedEffectCell: CellAddress | null;
@@ -105,6 +122,7 @@ export interface TrackerState {
   metronomeEnabled: boolean;
   quantizeSnap: QuantizeSnapSetting;
   loopSequenceId?: number;
+  globalSplitPattern: boolean;
 }
 
 export const initialState: TrackerState = {
@@ -128,15 +146,23 @@ export const initialState: TrackerState = {
   hoverNote: null,
   hoverColumn: null,
   hoverSequence: null,
-  playbackPosition: [0, 0],
-  startPlaybackPosition: [0, 0],
-  defaultStartPlaybackPosition: [0, 0],
+  playbackSequence: 0,
+  playbackRow: 0,
+  playbackCurrentTick: 0,
+  playbackTicksPerRow: 0,
+  playbackFollowScrollRevision: 0,
+  defaultStartPlaybackSequence: 0,
+  defaultStartPlaybackRow: 0,
   selectedSongId: "",
   selectedInstrument: {
     id: "0",
     type: "duty",
   },
   selectedSequence: 0,
+  trackerActiveField: undefined,
+  trackerSelectionOrigin: undefined,
+  trackerSelectionRect: undefined,
+  selectedTrackerFields: [],
   selectedPatternCells: [],
   selection: [-1, -1, -1, -1],
   selectedEffectCell: null,
@@ -153,6 +179,7 @@ export const initialState: TrackerState = {
   metronomeEnabled: false,
   quantizeSnap: "none",
   loopSequenceId: undefined,
+  globalSplitPattern: false,
 };
 
 const trackerSlice = createSlice({
@@ -174,8 +201,11 @@ const trackerSlice = createSlice({
     },
     stopTracker: (state, _action: PayloadAction<void>) => {
       state.playing = false;
-      state.startPlaybackPosition = [...state.defaultStartPlaybackPosition];
-      state.playbackPosition = [...state.defaultStartPlaybackPosition];
+      state.playbackSequence = state.defaultStartPlaybackSequence;
+      state.playbackRow = state.defaultStartPlaybackRow;
+      state.playbackCurrentTick = 0;
+      state.playbackTicksPerRow = 0;
+      state.playbackFollowScrollRevision = 0;
     },
     setExporting: (state, action: PayloadAction<boolean>) => {
       state.exporting = action.payload;
@@ -227,20 +257,43 @@ const trackerSlice = createSlice({
     },
     setDefaultStartPlaybackPosition: (
       state,
-      action: PayloadAction<[number, number]>,
+      action: PayloadAction<MusicPosition>,
     ) => {
-      state.startPlaybackPosition = action.payload;
-      state.playbackPosition = action.payload;
-      state.defaultStartPlaybackPosition = action.payload;
-      if (state.loopSequenceId !== action.payload[0]) {
+      state.playbackSequence = action.payload.sequence;
+      state.playbackRow = action.payload.row;
+      state.playbackCurrentTick = 0;
+      state.playbackTicksPerRow = 0;
+      state.defaultStartPlaybackSequence = action.payload.sequence;
+      state.defaultStartPlaybackRow = action.payload.row;
+      if (state.loopSequenceId !== action.payload.sequence) {
         state.loopSequenceId = undefined;
       }
     },
-    setPlaybackPosition: (state, action: PayloadAction<[number, number]>) => {
-      state.playbackPosition = action.payload;
+    setPlaybackState: (
+      state,
+      action: PayloadAction<{
+        sequence: number;
+        row: number;
+        tick: number;
+        ticksPerRow: number;
+        source: "playback" | "position";
+      }>,
+    ) => {
+      const { sequence, row, tick, ticksPerRow, source } = action.payload;
+      state.playbackSequence = sequence;
+      state.playbackRow = row;
+      state.playbackCurrentTick = tick;
+      state.playbackTicksPerRow = ticksPerRow;
+      if (source === "playback") {
+        state.playbackFollowScrollRevision += 1;
+      }
     },
     resetPlaybackPosition: (state) => {
-      state.playbackPosition = [0, 0];
+      state.playbackSequence = 0;
+      state.playbackRow = 0;
+      state.playbackCurrentTick = 0;
+      state.playbackTicksPerRow = 0;
+      state.playbackFollowScrollRevision = 0;
     },
     setSelectedSongId: (state, action: PayloadAction<string>) => {
       state.selectedSongId = action.payload;
@@ -253,6 +306,24 @@ const trackerSlice = createSlice({
     },
     setSelectedSequence: (state, action: PayloadAction<number>) => {
       state.selectedSequence = action.payload;
+      if (!state.playing) {
+        applyTrackerGridToSequenceStart(state, action.payload);
+      }
+    },
+    setTrackerGridState: (
+      state,
+      action: PayloadAction<{
+        activeField?: number;
+        selectionOrigin?: TrackerSelectionOrigin;
+        selectionRect?: TrackerSelectionRect;
+      }>,
+    ) => {
+      applyTrackerGridState(
+        state,
+        action.payload.activeField,
+        action.payload.selectionOrigin,
+        action.payload.selectionRect,
+      );
     },
     setSelectedPatternCells: (
       state,
@@ -346,8 +417,12 @@ const trackerSlice = createSlice({
     setLoopSequenceId: (state, action: PayloadAction<number | undefined>) => {
       state.loopSequenceId = action.payload;
       if (action.payload !== undefined) {
-        state.defaultStartPlaybackPosition = [action.payload, 0];
+        state.defaultStartPlaybackSequence = action.payload;
+        state.defaultStartPlaybackRow = 0;
       }
+    },
+    setglobalSplitPattern: (state, action: PayloadAction<boolean>) => {
+      state.globalSplitPattern = action.payload;
     },
   },
   extraReducers: (builder) =>
@@ -380,11 +455,18 @@ const trackerSlice = createSlice({
         state.modified = false;
         state.status = "init";
         state.playerReady = false;
-        state.playbackPosition = [0, 0];
+        state.playbackSequence = 0;
+        state.playbackRow = 0;
+        state.playbackCurrentTick = 0;
+        state.playbackTicksPerRow = 0;
+        state.playbackFollowScrollRevision = 0;
       })
       .addCase(trackerDocumentActions.moveSequence, (state, action) => {
         state.selectedSequence = action.payload.toIndex;
         state.loopSequenceId = undefined;
+        if (!state.playing) {
+          applyTrackerGridToSequenceStart(state, action.payload.toIndex);
+        }
       })
       // When adding a new song file jump to it in navigator
       .addCase(addNewSongFile.fulfilled, (state, action) => {
@@ -408,12 +490,29 @@ const trackerSlice = createSlice({
         const offset = action.payload.position === "after" ? 1 : 0;
         state.selectedSequence = action.payload.sequenceIndex + offset;
         state.loopSequenceId = undefined;
+        if (!state.playing) {
+          applyTrackerGridToSequenceStart(state, state.selectedSequence);
+        }
       })
       .addCase(trackerDocumentActions.cloneSequencePattern, (state, action) => {
         const offset = action.payload.position === "after" ? 1 : 0;
         state.selectedSequence = action.payload.sequenceIndex + offset;
         state.loopSequenceId = undefined;
+        if (!state.playing) {
+          applyTrackerGridToSequenceStart(state, state.selectedSequence);
+        }
       })
+      .addCase(
+        trackerDocumentActions.duplicateSequencePattern,
+        (state, action) => {
+          const offset = action.payload.position === "after" ? 1 : 0;
+          state.selectedSequence = action.payload.sequenceIndex + offset;
+          state.loopSequenceId = undefined;
+          if (!state.playing) {
+            applyTrackerGridToSequenceStart(state, state.selectedSequence);
+          }
+        },
+      )
       .addCase(trackerDocumentActions.removeSequence, (state) => {
         state.loopSequenceId = undefined;
       })

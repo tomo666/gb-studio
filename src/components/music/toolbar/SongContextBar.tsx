@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import API from "renderer/lib/api";
 import l10n from "shared/lib/lang/l10n";
+import { patternIndexLabel, rowIndexLabel } from "shared/lib/uge/display";
 import trackerActions from "store/features/tracker/trackerActions";
 import { useAppDispatch, useAppSelector, useAppStore } from "store/hooks";
 import styled, { css, ThemeContext } from "styled-components";
@@ -103,26 +104,25 @@ const getPlayButtonLabel = (play: boolean, playbackFromStart: boolean) => {
 };
 
 const OrderPosition = () => {
-  const orderIndex = useAppSelector(
-    (state) => state.tracker.playbackPosition[0],
-  );
+  const orderIndex = useAppSelector((state) => state.tracker.playbackSequence);
   return String(orderIndex + 1).padStart(2, "0");
 };
 
 const PatternPosition = () => {
-  const orderIndex = useAppSelector(
-    (state) => state.tracker.playbackPosition[0],
-  );
+  const orderIndex = useAppSelector((state) => state.tracker.playbackSequence);
   const sequence = useAppSelector(
     (state) => state.trackerDocument.present.song?.sequence,
   );
-  const patternIndex = sequence?.[orderIndex] ?? 0;
-  return String(patternIndex).padStart(2, "0");
+  const selectedChannel = useAppSelector(
+    (state) => state.tracker.selectedChannel,
+  );
+  const patternIndex = sequence?.[orderIndex]?.channels[selectedChannel] ?? 0;
+  return patternIndexLabel(patternIndex, false);
 };
 
 const RowPosition = () => {
-  const rowIndex = useAppSelector((state) => state.tracker.playbackPosition[1]);
-  return String(rowIndex).padStart(2, "0");
+  const rowIndex = useAppSelector((state) => state.tracker.playbackRow);
+  return rowIndexLabel(rowIndex);
 };
 
 export const SongContextBar = ({
@@ -138,8 +138,11 @@ export const SongContextBar = ({
   const exporting = useAppSelector((state) => state.tracker.exporting);
   const playerReady = useAppSelector((state) => state.tracker.playerReady);
 
-  const defaultStartPlaybackPosition = useAppSelector(
-    (state) => state.tracker.defaultStartPlaybackPosition,
+  const defaultStartPlaybackSequence = useAppSelector(
+    (state) => state.tracker.defaultStartPlaybackSequence,
+  );
+  const defaultStartPlaybackRow = useAppSelector(
+    (state) => state.tracker.defaultStartPlaybackRow,
   );
 
   const [playbackFromStart, setPlaybackFromStart] = useState(false);
@@ -168,7 +171,10 @@ export const SongContextBar = ({
       if (playbackFromStart) {
         API.music.sendToMusicWindow({
           action: "position",
-          position: defaultStartPlaybackPosition,
+          position: {
+            sequence: defaultStartPlaybackSequence,
+            row: defaultStartPlaybackRow,
+          },
         });
       }
       dispatch(trackerActions.playTracker());
@@ -176,7 +182,8 @@ export const SongContextBar = ({
       dispatch(trackerActions.pauseTracker());
     }
   }, [
-    defaultStartPlaybackPosition,
+    defaultStartPlaybackRow,
+    defaultStartPlaybackSequence,
     dispatch,
     play,
     playbackFromStart,
@@ -189,9 +196,10 @@ export const SongContextBar = ({
     dispatch(trackerActions.stopTracker());
 
     const wasPlaying = state.tracker.playing;
-    const defaultOrderIndex = defaultStartPlaybackPosition[0];
-    const defaultRowIndex = defaultStartPlaybackPosition[1];
-    const [orderIndex, rowIndex] = state.tracker.playbackPosition;
+    const defaultOrderIndex = defaultStartPlaybackSequence;
+    const defaultRowIndex = defaultStartPlaybackRow;
+    const { playbackSequence: orderIndex, playbackRow: rowIndex } =
+      state.tracker;
 
     // Already at default start - restart default to start of song
     if (
@@ -199,19 +207,27 @@ export const SongContextBar = ({
       orderIndex === defaultOrderIndex &&
       rowIndex === defaultRowIndex
     ) {
-      dispatch(trackerActions.setDefaultStartPlaybackPosition([0, 0]));
+      dispatch(
+        trackerActions.setDefaultStartPlaybackPosition({
+          sequence: 0,
+          row: 0,
+        }),
+      );
       API.music.sendToMusicWindow({
         action: "position",
-        position: [0, 0],
+        position: { sequence: 0, row: 0 },
       });
     } else {
       // Otherwise jump to default start
       API.music.sendToMusicWindow({
         action: "stop",
-        position: defaultStartPlaybackPosition,
+        position: {
+          sequence: defaultStartPlaybackSequence,
+          row: defaultStartPlaybackRow,
+        },
       });
     }
-  }, [store, defaultStartPlaybackPosition, dispatch]);
+  }, [store, defaultStartPlaybackRow, defaultStartPlaybackSequence, dispatch]);
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {

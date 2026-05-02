@@ -16,48 +16,50 @@ export const PianoRollPlaybackController = ({
   scrollElement,
   sequenceLength,
 }: PianoRollPlaybackControllerProps) => {
-  const playing = useAppSelector((state) => state.tracker.playing);
-  const playbackPosition = useAppSelector(
-    (state) => state.tracker.playbackPosition,
+  const playbackSequence = useAppSelector(
+    (state) => state.tracker.playbackSequence,
+  );
+  const playbackRow = useAppSelector((state) => state.tracker.playbackRow);
+  const playbackCurrentTick = useAppSelector(
+    (state) => state.tracker.playbackCurrentTick,
+  );
+  const playbackTicksPerRow = useAppSelector(
+    (state) => state.tracker.playbackTicksPerRow,
+  );
+  const playbackFollowScrollRevision = useAppSelector(
+    (state) => state.tracker.playbackFollowScrollRevision,
   );
 
-  const playbackOrder = playbackPosition[0];
-  const playbackRow = playbackPosition[1];
-
-  const scrollRafRef = useRef<number | undefined>(undefined);
-  const targetScrollLeftRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (scrollRafRef.current !== undefined) {
-        cancelAnimationFrame(scrollRafRef.current);
-      }
-    };
-  }, []);
+  const playheadLeft = Math.round(
+    calculatePlaybackTrackerPosition(
+      playbackSequence,
+      playbackRow,
+      playbackCurrentTick,
+      playbackTicksPerRow,
+    ),
+  );
+  const lastFollowScrollRevisionRef = useRef(playbackFollowScrollRevision);
 
   useEffect(() => {
-    if (playbackOrder >= sequenceLength) {
+    if (playbackSequence >= sequenceLength) {
       API.music.sendToMusicWindow({
         action: "position",
-        position: [0, 0],
+        position: { sequence: 0, row: 0 },
       });
     }
-  }, [playbackOrder, sequenceLength]);
+  }, [playbackSequence, sequenceLength]);
 
   useLayoutEffect(() => {
-    if (!playing) {
+    if (playbackFollowScrollRevision === lastFollowScrollRevisionRef.current) {
       return;
     }
+    lastFollowScrollRevisionRef.current = playbackFollowScrollRevision;
 
     const scrollEl = scrollElement;
     if (!scrollEl) {
       return;
     }
 
-    const playheadLeft = calculatePlaybackTrackerPosition(
-      playbackOrder,
-      playbackRow,
-    );
     const viewportWidth = scrollEl.clientWidth;
     const maxScrollLeft = Math.max(0, calculateDocumentWidth(sequenceLength));
     const nextScrollLeft = Math.max(
@@ -69,28 +71,18 @@ export const PianoRollPlaybackController = ({
       return;
     }
 
-    targetScrollLeftRef.current = nextScrollLeft;
-
-    if (scrollRafRef.current !== undefined) {
-      return;
-    }
-
-    scrollRafRef.current = requestAnimationFrame(() => {
-      const targetScrollLeft = targetScrollLeftRef.current;
-
-      if (targetScrollLeft !== null) {
-        scrollEl.scrollLeft = targetScrollLeft;
-      }
-
-      targetScrollLeftRef.current = null;
-      scrollRafRef.current = undefined;
-    });
-  }, [playing, playbackOrder, playbackRow, scrollElement, sequenceLength]);
+    scrollEl.scrollLeft = nextScrollLeft;
+  }, [
+    playbackFollowScrollRevision,
+    playheadLeft,
+    scrollElement,
+    sequenceLength,
+  ]);
 
   return (
     <StyledPianoRollPlayhead
       style={{
-        transform: `translateX(${calculatePlaybackTrackerPosition(playbackOrder, playbackRow)}px)`,
+        transform: `translateX(${playheadLeft}px)`,
       }}
     />
   );

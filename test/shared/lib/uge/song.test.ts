@@ -18,12 +18,12 @@ const makeDutyInstrument = (overrides = {}): DutyInstrument => ({
   index: 0,
   name: "",
   length: null,
-  duty_cycle: 2,
-  initial_volume: 15,
-  volume_sweep_change: 0,
-  frequency_sweep_time: 0,
-  frequency_sweep_shift: 0,
-  subpattern_enabled: false,
+  dutyCycle: 2,
+  initialVolume: 15,
+  volumeSweepChange: 0,
+  frequencySweepTime: 0,
+  frequencySweepShift: 0,
+  subpatternEnabled: false,
   subpattern: createSubPattern(),
   ...overrides,
 });
@@ -33,8 +33,8 @@ const makeWaveInstrument = (overrides = {}): WaveInstrument => ({
   name: "",
   length: null,
   volume: 3,
-  wave_index: 0,
-  subpattern_enabled: false,
+  waveIndex: 0,
+  subpatternEnabled: false,
   subpattern: createSubPattern(),
   ...overrides,
 });
@@ -43,11 +43,10 @@ const makeNoiseInstrument = (overrides = {}): NoiseInstrument => ({
   index: 0,
   name: "",
   length: null,
-  initial_volume: 15,
-  volume_sweep_change: 0,
-  dividing_ratio: 0,
-  bit_count: 15,
-  subpattern_enabled: false,
+  initialVolume: 15,
+  volumeSweepChange: 0,
+  bitCount: 15,
+  subpatternEnabled: false,
   subpattern: createSubPattern(),
   ...overrides,
 });
@@ -57,8 +56,8 @@ describe("createPatternCell", () => {
     const cell = createPatternCell();
     expect(cell.note).toBeNull();
     expect(cell.instrument).toBeNull();
-    expect(cell.effectcode).toBeNull();
-    expect(cell.effectparam).toBeNull();
+    expect(cell.effectCode).toBeNull();
+    expect(cell.effectParam).toBeNull();
   });
 });
 
@@ -67,8 +66,8 @@ describe("createSubPatternCell", () => {
     const cell = createSubPatternCell();
     expect(cell.note).toBeNull();
     expect(cell.jump).toBeNull();
-    expect(cell.effectcode).toBeNull();
-    expect(cell.effectparam).toBeNull();
+    expect(cell.effectCode).toBeNull();
+    expect(cell.effectParam).toBeNull();
   });
 });
 
@@ -78,16 +77,9 @@ describe("createPattern", () => {
     expect(pattern).toHaveLength(64); // TRACKER_PATTERN_LENGTH = 64
   });
 
-  it("each row has 4 channels", () => {
-    const pattern = createPattern();
-    for (const row of pattern) {
-      expect(row).toHaveLength(4);
-    }
-  });
-
   it("all cells start as empty PatternCells", () => {
     const pattern = createPattern();
-    const cell = pattern[0][0];
+    const cell = pattern[0];
     expect(cell.note).toBeNull();
     expect(cell.instrument).toBeNull();
   });
@@ -109,9 +101,9 @@ describe("createSubPattern", () => {
 describe("createSong", () => {
   it("creates a song with empty instrument lists", () => {
     const song = createSong();
-    expect(song.duty_instruments).toHaveLength(0);
-    expect(song.wave_instruments).toHaveLength(0);
-    expect(song.noise_instruments).toHaveLength(0);
+    expect(song.dutyInstruments).toHaveLength(0);
+    expect(song.waveInstruments).toHaveLength(0);
+    expect(song.noiseInstruments).toHaveLength(0);
   });
 
   it("creates a song with an empty sequence", () => {
@@ -130,15 +122,15 @@ describe("addDutyInstrument", () => {
     const song = createSong();
     const inst = makeDutyInstrument();
     addDutyInstrument(song, inst);
-    expect(song.duty_instruments).toHaveLength(1);
-    expect(song.duty_instruments[0].index).toBe(0);
+    expect(song.dutyInstruments).toHaveLength(1);
+    expect(song.dutyInstruments[0].index).toBe(0);
   });
 
   it("sets incrementing indices for multiple instruments", () => {
     const song = createSong();
     addDutyInstrument(song, makeDutyInstrument());
     addDutyInstrument(song, makeDutyInstrument());
-    expect(song.duty_instruments[1].index).toBe(1);
+    expect(song.dutyInstruments[1].index).toBe(1);
   });
 });
 
@@ -147,8 +139,8 @@ describe("addWaveInstrument", () => {
     const song = createSong();
     const inst = makeWaveInstrument();
     addWaveInstrument(song, inst);
-    expect(song.wave_instruments).toHaveLength(1);
-    expect(song.wave_instruments[0].index).toBe(0);
+    expect(song.waveInstruments).toHaveLength(1);
+    expect(song.waveInstruments[0].index).toBe(0);
   });
 });
 
@@ -157,7 +149,7 @@ describe("addNoiseInstrument", () => {
     const song = createSong();
     const inst = makeNoiseInstrument();
     addNoiseInstrument(song, inst);
-    expect(song.noise_instruments).toHaveLength(1);
-    expect(song.noise_instruments[0].index).toBe(0);
+    expect(song.noiseInstruments).toHaveLength(1);
+    expect(song.noiseInstruments[0].index).toBe(0);
   });
 });

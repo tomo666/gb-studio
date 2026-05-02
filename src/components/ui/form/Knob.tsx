@@ -169,9 +169,14 @@ const ValueOverlay = styled.div`
   pointer-events: none;
   white-space: nowrap;
   padding: 2px 6px;
-  font-size: 11px;
-  z-index: 10001;
+  font-size: 10px;
+  opacity: 0.5;
   color: ${(props) => props.theme.colors.input.text};
+
+  ${KnobButton}:focus + & {
+    z-index: 10001;
+    opacity: 1;
+  }
 `;
 
 const EditInput = styled.input`
@@ -221,7 +226,7 @@ export const Knob = ({
   const dragStartYRef = useRef(0);
   const dragStartValueRef = useRef(0);
   const dragAxisRef = useRef<DragAxis>(null);
-  const touchValue = useRef<number | null>(0);
+  const touchValue = useRef<number | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -437,6 +442,7 @@ export const Knob = ({
       dragStartYRef.current = event.clientY;
       dragStartValueRef.current = safeValue;
       dragAxisRef.current = null;
+      touchValue.current = null;
       setDragAxisState(null);
       setOverlayValue(safeValue);
       setIsDragging(true);
@@ -705,9 +711,7 @@ export const Knob = ({
           />
         )}
       </KnobButton>
-      {(isDragging || isKeyboardAdjusting) && (
-        <ValueOverlay>{displayText}</ValueOverlay>
-      )}
+      {!isEditing && <ValueOverlay>{displayText}</ValueOverlay>}
     </Root>
   );
 };

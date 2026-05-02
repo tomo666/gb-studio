@@ -9,6 +9,22 @@ export type InstrumentType = "duty" | "wave" | "noise";
 
 export type MusicExportFormat = "wav" | "mp3" | "flac";
 
+export interface MusicPosition {
+  sequence: number;
+  row: number;
+}
+
+export interface MusicPlaybackState {
+  sequence: number;
+  row: number;
+  tick: number;
+  ticksPerRow: number;
+}
+
+export interface MusicPlaybackUpdate extends MusicPlaybackState {
+  source: "playback" | "position";
+}
+
 export type MusicDataPacket =
   | {
       action: "load-song";
@@ -21,13 +37,13 @@ export type MusicDataPacket =
   | {
       action: "play";
       song: Song;
-      position?: [number, number];
+      position?: MusicPosition;
       metronomeEnabled?: boolean;
       loopSequenceId?: number;
     }
   | {
       action: "stop";
-      position?: [number, number];
+      position?: MusicPosition;
     }
   | {
       action: "set-metronome-enabled";
@@ -35,7 +51,7 @@ export type MusicDataPacket =
     }
   | {
       action: "position";
-      position: [number, number];
+      position: MusicPosition;
     }
   | {
       action: "preview";
@@ -94,7 +110,7 @@ export type MusicDataReceivePacket =
     }
   | {
       action: "update";
-      update: [number, number];
+      update: MusicPlaybackUpdate;
     }
   | {
       action: "muted";

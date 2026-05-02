@@ -2,29 +2,34 @@ import React, { Dispatch } from "react";
 import { UnknownAction } from "redux";
 import API from "renderer/lib/api";
 import l10n from "shared/lib/lang/l10n";
+import { getL10NChannelName } from "shared/lib/uge/display";
+import { SequenceItem } from "shared/lib/uge/types";
 import trackerActions from "store/features/tracker/trackerActions";
 import trackerDocumentActions from "store/features/trackerDocument/trackerDocumentActions";
 import { BlankIcon, CheckIcon } from "ui/icons/Icons";
-import { MenuDivider, MenuItem } from "ui/menu/Menu";
+import { MenuDivider, MenuGroup, MenuItem } from "ui/menu/Menu";
 
-interface PatternContextMenuProps {
+interface SequenceItemMenuProps {
   dispatch: Dispatch<UnknownAction>;
-  patternIndex: number;
+  sequenceItem: SequenceItem;
   orderIndex: number;
   orderLength: number;
   numPatterns: number;
+  globalSplitPattern: boolean;
   loopSequenceId: number | undefined;
   onClose?: () => void;
 }
 
-const renderPatternContextMenu = ({
+const renderSequenceItemMenu = ({
   dispatch,
-  patternIndex,
+  sequenceItem,
   orderIndex,
   orderLength,
   loopSequenceId,
   numPatterns,
-}: PatternContextMenuProps) => {
+  globalSplitPattern,
+  onClose,
+}: SequenceItemMenuProps) => {
   return [
     <MenuItem
       key="loop"
@@ -37,7 +42,7 @@ const renderPatternContextMenu = ({
         if (!isLooped) {
           API.music.sendToMusicWindow({
             action: "position",
-            position: [orderIndex, 0],
+            position: { sequence: orderIndex, row: 0 },
           });
         }
       }}
@@ -119,32 +124,111 @@ const renderPatternContextMenu = ({
           >
             {l10n("FIELD_MOVE_END")}
           </MenuItem>,
-          <MenuDivider key="div-insert" />,
         ]
       : []),
-    <MenuItem
-      key="replaceWith"
-      icon={<BlankIcon />}
-      subMenu={Array.from({ length: numPatterns + 1 }).map((_, n) => (
-        <MenuItem
-          key={n}
-          icon={n === patternIndex ? <CheckIcon /> : <BlankIcon />}
-          onClick={() => {
-            dispatch(
-              trackerDocumentActions.editSequence({
-                sequenceIndex: orderIndex,
-                sequenceId: n < numPatterns ? n : -1,
-              }),
-            );
-          }}
-        >
-          {l10n("FIELD_PATTERN")} {String(n).padStart(2, "0")}{" "}
-          {n === numPatterns ? `(${l10n("FIELD_NEW")})` : ""}
-        </MenuItem>
-      ))}
-    >
-      {l10n("FIELD_REPLACE_WITH")}
-    </MenuItem>,
+
+    ...(orderLength > 1 ? [<MenuDivider key="div-insert" />] : []),
+
+    ...(!globalSplitPattern
+      ? [
+          <MenuItem
+            key="splitPattern"
+            icon={
+              globalSplitPattern || sequenceItem.splitPattern ? (
+                <CheckIcon />
+              ) : (
+                <BlankIcon />
+              )
+            }
+            onClick={() => {
+              dispatch(
+                trackerDocumentActions.setSequenceSplitPattern({
+                  sequenceIndex: orderIndex,
+                  splitPattern: !sequenceItem.splitPattern,
+                }),
+              );
+              onClose?.();
+            }}
+          >
+            {l10n("FIELD_SPLIT_PATTERN")}
+          </MenuItem>,
+        ]
+      : []),
+
+    ...(globalSplitPattern || sequenceItem.splitPattern
+      ? sequenceItem.channels.map((patternId, sequenceChannelId) => (
+          <MenuItem
+            key={`replaceChannel${sequenceChannelId}`}
+            icon={<BlankIcon />}
+            subMenu={Array.from({ length: numPatterns + 1 }).flatMap((_, n) => [
+              <MenuGroup key={`${n}::group`}>
+                {l10n("FIELD_PATTERN")} {String(n).padStart(2, "0")}
+              </MenuGroup>,
+              ...Array.from({ length: 4 }).flatMap((_, patternChannelId) => [
+                <MenuItem
+                  key={`${n}::${patternChannelId}`}
+                  icon={
+                    n * 4 + patternChannelId ===
+                    sequenceItem.channels[sequenceChannelId] ? (
+                      <CheckIcon />
+                    ) : (
+                      <BlankIcon />
+                    )
+                  }
+                  onClick={() => {
+                    dispatch(
+                      trackerDocumentActions.editSequenceChannel({
+                        sequenceIndex: orderIndex,
+                        sequenceChannelId,
+                        patternId: n < numPatterns ? n : -1,
+                        patternChannelId,
+                      }),
+                    );
+                  }}
+                >
+                  {l10n("FIELD_PATTERN")} {String(n).padStart(2, "0")}.
+                  {patternChannelId}{" "}
+                  {n === numPatterns ? `(${l10n("FIELD_NEW")})` : ""}
+                </MenuItem>,
+              ]),
+            ])}
+          >
+            {getL10NChannelName(sequenceChannelId as 0 | 1 | 2 | 3)}
+          </MenuItem>
+        ))
+      : []),
+
+    <MenuDivider key="div-splitPattern" />,
+
+    ...(!globalSplitPattern && !sequenceItem.splitPattern
+      ? [
+          <MenuItem
+            key="replaceWith"
+            icon={<BlankIcon />}
+            subMenu={Array.from({ length: numPatterns + 1 }).map((_, n) => (
+              <MenuItem
+                key={n}
+                icon={
+                  n === sequenceItem.channels[0] ? <CheckIcon /> : <BlankIcon />
+                }
+                onClick={() => {
+                  dispatch(
+                    trackerDocumentActions.editSequence({
+                      sequenceIndex: orderIndex,
+                      patternId: n < numPatterns ? n : -1,
+                    }),
+                  );
+                }}
+              >
+                {l10n("FIELD_PATTERN")} {String(n).padStart(2, "0")}{" "}
+                {n === numPatterns ? `(${l10n("FIELD_NEW")})` : ""}
+              </MenuItem>
+            ))}
+          >
+            {l10n("FIELD_REPLACE_WITH")}
+          </MenuItem>,
+        ]
+      : []),
 
     <MenuItem
       key="insertBefore"
@@ -192,6 +276,21 @@ const renderPatternContextMenu = ({
     >
       {l10n("FIELD_INSERT_PATTERN_AFTER")}
     </MenuItem>,
+    <MenuDivider key="div-duplicate" />,
+    <MenuItem
+      key="duplicate"
+      icon={<BlankIcon />}
+      onClick={() => {
+        dispatch(
+          trackerDocumentActions.duplicateSequencePattern({
+            sequenceIndex: orderIndex,
+            position: "after",
+          }),
+        );
+      }}
+    >
+      {l10n("FIELD_DUPLICATE_PATTERN")}
+    </MenuItem>,
     <MenuItem
       key="clone"
       icon={<BlankIcon />}
@@ -227,4 +326,4 @@ const renderPatternContextMenu = ({
   ];
 };
 
-export default renderPatternContextMenu;
+export default renderSequenceItemMenu;

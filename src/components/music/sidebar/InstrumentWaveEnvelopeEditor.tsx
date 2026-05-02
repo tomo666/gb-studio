@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import l10n from "shared/lib/lang/l10n";
 import styled from "styled-components";
 import { CheckboxField } from "ui/form/CheckboxField";
@@ -44,11 +44,48 @@ const StyledEnvelopeField = styled.div`
   }
 `;
 
-const fixVolume = (input: number): number => {
+const mapInput = (input: number): number => {
   if (input === 0) {
     return 0;
+  } else if (input === 1) {
+    return 100;
+  } else if (input === 2) {
+    return 50;
+  } else {
+    return 25;
   }
-  return 4 - input;
+};
+
+const waveVolumeDisplays = [0, 25, 50, 100] as const;
+const waveVolumeDisplayToStored = {
+  0: 0,
+  25: 3,
+  50: 2,
+  100: 1,
+} as const;
+
+const mapDisplayValueToStoredVolume = (
+  value: number,
+  currentDisplayValue: number,
+): number => {
+  const closestDisplayValue = waveVolumeDisplays.reduce(
+    (closest, candidate) => {
+      const closestDistance = Math.abs(value - closest);
+      const candidateDistance = Math.abs(value - candidate);
+
+      if (candidateDistance !== closestDistance) {
+        return candidateDistance < closestDistance ? candidate : closest;
+      }
+
+      if (value > currentDisplayValue) {
+        return candidate;
+      }
+
+      return closest;
+    },
+  );
+
+  return waveVolumeDisplayToStored[closestDisplayValue];
 };
 
 export const InstrumentWaveEnvelopeEditor = ({
@@ -57,22 +94,31 @@ export const InstrumentWaveEnvelopeEditor = ({
   onChangeVolume,
   onChangeLength,
 }: InstrumentWaveEnvelopeEditorProps) => {
+  const lastRequestedDisplayValueRef = useRef(mapInput(volume));
+  const lastResolvedStoredVolumeRef = useRef(volume);
+
+  useEffect(() => {
+    lastResolvedStoredVolumeRef.current = volume;
+  }, [volume]);
+
   const fixedOnChangeVolume = useCallback(
-    (value: number) => onChangeVolume(fixVolume(value)),
+    (value: number) => {
+      const previousRequestedDisplayValue =
+        lastRequestedDisplayValueRef.current;
+      const nextStoredVolume =
+        value === 75 && previousRequestedDisplayValue === 75
+          ? lastResolvedStoredVolumeRef.current
+          : mapDisplayValueToStoredVolume(value, previousRequestedDisplayValue);
+
+      lastRequestedDisplayValueRef.current = value;
+      lastResolvedStoredVolumeRef.current = nextStoredVolume;
+      onChangeVolume(nextStoredVolume);
+    },
     [onChangeVolume],
   );
 
-  const formatValue = useCallback((value: number) => {
-    if (value === 0) {
-      return "0%";
-    }
-    if (value === 1) {
-      return "25%";
-    }
-    if (value === 2) {
-      return "50%";
-    }
-    return "100%";
+  const formatValue = useCallback(() => {
+    return `${mapInput(lastResolvedStoredVolumeRef.current)}%`;
   }, []);
 
   return (
@@ -104,9 +150,10 @@ export const InstrumentWaveEnvelopeEditor = ({
         <Label htmlFor="initialVolume">{l10n("FIELD_VOLUME")}</Label>
         <Knob
           name="initialVolume"
-          value={fixVolume(volume)}
+          value={mapInput(volume)}
           min={0}
-          max={3}
+          max={100}
+          step={25}
           onChange={fixedOnChangeVolume}
           formatValue={formatValue}
         />

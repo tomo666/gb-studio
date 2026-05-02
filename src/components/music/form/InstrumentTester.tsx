@@ -60,21 +60,19 @@ export const InstrumentTester = ({
 
   const dutyInstrument = useAppSelector(
     (state) =>
-      state.trackerDocument.present.song?.duty_instruments[instrumentId],
+      state.trackerDocument.present.song?.dutyInstruments[instrumentId],
   );
   const waveInstrument = useAppSelector(
     (state) =>
-      state.trackerDocument.present.song?.wave_instruments[instrumentId],
+      state.trackerDocument.present.song?.waveInstruments[instrumentId],
   );
   const noiseInstrument = useAppSelector(
     (state) =>
-      state.trackerDocument.present.song?.noise_instruments[instrumentId],
+      state.trackerDocument.present.song?.noiseInstruments[instrumentId],
   );
   const waveForm = useAppSelector(
     (state) =>
-      state.trackerDocument.present.song?.waves[
-        waveInstrument?.wave_index ?? 0
-      ],
+      state.trackerDocument.present.song?.waves[waveInstrument?.waveIndex ?? 0],
   );
 
   const selectedChannelIdRef = useRef(selectedChannelId);

@@ -1,7 +1,12 @@
-/* eslint-disable camelcase */
-import { TRACKER_PATTERN_LENGTH, TRACKER_SUBPATTERN_LENGTH } from "consts";
+import {
+  TRACKER_NUM_CHANNELS,
+  TRACKER_PATTERN_LENGTH,
+  TRACKER_SUBPATTERN_LENGTH,
+} from "consts";
 import {
   Song,
+  Pattern,
+  SequenceItem,
   PatternCell,
   SubPatternCell,
   DutyInstrument,
@@ -11,23 +16,35 @@ import {
 
 const LAST_VERSION = 6;
 
-/** Creates a new empty pattern with `TRACKER_PATTERN_LENGTH` rows, each with 4 empty cells. */
-export const createPattern = (): PatternCell[][] => {
-  return Array.from({ length: TRACKER_PATTERN_LENGTH }).map(() => [
-    createPatternCell(),
-    createPatternCell(),
-    createPatternCell(),
-    createPatternCell(),
-  ]);
-};
-
 /** Creates a new empty PatternCell with all fields set to null. */
 export const createPatternCell = (): PatternCell => {
   return {
     note: null,
     instrument: null,
-    effectcode: null,
-    effectparam: null,
+    effectCode: null,
+    effectParam: null,
+  };
+};
+
+/** Creates a new empty Pattern with `TRACKER_PATTERN_LENGTH` rows. */
+export const createPattern = (): Pattern => {
+  return Array.from(
+    { length: TRACKER_PATTERN_LENGTH },
+    createPatternCell,
+  ) as Pattern;
+};
+
+/** Maps a linked UI pattern index to four per-channel pattern indices. */
+export const createSequenceItem = (patternId: number): SequenceItem => {
+  const basePatternId = patternId * TRACKER_NUM_CHANNELS;
+  return {
+    splitPattern: false,
+    channels: [
+      basePatternId,
+      basePatternId + 1,
+      basePatternId + 2,
+      basePatternId + 3,
+    ],
   };
 };
 
@@ -36,8 +53,8 @@ export const createSubPatternCell = (): SubPatternCell => {
   return {
     note: null,
     jump: null,
-    effectcode: null,
-    effectparam: null,
+    effectCode: null,
+    effectParam: null,
   };
 };
 
@@ -57,14 +74,14 @@ export const createSong = (): Song => {
     comment: "",
     filename: "song",
 
-    duty_instruments: [],
-    wave_instruments: [],
-    noise_instruments: [],
+    dutyInstruments: [],
+    waveInstruments: [],
+    noiseInstruments: [],
     waves: [],
-    ticks_per_row: 6,
+    ticksPerRow: 6,
 
-    timer_enabled: false,
-    timer_divider: 0,
+    timerEnabled: false,
+    timerDivider: 0,
 
     patterns: [],
     sequence: [],
@@ -73,21 +90,21 @@ export const createSong = (): Song => {
 
 /** Appends a DutyInstrument to the song, setting its index to the current list length. */
 export const addDutyInstrument = (song: Song, instrument: DutyInstrument) => {
-  const list = song.duty_instruments;
+  const list = song.dutyInstruments;
   instrument.index = list.length;
   list.push(instrument);
 };
 
 /** Appends a WaveInstrument to the song, setting its index to the current list length. */
 export const addWaveInstrument = (song: Song, instrument: WaveInstrument) => {
-  const list = song.wave_instruments;
+  const list = song.waveInstruments;
   instrument.index = list.length;
   list.push(instrument);
 };
 
 /** Appends a NoiseInstrument to the song, setting its index to the current list length. */
 export const addNoiseInstrument = (song: Song, instrument: NoiseInstrument) => {
-  const list = song.noise_instruments;
+  const list = song.noiseInstruments;
   instrument.index = list.length;
   list.push(instrument);
 };
