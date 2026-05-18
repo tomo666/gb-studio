@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for split patterns in the Music Editor, allowing different patterns to be set per channel
 - Add note sustain previews to Piano Roll view
 - Add ability to view current tracker keyboard layout (accessible in Preferences window in main app, and in menu `Input / Tracker Keyboard Layout` on music web app)
+- Add ability to read camera scroll x/y within script values [@pau-tomas](https://github.com/pau-tomas)
 - Ukrainian localisation. [@AmakerGame](https://github.com/AmakerGame)
 
 ### Changed
@@ -75,6 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue where colors could appear differently in palette editor to how they appear in game
 - Fix issue where changing one color in a palette could also slightly change the other colors
 - Fix issue where palette editor sliders were not updating after undo and redo
+- Fix issue where "Play Sound Effect" event was using deprecated wait function
+- Fix issue where using Dialogue or Menu events while using Draw Text could cause dialogue text to be drawn to the background
+- Fix 'sprite:compile' error by removing invalid state data before compiling sprites
+- Fix issue where navigating app sections with the keyboard could prevent the Paste shortcut from working
+- Fix issue where it was possible to create an animation state with a blank name which could no longer renamed
+- Fix issue where keyboard controls wouldn't always work in sprite animations navigator
 
 ## [4.2.2] - 2026-02-24
 

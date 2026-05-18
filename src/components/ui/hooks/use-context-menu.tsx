@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { MaybePromise } from "shared/types";
 import { ContextMenu } from "ui/menu/ContextMenu";
 
 const CLOSE_CONTEXT_MENUS_EVENT = "close-context-menus";
@@ -23,7 +24,10 @@ interface ContextMenuState {
 interface UseContextMenuOptions {
   enabled?: boolean;
   getIsEnabled?: (e: React.MouseEvent) => boolean;
-  getMenu: (args: { closeMenu: () => void }) => JSX.Element[];
+  getMenu: (args: {
+    closeMenu: () => void;
+    event: React.MouseEvent;
+  }) => MaybePromise<JSX.Element[] | undefined>;
 }
 
 interface UseContextMenuResult {
@@ -52,20 +56,20 @@ export const useContextMenu = ({
   }, [closeMenu]);
 
   const onContextMenu = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       if (!enabled || (getIsEnabled !== undefined && !getIsEnabled(e))) {
         return;
       }
 
-      const menu = getMenu({ closeMenu });
+      e.preventDefault();
+      e.stopPropagation();
+      closeAllContextMenus();
 
-      if (menu.length === 0) {
+      const menu = await getMenu({ closeMenu, event: e });
+
+      if (!menu || menu.length === 0) {
         return;
       }
-
-      e.preventDefault();
-
-      closeAllContextMenus();
 
       setContextMenu({
         x: e.pageX,

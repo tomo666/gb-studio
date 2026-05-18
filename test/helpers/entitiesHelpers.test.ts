@@ -7,6 +7,7 @@ import {
   nextIndexedName,
   applyReparentFolderToCollection,
   applyReparentEntityToCollection,
+  pruneMissingEntities,
 } from "shared/lib/entities/entitiesHelpers";
 import {
   ActorPrefabNormalized,
@@ -423,6 +424,202 @@ describe("getMetaspriteTilesForSpriteSheet", () => {
     expect(spriteTiles.length).toEqual(1);
     expect(spriteTiles.map((t) => t.id)).toEqual(["tile1"]);
   });
+
+  test("Should ignore missing sprite state references", () => {
+    const state = {
+      spriteSheets: {
+        entities: {
+          spriteSheet1: {
+            id: "spriteSheet1",
+            states: ["state1", "missingState"],
+          },
+        },
+      },
+      spriteStates: {
+        entities: {
+          state1: {
+            id: "state1",
+            animations: ["anim1"],
+          },
+        },
+      },
+      spriteAnimations: {
+        entities: {
+          anim1: {
+            id: "anim1",
+            frames: ["frame1"],
+          },
+        },
+      },
+      metasprites: {
+        entities: {
+          frame1: {
+            id: "frame1",
+            tiles: ["tile1"],
+          },
+        },
+      },
+      metaspriteTiles: {
+        entities: {
+          tile1: {
+            id: "tile1",
+          },
+        },
+      },
+    } as unknown as EntitiesState;
+
+    const spriteTiles = getMetaspriteTilesForSpriteSheet(state, "spriteSheet1");
+
+    expect(spriteTiles.length).toEqual(1);
+    expect(spriteTiles.map((t) => t.id)).toEqual(["tile1"]);
+  });
+
+  test("Should ignore missing sprite animation references", () => {
+    const state = {
+      spriteSheets: {
+        entities: {
+          spriteSheet1: {
+            id: "spriteSheet1",
+            states: ["state1"],
+          },
+        },
+      },
+      spriteStates: {
+        entities: {
+          state1: {
+            id: "state1",
+            animations: ["anim1", "missingAnim"],
+          },
+        },
+      },
+      spriteAnimations: {
+        entities: {
+          anim1: {
+            id: "anim1",
+            frames: ["frame1"],
+          },
+        },
+      },
+      metasprites: {
+        entities: {
+          frame1: {
+            id: "frame1",
+            tiles: ["tile1"],
+          },
+        },
+      },
+      metaspriteTiles: {
+        entities: {
+          tile1: {
+            id: "tile1",
+          },
+        },
+      },
+    } as unknown as EntitiesState;
+
+    const spriteTiles = getMetaspriteTilesForSpriteSheet(state, "spriteSheet1");
+
+    expect(spriteTiles.length).toEqual(1);
+    expect(spriteTiles.map((t) => t.id)).toEqual(["tile1"]);
+  });
+
+  test("Should ignore missing metasprite references", () => {
+    const state = {
+      spriteSheets: {
+        entities: {
+          spriteSheet1: {
+            id: "spriteSheet1",
+            states: ["state1"],
+          },
+        },
+      },
+      spriteStates: {
+        entities: {
+          state1: {
+            id: "state1",
+            animations: ["anim1"],
+          },
+        },
+      },
+      spriteAnimations: {
+        entities: {
+          anim1: {
+            id: "anim1",
+            frames: ["frame1", "missingFrame"],
+          },
+        },
+      },
+      metasprites: {
+        entities: {
+          frame1: {
+            id: "frame1",
+            tiles: ["tile1"],
+          },
+        },
+      },
+      metaspriteTiles: {
+        entities: {
+          tile1: {
+            id: "tile1",
+          },
+        },
+      },
+    } as unknown as EntitiesState;
+
+    const spriteTiles = getMetaspriteTilesForSpriteSheet(state, "spriteSheet1");
+
+    expect(spriteTiles.length).toEqual(1);
+    expect(spriteTiles.map((t) => t.id)).toEqual(["tile1"]);
+  });
+
+  test("Should ignore missing metasprite tile references", () => {
+    const state = {
+      spriteSheets: {
+        entities: {
+          spriteSheet1: {
+            id: "spriteSheet1",
+            states: ["state1"],
+          },
+        },
+      },
+      spriteStates: {
+        entities: {
+          state1: {
+            id: "state1",
+            animations: ["anim1"],
+          },
+        },
+      },
+      spriteAnimations: {
+        entities: {
+          anim1: {
+            id: "anim1",
+            frames: ["frame1"],
+          },
+        },
+      },
+      metasprites: {
+        entities: {
+          frame1: {
+            id: "frame1",
+            tiles: ["tile1", "missingTile"],
+          },
+        },
+      },
+      metaspriteTiles: {
+        entities: {
+          tile1: {
+            id: "tile1",
+          },
+        },
+      },
+    } as unknown as EntitiesState;
+
+    const spriteTiles = getMetaspriteTilesForSpriteSheet(state, "spriteSheet1");
+
+    expect(spriteTiles.length).toEqual(1);
+    expect(spriteTiles.map((t) => t.id)).toEqual(["tile1"]);
+  });
 });
 
 describe("nextIndexedName", () => {
@@ -674,5 +871,77 @@ describe("applyReparentEntityToCollection", () => {
 
     expect(collection.a.name).toBe("x/file.txt");
     expect(collection.b.name).toBe("b/file.txt");
+  });
+});
+
+describe("pruneMissingEntities", () => {
+  test("removes undefined values from arrays", () => {
+    expect(pruneMissingEntities([1, undefined, 2, undefined, 3])).toEqual([
+      1, 2, 3,
+    ]);
+  });
+
+  test("removes undefined values from nested arrays", () => {
+    expect(pruneMissingEntities([1, [undefined, 2], undefined, [3]])).toEqual([
+      1,
+      [2],
+      [3],
+    ]);
+  });
+
+  test("removes undefined values from arrays nested inside objects", () => {
+    expect(
+      pruneMissingEntities({
+        states: [
+          undefined,
+          {
+            id: "state1",
+            animations: [
+              undefined,
+              {
+                id: "anim1",
+                frames: [undefined, { id: "frame1", tiles: [] }],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toEqual({
+      states: [
+        {
+          id: "state1",
+          animations: [
+            {
+              id: "anim1",
+              frames: [{ id: "frame1", tiles: [] }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  test("preserves undefined object properties", () => {
+    expect(
+      pruneMissingEntities({
+        id: "sprite1",
+        notes: undefined,
+      }),
+    ).toEqual({
+      id: "sprite1",
+      notes: undefined,
+    });
+  });
+
+  test("preserves null values in arrays and objects", () => {
+    expect(
+      pruneMissingEntities({
+        value: null,
+        items: [null, undefined, { value: null }],
+      }),
+    ).toEqual({
+      value: null,
+      items: [null, { value: null }],
+    });
   });
 });
