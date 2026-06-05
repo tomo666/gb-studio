@@ -15,6 +15,8 @@ import assetsActions from "store/features/assets/assetsActions";
 import settingsActions from "store/features/settings/settingsActions";
 import { Sidebar, SidebarColumn, SidebarColumns } from "ui/sidebars/Sidebar";
 import {
+  FormColumn,
+  FormColumns,
   FormContainer,
   FormField,
   FormHeader,
@@ -70,7 +72,11 @@ import { ScriptEditorContext } from "components/script/ScriptEditorContext";
 import { Alert, AlertItem } from "ui/alerts/Alert";
 import { sceneName } from "shared/lib/entities/entitiesHelpers";
 import l10n from "shared/lib/lang/l10n";
-import { useAppDispatch, useAppSelector } from "store/hooks";
+import {
+  useAppDispatch,
+  useAppSelector,
+  useAppSelectorPick,
+} from "store/hooks";
 import { ScriptEditorCtx } from "shared/lib/scripts/context";
 import { TilesetSelect } from "components/forms/TilesetSelect";
 import { FixedSpacer, FlexBreak, FlexGrow } from "ui/spacing/Spacing";
@@ -85,7 +91,7 @@ import {
   SceneBoundsRect,
   SceneParallaxLayer,
 } from "shared/lib/resources/types";
-import EngineFieldsEditor from "components/settings/EngineFieldsEditor";
+import SettingsSectionEngineFields from "components/settings/section/SettingsSectionEngineFields";
 import { useGroupedEngineFields } from "components/settings/useGroupedEngineFields";
 import ScrollBoundsInput from "components/forms/ScrollBoundsInput";
 import { SpriteModeSelect } from "components/forms/SpriteModeSelect";
@@ -157,7 +163,36 @@ const getScriptKey = (
 };
 
 export const SceneEditor = ({ id }: SceneEditorProps) => {
-  const scene = useAppSelector((state) => sceneSelectors.selectById(state, id));
+  const scene = useAppSelectorPick(
+    (state) => sceneSelectors.selectById(state, id),
+    [
+      "id",
+      "name",
+      "type",
+      "backgroundId",
+      "tilesetId",
+      "notes",
+      "labelColor",
+      "colorModeOverride",
+      "spriteMode",
+      "playerSpriteSheetId",
+      "paletteIds",
+      "spritePaletteIds",
+      "monoBGP",
+      "monoOBP0",
+      "monoOBP1",
+      "parallax",
+      "scrollBounds",
+      "width",
+      "height",
+      "script",
+      "playerHit1Script",
+      "playerHit2Script",
+      "playerHit3Script",
+      "autoFadeSpeed",
+    ] as const,
+  );
+
   const sceneIndex = useAppSelector((state) =>
     sceneSelectors.selectIds(state).indexOf(id),
   );
@@ -169,7 +204,7 @@ export const SceneEditor = ({ id }: SceneEditorProps) => {
   );
   const [notesOpen, setNotesOpen] = useState<boolean>(!!scene?.notes);
   const [colorModeOverrideOpen, setColorModeOverrideOpen] = useState<boolean>(
-    scene?.colorModeOverride && scene?.colorModeOverride !== "none",
+    !!(scene?.colorModeOverride && scene?.colorModeOverride !== "none"),
   );
   const [autoTileFlipOverrideOpen, setAutoTileFlipOverrideOpen] =
     useState<boolean>(background?.autoTileFlipOverride !== undefined);
@@ -189,6 +224,9 @@ export const SceneEditor = ({ id }: SceneEditorProps) => {
   );
   const colorMode = useAppSelector(
     (state) => state.project.present.settings.colorMode,
+  );
+  const sgbEnabled = useAppSelector(
+    (state) => state.project.present.settings.sgbEnabled,
   );
   const startSceneId = useAppSelector(
     (state) => state.project.present.settings.startSceneId,
@@ -233,7 +271,7 @@ export const SceneEditor = ({ id }: SceneEditorProps) => {
 
   const enabledSceneTypeIds = useEnabledSceneTypeIds();
   const sceneTypeEnabled = useMemo(() => {
-    return enabledSceneTypeIds.includes(scene?.type);
+    return enabledSceneTypeIds.includes(scene?.type ?? "");
   }, [enabledSceneTypeIds, scene?.type]);
 
   const scriptTabs: Record<ScriptTab, string> = useMemo(
@@ -515,9 +553,9 @@ export const SceneEditor = ({ id }: SceneEditorProps) => {
         sceneId: id,
         backgroundId: scene?.backgroundId || "",
         is360: scene?.type === "LOGO",
-        uiPaletteId: scene?.paletteIds?.[7],
+        uiPaletteId: scene?.paletteIds?.[7] ?? "",
         colorMode:
-          scene.colorModeOverride === "none"
+          !scene?.colorModeOverride || scene.colorModeOverride === "none"
             ? projectColorMode
             : scene.colorModeOverride,
       }),
@@ -658,15 +696,19 @@ export const SceneEditor = ({ id }: SceneEditorProps) => {
     (background?.autoTileFlipOverride !== undefined ||
       autoTileFlipOverrideOpen);
   const onEditPaletteId = (index: number) => (paletteId: string) => {
-    const paletteIds = scene.paletteIds ? [...scene.paletteIds] : [];
+    const paletteIds = Array.from(
+      { length: 8 },
+      (_, i) => scene.paletteIds?.[i] ?? "",
+    );
     paletteIds[index] = paletteId;
     onChangeSceneProp("paletteIds", paletteIds);
   };
 
   const onEditSpritePaletteId = (index: number) => (paletteId: string) => {
-    const spritePaletteIds = scene.spritePaletteIds
-      ? [...scene.spritePaletteIds]
-      : [];
+    const spritePaletteIds = Array.from(
+      { length: 8 },
+      (_, i) => scene.spritePaletteIds?.[i] ?? "",
+    );
     spritePaletteIds[index] = paletteId;
     onChangeSceneProp("spritePaletteIds", spritePaletteIds);
   };
@@ -890,7 +932,9 @@ export const SceneEditor = ({ id }: SceneEditorProps) => {
                     </Alert>
                   </FormRow>
                 )}
-                {settingsOpen && <EngineFieldsEditor sceneType={scene.type} />}
+                {settingsOpen && (
+                  <SettingsSectionEngineFields sceneType={scene.type} />
+                )}
               </FormContainer>
             </SidebarColumn>
             <FlexBreak />
@@ -1073,41 +1117,73 @@ export const SceneEditor = ({ id }: SceneEditorProps) => {
                 )}
 
                 <SidebarColumn>
-                  <FormRow>
-                    <FormField
-                      name="monoBGPPalette"
-                      label={l10n("FIELD_MONOCHROME_PALETTES")}
-                    >
-                      <PaletteButtons>
-                        <DMGPaletteSelectButton
-                          name="monoBGPPalette"
-                          label="BGP"
-                          value={scene.monoBGP || defaultMonoBGP}
-                          onChange={onChangeMonoBGP}
-                          showName
-                          isOptional
-                        />
-                        <DMGPaletteSelectButton
-                          name="monoOBP1Palette"
-                          label="OBP0"
-                          isSpritePalette
-                          value={scene.monoOBP0 || defaultMonoOBP0}
-                          onChange={onChangeMonoOBP0}
-                          showName
-                          isOptional
-                        />
-                        <DMGPaletteSelectButton
-                          name="monoOBP1Palette"
-                          label="OBP1"
-                          isSpritePalette
-                          value={scene.monoOBP1 || defaultMonoOBP1}
-                          onChange={onChangeMonoOBP1}
-                          showName
-                          isOptional
-                        />
-                      </PaletteButtons>
-                    </FormField>
-                  </FormRow>
+                  <FormColumns>
+                    <FormColumn>
+                      <FormField
+                        name="monoBGPPalette"
+                        label={l10n("FIELD_MONOCHROME_PALETTES")}
+                      >
+                        <PaletteButtons>
+                          <DMGPaletteSelectButton
+                            name="monoBGPPalette"
+                            label="BGP"
+                            value={scene.monoBGP || defaultMonoBGP}
+                            onChange={onChangeMonoBGP}
+                            showName
+                            isOptional
+                          />
+                          <DMGPaletteSelectButton
+                            name="monoOBP1Palette"
+                            label="OBP0"
+                            isSpritePalette
+                            value={scene.monoOBP0 || defaultMonoOBP0}
+                            onChange={onChangeMonoOBP0}
+                            showName
+                            isOptional
+                          />
+                          <DMGPaletteSelectButton
+                            name="monoOBP1Palette"
+                            label="OBP1"
+                            isSpritePalette
+                            value={scene.monoOBP1 || defaultMonoOBP1}
+                            onChange={onChangeMonoOBP1}
+                            showName
+                            isOptional
+                          />
+                        </PaletteButtons>
+                      </FormField>
+                    </FormColumn>
+                    {sgbEnabled && !colorsEnabled && (
+                      <FormColumn>
+                        <FormField
+                          name="playerSpriteSheetId"
+                          label={l10n("FIELD_SCENE_SGB_PALETTES")}
+                        >
+                          <PaletteButtons>
+                            {[4, 5, 6, 7].map((index) => (
+                              <PaletteSelectButton
+                                key={index}
+                                name={`scenePalette${index}`}
+                                value={
+                                  (scene.paletteIds &&
+                                    scene.paletteIds[index]) ||
+                                  ""
+                                }
+                                type={index === 6 ? "tile" : "sgb"}
+                                onChange={onEditPaletteId(index)}
+                                slotNumber={index + 1}
+                                optional
+                                optionalDefaultPaletteId={
+                                  defaultBackgroundPaletteIds[index] || ""
+                                }
+                                optionalLabel={l10n("FIELD_GLOBAL_DEFAULT")}
+                              />
+                            ))}
+                          </PaletteButtons>
+                        </FormField>
+                      </FormColumn>
+                    )}
+                  </FormColumns>
                 </SidebarColumn>
 
                 {colorsEnabled && (

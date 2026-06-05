@@ -82,6 +82,8 @@ import ConstantValueSelect from "components/forms/ConstantValueSelect";
 import { EngineFieldType } from "store/features/engine/engineState";
 import { OverlaySpeedSelect } from "components/forms/OverlaySpeedSelect";
 import { ActorDirection, CollisionGroup } from "shared/lib/resources/types";
+import { DataTableInput } from "components/forms/DataTableInput";
+import { isScriptDataTable } from "shared/lib/scriptDataTable/types";
 
 interface ScriptEventFormInputProps {
   id: string;
@@ -498,7 +500,7 @@ const ScriptEventFormInput = ({
             name={id}
             value={String(value || "")}
             onChange={onChangeField}
-            prefix={`${(field.paletteIndex || 0) + 1}: `}
+            prefix={field.prefix ?? `${(field.paletteIndex || 0) + 1}: `}
             optional
             optionalLabel={l10n("FIELD_GLOBAL_DEFAULT")}
             optionalDefaultPaletteId={
@@ -518,7 +520,7 @@ const ScriptEventFormInput = ({
           name={id}
           value={String(value || "")}
           onChange={onChangeField}
-          prefix={`${(field.paletteIndex || 0) + 1}: `}
+          prefix={field.prefix ?? `${(field.paletteIndex || 0) + 1}: `}
           optional
           optionalLabel={l10n("FIELD_GLOBAL_DEFAULT")}
           optionalDefaultPaletteId={
@@ -527,7 +529,7 @@ const ScriptEventFormInput = ({
           canKeep={field.canKeep}
           canRestore={field.canRestore}
           keepLabel={l10n("FIELD_DONT_MODIFY")}
-          type="tile"
+          type={field.paletteType === "sgb" ? "sgb" : "tile"}
         />
       </OffscreenSkeletonInput>
     );
@@ -907,6 +909,15 @@ const ScriptEventFormInput = ({
         />
       );
     }
+  } else if (type === "dataTable") {
+    const dataTableValue = isScriptDataTable(value) ? value : undefined;
+    return (
+      <DataTableInput
+        value={dataTableValue}
+        onChange={onChangeField}
+        entityId={entityId}
+      />
+    );
   } else if (type === "addEventButton") {
     return (
       <Button style={{ width: "100%" }} onClick={onInsertEventAfter}>

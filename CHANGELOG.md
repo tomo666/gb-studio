@@ -35,10 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add note sustain previews to Piano Roll view
 - Add ability to view current tracker keyboard layout (accessible in Preferences window in main app, and in menu `Input / Tracker Keyboard Layout` on music web app)
 - Add ability to read camera scroll x/y within script values [@pau-tomas](https://github.com/pau-tomas)
+- Add ability to set all four available palettes for SGB games [@pau-tomas](https://github.com/pau-tomas)
+- Add "Set Super GB Color Area" event to allow setting where each color palette should be used in SGB games [@pau-tomas](https://github.com/pau-tomas)
+- Add "Set Super GB Palettes" event for changing SGB palettes from scripts [@pau-tomas](https://github.com/pau-tomas)
+- Add "Data Table Lookup" event for reading static data from a table using an index variable, with CSV import/export. Useful for lookups like monster stats
 - Ukrainian localisation. [@AmakerGame](https://github.com/AmakerGame)
 
 ### Changed
 
+- Update to latest [GBVM](https://github.com/chrismaltby/gbvm)
 - Improve warning messages when multiple engine plugins modify the same files.
 - Clear build cache on the first build after opening a project to prevent stale data issues
 - Preserve scroll position in the Settings section when navigating away and returning
@@ -58,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compiled music no longer includes unused instrument subpatterns
 - Plugins can now specify `preserveFiles` to prevent files from being overwritten when updated in the Plugin Manager
 - Themes plugins can now set `tracker.wave`, `tracker.waveGrid` and `tracker.waveBackground` colors [@pau-tomas](https://github.com/pau-tomas)
+- Setting ROM filename to end with ".gb" will allow now cause that extension to be used for GBC-only games instead of ".gbc"
 
 ### Fixed
 
@@ -83,6 +89,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue where navigating app sections with the keyboard could prevent the Paste shortcut from working
 - Fix issue where it was possible to create an animation state with a blank name which could no longer renamed
 - Fix issue where keyboard controls wouldn't always work in sprite animations navigator
+- Fix issue where double clicking a recent project from the splash window could cause project not to open
+- Fix Linux AppImage releases missing icons and metadata needed for integration using AppImageLauncher
+- Fix scene loading when it interrupts a camera shake event [@Phidias618](https://github.com/Phidias618)
+- Fix screenshake from removing projectiles [@Mico27](https://github.com/Mico27)
+- Fix brief text glitch that would appear when drawing dialogue frame on CGB [@Phidias618](https://github.com/Phidias618)
+- Fix player detecting itself instead of another actor when the player has on player hit scripts [@Mico27](https://github.com/Mico27)
+- Fix issue where platformer was reusing coyote timer for wall jump leading to cases where jumping after leaving a ledge would cause a large push forwards
+- Fix issue where jump state wasn't decreasing wall jump coyote timer
+- Fix issue where disabling player collisions wouldn't prevent projectiles from colliding with player
+- Fix issue in platformer scenes where drop through feature can allow phasing through solid walls
+
+### Removed
+
+- Removed mod2gbt binary which is no longer used as .mod files now get converted to .uge format at compile time
 
 ## [4.2.2] - 2026-02-24
 
