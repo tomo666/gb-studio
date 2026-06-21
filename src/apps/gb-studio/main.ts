@@ -46,9 +46,16 @@ import type {
 import buildProject, {
   cancelCompileStepsInProgress,
 } from "lib/compiler/buildProject";
+import {
+  ejectDefaultWebTemplate,
+  listProjectWebTemplates,
+} from "lib/compiler/webBuild";
+import type { WebTemplateInfo } from "shared/lib/webTemplates/types";
 import copy from "lib/helpers/fsCopy";
 import confirmEjectEngineDialog from "lib/electron/dialog/confirmEjectEngineDialog";
 import confirmEjectEngineReplaceDialog from "lib/electron/dialog/confirmEjectEngineReplaceDialog";
+import confirmEjectWebTemplateDialog from "lib/electron/dialog/confirmEjectWebTemplateDialog";
+import confirmEjectWebTemplateReplaceDialog from "lib/electron/dialog/confirmEjectWebTemplateReplaceDialog";
 import ejectEngineToDir from "lib/project/ejectEngineToDir";
 import type { ProjectExportType } from "store/features/buildGame/buildGameActions";
 import {
@@ -106,6 +113,7 @@ import loadAllScriptEventHandlers from "lib/project/loadScriptEventHandlers";
 import { cloneDictionary } from "lib/helpers/clone";
 import { readDebuggerSymbols } from "lib/debugger/readDebuggerSymbols";
 import {
+  BackgroundPreviewType,
   DebuggerDataPacket,
   DebuggerInitData,
 } from "shared/lib/debugger/types";
@@ -576,6 +584,10 @@ export const createProjectWindow = async () => {
         "watch:scriptEventDefs:changed",
         cloneDictionary(scriptEventHandlers),
       );
+    },
+    onChangedWebTemplates: async () => {
+      const templates = await listProjectWebTemplates(projectRoot);
+      sendToProjectWindow("watch:webTemplates:changed", templates);
     },
   });
 };
@@ -1378,6 +1390,16 @@ ipcMain.handle("debugger:set-watched", (_event, variableIds: string[]) => {
   });
 });
 
+ipcMain.handle(
+  "debugger:set-background-preview-type",
+  (_event, backgroundPreviewType: BackgroundPreviewType) => {
+    sendToGameWindow("debugger:data", {
+      action: "set-background-preview-type",
+      data: backgroundPreviewType,
+    });
+  },
+);
+
 ipcMain.handle("get-l10n-strings", () => getL10NData());
 
 ipcMain.handle("get-theme", () => {
@@ -1446,6 +1468,36 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
+  "project:web-template:list",
+  async (): Promise<WebTemplateInfo[]> => {
+    const projectRoot = Path.dirname(projectPath);
+    return listProjectWebTemplates(projectRoot);
+  },
+);
+
+ipcMain.handle(
+  "project:web-template:eject",
+  async (): Promise<WebTemplateInfo[] | undefined> => {
+    if (confirmEjectWebTemplateDialog()) {
+      return undefined;
+    }
+
+    const projectRoot = Path.dirname(projectPath);
+    const outputPath = Path.join(projectRoot, "assets", "web", "binjgb");
+    if (
+      (await pathExists(outputPath)) &&
+      confirmEjectWebTemplateReplaceDialog()
+    ) {
+      return undefined;
+    }
+
+    await ejectDefaultWebTemplate(projectRoot);
+    await shell.openPath(outputPath);
+    return listProjectWebTemplates(projectRoot);
+  },
+);
+
+ipcMain.handle(
   "project:build",
   async (event, project: ProjectResources, options: BuildOptions) => {
     const { exportBuild, buildType } = options;
@@ -1496,6 +1548,7 @@ ipcMain.handle(
         romFilename,
         tmpPath,
         debugEnabled: debuggerEnabled,
+        useCustomWebTemplate: exportBuild,
         progress,
         warnings,
       });
@@ -2246,6 +2299,10 @@ menu.on("build", (buildType) => {
 
 menu.on("ejectEngine", () => {
   sendToProjectWindow("menu:eject-engine");
+});
+
+menu.on("ejectWebTemplate", () => {
+  sendToProjectWindow("menu:eject-web-template");
 });
 
 menu.on("exportProjectSrc", () => {

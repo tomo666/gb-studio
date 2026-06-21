@@ -18,6 +18,7 @@ const types: PluginType[] = [
   "assetPack",
   "eventsPlugin",
   "enginePlugin",
+  "webTemplatePlugin",
   "theme",
   "lang",
   "template",
@@ -34,6 +35,7 @@ describe("isGlobalPluginType", () => {
     expect(isGlobalPluginType("assetPack")).toEqual(false);
     expect(isGlobalPluginType("eventsPlugin")).toEqual(false);
     expect(isGlobalPluginType("enginePlugin")).toEqual(false);
+    expect(isGlobalPluginType("webTemplatePlugin")).toEqual(false);
   });
 });
 
@@ -102,8 +104,8 @@ describe("buildPluginItems", () => {
     ];
     const output = buildPluginItems(installedPlugins, repos);
     expect(output.length).toEqual(2);
-    expect(output[0].installedVersion).toBeUndefined();
-    expect(output[1].installedVersion).toEqual("1.0.0");
+    expect(output[0]?.installedVersion).toBeUndefined();
+    expect(output[1]?.installedVersion).toEqual("1.0.0");
   });
 
   test("should flag if update is available", () => {
@@ -150,10 +152,10 @@ describe("buildPluginItems", () => {
     ];
     const output = buildPluginItems(installedPlugins, repos);
     expect(output.length).toEqual(2);
-    expect(output[0].installedVersion).toEqual("1.1.0");
-    expect(output[1].installedVersion).toEqual("1.2.0");
-    expect(output[0].updateAvailable).toEqual(true);
-    expect(output[1].updateAvailable).toEqual(false);
+    expect(output[0]?.installedVersion).toEqual("1.1.0");
+    expect(output[1]?.installedVersion).toEqual("1.2.0");
+    expect(output[0]?.updateAvailable).toEqual(true);
+    expect(output[1]?.updateAvailable).toEqual(false);
   });
 
   test("should not flag if repo version is older than installed version", () => {
@@ -186,8 +188,8 @@ describe("buildPluginItems", () => {
     ];
     const output = buildPluginItems(installedPlugins, repos);
     expect(output.length).toEqual(1);
-    expect(output[0].installedVersion).toEqual("1.1.0");
-    expect(output[0].updateAvailable).toEqual(false);
+    expect(output[0]?.installedVersion).toEqual("1.1.0");
+    expect(output[0]?.updateAvailable).toEqual(false);
   });
 });
 
@@ -267,31 +269,31 @@ describe("filterPluginItems", () => {
   test("should sort output even when not filtered", () => {
     const output = filterPluginItems(pluginItems, "", "", "");
     expect(output.length).toEqual(3);
-    expect(output[0].id).toEqual("p3");
-    expect(output[1].id).toEqual("p1");
-    expect(output[2].id).toEqual("p2");
+    expect(output[0]?.id).toEqual("p3");
+    expect(output[1]?.id).toEqual("p1");
+    expect(output[2]?.id).toEqual("p2");
   });
 
   test("should allow filtering by plugin type", () => {
     const output = filterPluginItems(pluginItems, "", "assetPack", "");
     const output2 = filterPluginItems(pluginItems, "", "theme", "");
     expect(output.length).toEqual(1);
-    expect(output[0].plugin.type).toEqual("assetPack");
+    expect(output[0]?.plugin.type).toEqual("assetPack");
     expect(output2.length).toEqual(2);
-    expect(output2[0].plugin.type).toEqual("theme");
-    expect(output2[1].plugin.type).toEqual("theme");
+    expect(output2[0]?.plugin.type).toEqual("theme");
+    expect(output2[1]?.plugin.type).toEqual("theme");
   });
 
   test("should allow filtering by repo", () => {
     const output = filterPluginItems(pluginItems, "", "", "core");
     expect(output.length).toEqual(1);
-    expect(output[0].repo.id).toEqual("core");
+    expect(output[0]?.repo.id).toEqual("core");
   });
 
   test("should allow filtering by search term", () => {
     const output = filterPluginItems(pluginItems, "P2", "", "");
     expect(output.length).toEqual(1);
-    expect(output[0].plugin.name).toInclude("P2");
+    expect(output[0]?.plugin.name).toInclude("P2");
   });
 });
 

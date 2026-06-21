@@ -22,7 +22,10 @@ import type { PrecompiledSpriteSheetData } from "lib/compiler/compileSprites";
 import type { NavigationSection } from "store/features/navigation/navigationState";
 import type { ScriptEventDefs } from "shared/lib/scripts/scriptDefHelpers";
 import type { MenuZoomType } from "shared/lib/menu/types";
-import type { DebuggerDataPacket } from "shared/lib/debugger/types";
+import type {
+  BackgroundPreviewType,
+  DebuggerDataPacket,
+} from "shared/lib/debugger/types";
 import type { SceneMapData, VariableMapData } from "lib/compiler/compileData";
 import type { UsageData } from "lib/compiler/romUsage";
 import type { Asset, AssetType } from "shared/lib/helpers/assets";
@@ -59,6 +62,7 @@ import type { TemplatePlugin } from "lib/templates/templateManager";
 import { EngineSchema } from "lib/project/loadEngineSchema";
 import { HexPalette } from "shared/lib/tiles/autoColor";
 import { ScriptDataTable } from "shared/lib/scriptDataTable/types";
+import type { WebTemplateInfo } from "shared/lib/webTemplates/types";
 
 interface L10NLookup {
   [key: string]: string | boolean | undefined;
@@ -306,6 +310,10 @@ const APISetup = {
       ipcRenderer.invoke("project:rename-asset", type, asset, filename),
     removeAsset: (type: AssetType, asset: Asset): Promise<boolean> =>
       ipcRenderer.invoke("project:remove-asset", type, asset),
+    getWebTemplates: (): Promise<WebTemplateInfo[]> =>
+      ipcRenderer.invoke("project:web-template:list"),
+    ejectWebTemplate: (): Promise<WebTemplateInfo[] | undefined> =>
+      ipcRenderer.invoke("project:web-template:eject"),
   },
   script: {
     getScriptAutoLabel: (
@@ -418,6 +426,8 @@ const APISetup = {
       ipcRenderer.invoke("debugger:set-breakpoints", breakpoints),
     setWatchedVariableIds: (variableIds: string[]) =>
       ipcRenderer.invoke("debugger:set-watched", variableIds),
+    setBackgroundPreviewType: (type: BackgroundPreviewType) =>
+      ipcRenderer.invoke("debugger:set-background-preview-type", type),
     sendToProjectWindow: (data: DebuggerDataPacket) =>
       ipcRenderer.send("debugger:data-receive", data),
   },
@@ -481,6 +491,9 @@ const APISetup = {
         createSubscribeAPI<(event: IpcRendererEvent) => void>(
           "menu:eject-engine",
         ),
+      ejectWebTemplate: createSubscribeAPI<(event: IpcRendererEvent) => void>(
+        "menu:eject-web-template",
+      ),
       exportProject: createSubscribeAPI<
         (event: IpcRendererEvent, exportType: ProjectExportType) => void
       >("menu:export-project"),
@@ -564,6 +577,11 @@ const APISetup = {
       emote: createWatchSubscribeAPI<EmoteResourceAsset>("watch:emote"),
       tileset: createWatchSubscribeAPI<TilesetResourceAsset>("watch:tileset"),
       ui: createWatchSubscribeAPI<never>("watch:ui"),
+      webTemplates: {
+        changed: createSubscribeAPI<
+          (event: IpcRendererEvent, templates: WebTemplateInfo[]) => void
+        >("watch:webTemplates:changed"),
+      },
       engineSchema: {
         changed: createSubscribeAPI<
           (event: IpcRendererEvent, engineSchema: EngineSchema) => void

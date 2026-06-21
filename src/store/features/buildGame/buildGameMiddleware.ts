@@ -7,6 +7,13 @@ import { denormalizeProject } from "store/features/project/projectActions";
 import actions from "./buildGameActions";
 import API from "renderer/lib/api";
 import navigationActions from "store/features/navigation/navigationActions";
+import { actions as webTemplatesActions } from "store/features/webTemplates/webTemplatesState";
+
+const openBuildLogForWarning = (dispatch: Dispatch) => {
+  dispatch(settingsActions.editSettings({ debuggerEnabled: true }));
+  dispatch(navigationActions.setSection("world"));
+  dispatch(debuggerActions.setIsLogOpen(true));
+};
 
 const buildGameMiddleware: Middleware<Dispatch, RootState> =
   (store) => (next) => async (action) => {
@@ -83,6 +90,12 @@ const buildGameMiddleware: Middleware<Dispatch, RootState> =
       dispatch(consoleActions.stdOut({ text: "Cleared GB Studio caches" }));
     } else if (actions.ejectEngine.match(action)) {
       API.project.ejectEngine();
+    } else if (actions.ejectWebTemplate.match(action)) {
+      const templates = await API.project.ejectWebTemplate();
+      if (templates) {
+        store.dispatch(webTemplatesActions.setWebTemplates(templates));
+        store.dispatch(settingsActions.editSettings({ webTemplate: "binjgb" }));
+      }
     } else if (actions.exportProject.match(action)) {
       const state = store.getState();
       const dispatch = store.dispatch.bind(store);
@@ -113,9 +126,16 @@ const buildGameMiddleware: Middleware<Dispatch, RootState> =
       const state = store.getState();
       const dispatch = store.dispatch.bind(store);
       if (state.project.present.settings.openBuildLogOnWarnings) {
-        dispatch(settingsActions.editSettings({ debuggerEnabled: true }));
-        dispatch(navigationActions.setSection("world"));
-        dispatch(debuggerActions.setIsLogOpen(true));
+        openBuildLogForWarning(dispatch);
+      }
+    } else if (consoleActions.appendMany.match(action)) {
+      const state = store.getState();
+      const dispatch = store.dispatch.bind(store);
+      if (
+        state.project.present.settings.openBuildLogOnWarnings &&
+        action.payload.some((item) => item.type === "err")
+      ) {
+        openBuildLogForWarning(dispatch);
       }
     }
 

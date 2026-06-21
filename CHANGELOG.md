@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Add ability to view the current background and overlay tilemap in the debugger [@pau-tomas](https://github.com/pau-tomas)
+- Add ability to "Eject Web Template" from the Settings section, allowing packages created with "Export Web" to be customised
+- Add support for web template plugins
+
+### Fixed
+
+- Fix issue preventing build log from opening automatically on warnings
+- Fix issue where script events could not be deleted after deleting a multi selection
+- Fix issue where deleting patterns in music editor during playback could cause application to freeze
+- Fix issue where select input menus would often not be wide enough to display contents without cropping text
+
 ## [4.3.1] - 2026-06-11
 
 ### Changed
