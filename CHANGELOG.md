@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.3.2] - 2026-06-22
 
 ### Added
 
 - Add ability to view the current background and overlay tilemap in the debugger [@pau-tomas](https://github.com/pau-tomas)
 - Add ability to "Eject Web Template" from the Settings section, allowing packages created with "Export Web" to be customised
 - Add support for web template plugins
+
+# Changed
+
+- Updated Polish localisation. [@ReptiIe](https://github.com/ReptiIe)
+- Updated Japanese localisation. [@tomo666](https://github.com/tomo666)
 
 ### Fixed
 

@@ -1,9 +1,9 @@
 import React, { useCallback, useContext, useEffect, useRef } from "react";
 import styled, { ThemeContext } from "styled-components";
 import WorldView from "components/world/WorldView";
-import ToolPicker from "components/world/ToolPicker";
-import BrushToolbar from "components/world/BrushToolbar";
-import EditorSidebar from "components/editors/EditorSidebar";
+import ToolPicker from "components/world/toolbar/ToolPicker";
+import BrushToolbar from "components/world/toolbar/BrushToolbar";
+import WorldInspectorSidebar from "components/world/inspector/WorldInspectorSidebar";
 import WorldStatusBar from "components/world/WorldStatusBar";
 import useResizable from "ui/hooks/use-resizable";
 import useWindowSize from "ui/hooks/use-window-size";
@@ -11,7 +11,7 @@ import {
   SplitPaneHorizontalDivider,
   SplitPaneVerticalDivider,
 } from "ui/splitpane/SplitPaneDivider";
-import { Navigator } from "components/world/Navigator";
+import { WorldNavigator } from "components/world/navigator/WorldNavigator";
 import editorActions from "store/features/editor/editorActions";
 import settingsActions from "store/features/settings/settingsActions";
 import debounce from "lodash/debounce";
@@ -233,7 +233,7 @@ const WorldPage = () => {
             height: "100%",
           }}
         >
-          <Navigator />
+          <WorldNavigator />
         </div>
       </div>
       {showNavigator && (
@@ -304,7 +304,7 @@ const WorldPage = () => {
           position: "relative",
         }}
       >
-        <EditorSidebar />
+        <WorldInspectorSidebar />
       </div>
     </Wrapper>
   );
