@@ -2,8 +2,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import ScriptEditor from "components/script/ScriptEditor";
 import { castEventToInt } from "renderer/lib/helpers/castEventValue";
 import { WorldInspector } from "components/world/inspector/WorldInspector";
-import ScriptEditorDropdownButton from "components/script/ScriptEditorDropdownButton";
-import BackgroundWarnings from "components/world/BackgroundWarnings";
+import ScriptEditorDropdownButton from "components/script/menus/ScriptEditorDropdownButton";
+import BackgroundWarnings from "components/world/inspector/backgrounds/BackgroundWarnings";
 import {
   backgroundSelectors,
   sceneSelectors,
@@ -64,11 +64,11 @@ import {
   ClipboardTypeScenes,
 } from "store/features/clipboard/clipboardTypes";
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from "consts";
-import { ScriptEventAutoFadeDisabledWarning } from "components/script/ScriptEventAutoFade";
+import { ScriptEventAutoFadeDisabledWarning } from "components/script/events/ScriptEventAutoFade";
 import { SceneSymbolsEditor } from "components/forms/symbols/SceneSymbolsEditor";
 import { BackgroundSymbolsEditor } from "components/forms/symbols/BackgroundSymbolsEditor";
 import { SymbolEditorWrapper } from "components/forms/symbols/SymbolEditorWrapper";
-import { ScriptEditorContext } from "components/script/ScriptEditorContext";
+import { ScriptEditorContext } from "components/script/context/ScriptEditorContext";
 import { Alert, AlertItem } from "ui/alerts/Alert";
 import { sceneName } from "shared/lib/entities/entitiesHelpers";
 import l10n from "shared/lib/lang/l10n";
@@ -92,13 +92,13 @@ import {
   SceneParallaxLayer,
 } from "shared/lib/resources/types";
 import SettingsSectionEngineFields from "components/settings/section/SettingsSectionEngineFields";
-import { useGroupedEngineFields } from "components/settings/useGroupedEngineFields";
+import { useGroupedEngineFields } from "store/features/engine/hooks/useGroupedEngineFields";
 import ScrollBoundsInput from "components/forms/ScrollBoundsInput";
 import { SpriteModeSelect } from "components/forms/SpriteModeSelect";
 import { SpriteModeSetting } from "shared/lib/resources/types";
 import { AutoPaletteSwatch } from "components/forms/AutoPaletteSwatch";
 import navigationActions from "store/features/navigation/navigationActions";
-import { useEnabledSceneTypeIds } from "components/settings/useEnabledSceneTypeIds";
+import { useEnabledSceneTypeIds } from "store/features/engine/hooks/useEnabledSceneTypeIds";
 import { AutoTileFlipSelect } from "components/forms/AutoTileFlipSelect";
 import { DMGPaletteSelectButton } from "components/forms/DMGPaletteSelectButton";
 

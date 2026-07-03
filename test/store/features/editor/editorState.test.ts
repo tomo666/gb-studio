@@ -750,7 +750,7 @@ describe("editor reducer", () => {
 
     test("should reset eventId if not dragging", () => {
       state.eventId = "event_1";
-      state.dragging = "";
+      state.dragging = undefined;
       const action = actions.sceneHover({
         sceneId: "scene_1",
         x: 10,
@@ -762,7 +762,12 @@ describe("editor reducer", () => {
 
     test("should not reset eventId if dragging", () => {
       state.eventId = "event_1";
-      state.dragging = DRAG_ACTOR;
+      state.dragging = {
+        type: DRAG_ACTOR,
+        actorId: "actor_1",
+        offsetX: 0,
+        offsetY: 0,
+      };
       const action = actions.sceneHover({
         sceneId: "scene_1",
         x: 10,
@@ -828,9 +833,16 @@ describe("editor reducer", () => {
       const action = actions.dragActorStart({
         actorId: "actor_1",
         sceneId: "scene_1",
+        offsetX: 4,
+        offsetY: 2,
       });
       const newState = reducer(state, action);
-      expect(newState.dragging).toBe(DRAG_ACTOR);
+      expect(newState.dragging).toEqual({
+        type: DRAG_ACTOR,
+        actorId: "actor_1",
+        offsetX: 4,
+        offsetY: 2,
+      });
       expect(newState.entityId).toBe("actor_1");
       expect(newState.scene).toBe("scene_1");
       expect(newState.worldFocus).toBe(true);
@@ -841,10 +853,15 @@ describe("editor reducer", () => {
 
   describe("dragActorStop", () => {
     test("should reset dragging", () => {
-      state.dragging = DRAG_ACTOR;
+      state.dragging = {
+        type: DRAG_ACTOR,
+        actorId: "actor_1",
+        offsetX: 0,
+        offsetY: 0,
+      };
       const action = actions.dragActorStop();
       const newState = reducer(state, action);
-      expect(newState.dragging).toBe("");
+      expect(newState.dragging).toBeUndefined();
     });
   });
 
@@ -1204,5 +1221,95 @@ describe("editor reducer", () => {
       const newState = reducer(state, action);
       expect(newState.sceneSelectionIds).toEqual([]);
     });
+  });
+});
+
+describe("scenePaintSelection", () => {
+  test("Should clear scene paint selection when clearing collision selection for the same scene", () => {
+    const state: EditorState = {
+      ...initialState,
+      scenePaintSelection: {
+        sceneId: "scene1",
+        mode: "collisions",
+        selection: { x: 1, y: 1, width: 2, height: 2 },
+        offset: { x: 0, y: 0 },
+      },
+    };
+
+    const action = entitiesActions.clearSceneCollisionSelection({
+      sceneId: "scene1",
+      selection: { x: 1, y: 1, width: 2, height: 2 },
+    });
+
+    const newState = reducer(state, action);
+
+    expect(newState.scenePaintSelection).toBeUndefined();
+  });
+
+  test("Should clear scene paint selection when clearing color selection for the same scene", () => {
+    const state: EditorState = {
+      ...initialState,
+      scenePaintSelection: {
+        sceneId: "scene1",
+        mode: "colors",
+        selection: { x: 1, y: 1, width: 2, height: 2 },
+        offset: { x: 0, y: 0 },
+      },
+    };
+
+    const action = entitiesActions.clearSceneColorSelection({
+      sceneId: "scene1",
+      selection: { x: 1, y: 1, width: 2, height: 2 },
+    });
+
+    const newState = reducer(state, action);
+
+    expect(newState.scenePaintSelection).toBeUndefined();
+  });
+
+  test("Should not clear scene paint selection when clearing collision selection for another scene", () => {
+    const scenePaintSelection = {
+      sceneId: "scene1",
+      mode: "collisions" as const,
+      selection: { x: 1, y: 1, width: 2, height: 2 },
+      offset: { x: 0, y: 0 },
+    };
+
+    const state: EditorState = {
+      ...initialState,
+      scenePaintSelection,
+    };
+
+    const action = entitiesActions.clearSceneCollisionSelection({
+      sceneId: "scene2",
+      selection: { x: 1, y: 1, width: 2, height: 2 },
+    });
+
+    const newState = reducer(state, action);
+
+    expect(newState.scenePaintSelection).toEqual(scenePaintSelection);
+  });
+
+  test("Should not clear scene paint selection when clearing color selection for another scene", () => {
+    const scenePaintSelection = {
+      sceneId: "scene1",
+      mode: "colors" as const,
+      selection: { x: 1, y: 1, width: 2, height: 2 },
+      offset: { x: 0, y: 0 },
+    };
+
+    const state: EditorState = {
+      ...initialState,
+      scenePaintSelection,
+    };
+
+    const action = entitiesActions.clearSceneColorSelection({
+      sceneId: "scene2",
+      selection: { x: 1, y: 1, width: 2, height: 2 },
+    });
+
+    const newState = reducer(state, action);
+
+    expect(newState.scenePaintSelection).toEqual(scenePaintSelection);
   });
 });
