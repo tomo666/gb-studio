@@ -47,6 +47,7 @@ import {
   BackgroundAsset,
   CompressedBackgroundResource,
   CompressedSceneResourceWithChildren,
+  CompressedTilesetResource,
   EmoteResource,
   EngineFieldValuesResource,
   FontResource,
@@ -386,6 +387,7 @@ export const dummyProjectData: ProjectData = {
     disabledSceneTypeIds: [],
     autoTileFlipEnabled: true,
     webTemplate: "",
+    selectedSceneTilesetId: "",
   },
 };
 
@@ -573,6 +575,14 @@ export const dummyTilesetResource: TilesetResource = {
   height: 256,
   imageWidth: 256,
   imageHeight: 256,
+  tileColors: [],
+  tileCollisions: [],
+};
+
+export const dummyCompressedTilesetResource: CompressedTilesetResource = {
+  ...dummyTilesetResource,
+  tileCollisions: "",
+  tileColors: "",
 };
 
 export const dummyFontResource: FontResource = {
@@ -688,6 +698,7 @@ export const dummySettingsResource: SettingsResource = {
   disabledSceneTypeIds: [],
   autoTileFlipEnabled: true,
   webTemplate: "",
+  selectedSceneTilesetId: "",
 };
 
 export const dummyVariablesResource: VariablesResource = {
@@ -833,6 +844,7 @@ export const dummyProjectResources: ProjectResources = {
     disabledSceneTypeIds: [],
     autoTileFlipEnabled: true,
     webTemplate: "",
+    selectedSceneTilesetId: "",
   },
 };
 

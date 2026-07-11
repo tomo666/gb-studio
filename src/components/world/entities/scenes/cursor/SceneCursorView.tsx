@@ -7,7 +7,9 @@ export type SceneCursorViewVariant =
   | "triggers"
   | "eraser"
   | "collisions"
-  | "colors";
+  | "colors"
+  | "tiles"
+  | "selection";
 
 export interface SceneCursorViewModel {
   variant: SceneCursorViewVariant;
@@ -77,7 +79,21 @@ const Wrapper = styled.div<WrapperProps>`
       : ""}
 
   ${(props) =>
+    props.$variant === "tiles"
+      ? css`
+          background-color: rgba(0, 170, 255, 0.35);
+        `
+      : ""}
+
+  ${(props) =>
     props.$variant === "colors"
+      ? css`
+          background-color: transparent;
+        `
+      : ""}
+
+  ${(props) =>
+    props.$variant === "selection"
       ? css`
           background-color: transparent;
         `

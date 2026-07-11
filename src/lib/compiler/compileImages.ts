@@ -11,7 +11,17 @@ import {
   indexedImageToTilesDataArray,
 } from "lib/tiles/readFileToTiles";
 import promiseLimit from "lib/helpers/promiseLimit";
-import { FLAG_VRAM_BANK_1 } from "consts";
+import {
+  FLAG_VRAM_BANK_1,
+  TILE_BANK_SIZE,
+  TILE_FIRST_CHUNK_SIZE,
+  MAX_BACKGROUND_TILES,
+  MAX_BACKGROUND_TILES_CGB,
+  MAX_SCENE_TILE_COUNT,
+  SCREEN_HEIGHT,
+  SCREEN_WIDTH,
+  TILE_SIZE,
+} from "consts";
 import { fileExists } from "lib/helpers/fs/fileExists";
 import {
   readFileToPalettes,
@@ -29,16 +39,18 @@ import {
 import { ReferencedBackground } from "./precompile/determineUsedAssets";
 import { HexPalette } from "shared/lib/tiles/autoColor";
 import { divisibleBy8 } from "shared/lib/helpers/8bit";
-import { MAX_BACKGROUND_TILES, MAX_BACKGROUND_TILES_CGB } from "consts";
 import { IndexedImage } from "shared/lib/tiles/indexedImage";
 import { autoFlipTiles } from "shared/lib/tiles/autoFlip";
+import { padArrayEnd } from "shared/lib/helpers/array";
+import {
+  imageTileAllocationColorOnly,
+  imageTileAllocationDefault,
+} from "lib/compiler/tileAllocation";
 
-const TILE_FIRST_CHUNK_SIZE = 128;
-const TILE_BANK_SIZE = 192;
-
-const MAX_IMAGE_WIDTH = 2040;
-const MAX_IMAGE_HEIGHT = 2040;
-const MAX_PIXELS = 16380 * 64;
+const MAX_IMAGE_WIDTH = 255 * TILE_SIZE;
+const MAX_IMAGE_HEIGHT = 255 * TILE_SIZE;
+const MAX_PIXELS = MAX_SCENE_TILE_COUNT * TILE_SIZE * TILE_SIZE;
+const BLANK_TILE = new Uint8Array(16);
 
 type PrecompiledBackgroundData = Background & {
   commonTilesetId?: string;
@@ -53,63 +65,6 @@ type PrecompiledBackgroundData = Background & {
 
 type CompileImageOptions = {
   warnings: (msg: string) => void;
-};
-
-type ImageTileAllocationStrategy = (
-  tileIndex: number,
-  numTiles: number,
-  image: Background,
-) => { tileIndex: number; inVRAM2: boolean };
-
-/**
- * Allocates an image tile for to default DMG location.
- *
- * @param {number} tileIndex - The index of the tile to allocate.
- * @returns {{ tileIndex: number, inVRAM2: boolean }} Updated tile index and flag which is set if tile has been reallocated to VRAM bank2.
- */
-export const imageTileAllocationDefault: ImageTileAllocationStrategy = (
-  tileIndex,
-) => {
-  return {
-    tileIndex,
-    inVRAM2: false,
-  };
-};
-
-/**
- * Allocates an image tile for color-only mode and adjusts the tile index based on VRAM bank allocation.
- *
- * @param {number} tileIndex - The index of the tile to allocate.
- * @returns {{ tileIndex: number, inVRAM2: boolean }} Updated tile index and flag which is set if tile has been reallocated to VRAM bank2.
- */
-export const imageTileAllocationColorOnly: ImageTileAllocationStrategy = (
-  tileIndex: number,
-): { tileIndex: number; inVRAM2: boolean } => {
-  // First 128 tiles go into vram bank 1
-  if (tileIndex < 128) {
-    return {
-      tileIndex,
-      inVRAM2: false,
-    };
-    // Next 128 tiles go into vram bank 2
-  } else if (tileIndex < 256) {
-    return {
-      tileIndex: tileIndex - 128,
-      inVRAM2: true,
-    };
-  }
-  // After that split evenly between bank 1 and 2
-  return {
-    tileIndex: 128 + Math.floor((tileIndex - 256) / 2),
-    inVRAM2: tileIndex % 2 !== 0,
-  };
-};
-
-const padArrayEnd = <T>(arr: T[], len: number, padding: T) => {
-  if (arr.length > len) {
-    return arr.slice(0, len);
-  }
-  return arr.concat(Array(len - arr.length).fill(padding));
 };
 
 const readCommonTileset = async (
@@ -263,18 +218,32 @@ export const compileImage = async (
   );
 
   if (is360) {
-    const tilemap = Array.from(Array(360)).map((_, i) => i);
-    const tiles = tileArrayToTileData(tileData);
-    const attr = buildAttr(tileAttrs, autoTileColors, tilemap.length);
+    const sourceWidth = Math.ceil(indexedImage.width / TILE_SIZE);
+    const logoTileCount = SCREEN_WIDTH * SCREEN_HEIGHT;
+    const sourceAttrs = buildAttr(tileAttrs, autoTileColors, tileData.length);
+    const logoTiles = Array.from({ length: logoTileCount }, (_, index) => {
+      const x = index % SCREEN_WIDTH;
+      const y = Math.floor(index / SCREEN_WIDTH);
+      return tileData[y * sourceWidth + x] ?? BLANK_TILE;
+    });
+    const attr = Array.from({ length: logoTileCount }, (_, index) => {
+      const x = index % SCREEN_WIDTH;
+      const y = Math.floor(index / SCREEN_WIDTH);
+      return sourceAttrs[y * sourceWidth + x] ?? 0;
+    });
+    const tilemap = Array.from({ length: logoTileCount }, (_, index) => index);
+    const tiles = tileArrayToTileData(logoTiles);
     return {
       ...img,
+      width: SCREEN_WIDTH,
+      height: SCREEN_HEIGHT,
       vramData: [[...tiles], []],
       tilemap,
       attr,
       autoPalettes,
       is360,
       colorMode,
-      tilesetLength: 360,
+      tilesetLength: logoTileCount,
     };
   }
 
@@ -346,7 +315,7 @@ export const compileImage = async (
 
   // Split tiles into VRAM banks based on allocation strategy
   uniqueTiles.forEach((tile, i, tiles) => {
-    const { inVRAM2 } = tileAllocationStrategy(i, tiles.length, img);
+    const { inVRAM2 } = tileAllocationStrategy(i, tiles.length);
     vramData[inVRAM2 ? 1 : 0].push(...tile);
   });
 
@@ -357,7 +326,6 @@ export const compileImage = async (
       const { inVRAM2, tileIndex } = tileAllocationStrategy(
         tile,
         uniqueTiles.length,
-        img,
       );
       // Reallocate tilemap based on strategy
       if (tileIndex < TILE_FIRST_CHUNK_SIZE) {

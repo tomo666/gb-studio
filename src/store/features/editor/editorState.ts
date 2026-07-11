@@ -16,6 +16,7 @@ import {
   BRUSH_SLOPE,
   MAX_ZOOM_LEVEL,
   BRUSH_SELECTION,
+  TOOL_TILES,
 } from "consts";
 import { zoomIn, zoomOut } from "shared/lib/helpers/zoom";
 import { ScriptEventParentType } from "shared/lib/entities/entitiesTypes";
@@ -30,7 +31,7 @@ import type { RootState } from "store/storeTypes";
 import { selectScriptIds } from "store/features/entities/entitiesState";
 import { Variable } from "shared/lib/resources/types";
 import { ActionTypes } from "redux-undo";
-import type { GridOffset, GridSelection } from "shared/lib/tiles/gridSelection";
+import type { GridOffset, GridSelection } from "shared/lib/tiles/grid";
 
 export type Tool =
   | "triggers"
@@ -40,6 +41,7 @@ export type Tool =
   | "scene"
   | "note"
   | "eraser"
+  | "tiles"
   | "select";
 
 export type Brush = "8px" | "16px" | "fill" | "magic" | "slope" | "selection";
@@ -100,13 +102,23 @@ export interface SlopePreview {
   slopeIncline: SlopeIncline;
 }
 
-export type SceneGridSelectionMode = "collisions" | "colors";
+export type SceneGridSelectionMode = "tiles" | "collisions" | "colors";
 
 export interface ScenePaintSelection {
   sceneId: string;
+  layerId?: string;
   mode: SceneGridSelectionMode;
   selection: GridSelection;
   offset: GridOffset;
+}
+
+export interface SelectedSceneTile {
+  tilesetId: string;
+  tileIndex: number;
+  width: number;
+  height: number;
+  tilesetWidth: number;
+  autotile: boolean;
 }
 
 export interface EditorState {
@@ -149,6 +161,10 @@ export interface EditorState {
   selectedPalette: number;
   selectedTileType: number;
   selectedTileMask: number;
+  selectedSceneTile?: SelectedSceneTile;
+  selectedTilemapLayerId: string;
+  sceneAddType: "image" | "tilemap";
+  scenePaintEraser: boolean;
   selectedBrush: Brush;
   showLayers: boolean;
   lastScriptTab: string;
@@ -224,6 +240,10 @@ export const initialState: EditorState = {
   selectedPalette: 0,
   selectedTileType: COLLISION_ALL,
   selectedTileMask: 0xff,
+  selectedSceneTile: undefined,
+  selectedTilemapLayerId: "",
+  sceneAddType: "image",
+  scenePaintEraser: false,
   selectedBrush: BRUSH_8PX,
   showLayers: true,
   lastScriptTab: "",
@@ -360,14 +380,40 @@ const editorSlice = createSlice({
   reducers: {
     setTool: (state, action: PayloadAction<{ tool: Tool }>) => {
       state.tool = action.payload.tool;
+      if (
+        action.payload.tool === "collisions" ||
+        action.payload.tool === "colors" ||
+        action.payload.tool === "tiles"
+      ) {
+        state.scenePaintEraser = false;
+      }
       state.pasteMode = false;
       state.prefabId = "";
+      if (
+        state.scenePaintSelection &&
+        state.scenePaintSelection.mode !== action.payload.tool
+      ) {
+        state.scenePaintSelection = undefined;
+      }
       // Reset to 8px brush is current brush not supported
       if (
-        state.selectedBrush === BRUSH_SLOPE &&
-        action.payload.tool !== "collisions"
+        (state.selectedBrush === BRUSH_SLOPE &&
+          action.payload.tool !== "collisions") ||
+        (state.selectedBrush === BRUSH_SELECTION &&
+          action.payload.tool !== "tiles" &&
+          action.payload.tool !== "collisions" &&
+          action.payload.tool !== "colors")
       ) {
         state.selectedBrush = BRUSH_8PX;
+      }
+      // If switching to tile paint, select scene if possible
+      if (
+        state.tool === TOOL_TILES &&
+        (state.type === "actor" || state.type === "trigger") &&
+        state.scene
+      ) {
+        state.type = "scene";
+        state.entityId = "";
       }
     },
 
@@ -375,8 +421,26 @@ const editorSlice = createSlice({
       state.pasteMode = action.payload;
     },
 
+    setSceneAddType: (state, action: PayloadAction<"image" | "tilemap">) => {
+      state.sceneAddType = action.payload;
+    },
+
     setBrush: (state, action: PayloadAction<{ brush: Brush }>) => {
       state.selectedBrush = action.payload.brush;
+      if (
+        action.payload.brush === BRUSH_SELECTION ||
+        action.payload.brush === BRUSH_SLOPE
+      ) {
+        state.scenePaintEraser = false;
+      }
+      if (action.payload.brush === BRUSH_SELECTION) {
+        if (state.selectedSceneTile) {
+          state.selectedSceneTile.autotile = false;
+        }
+      }
+      if (action.payload.brush !== BRUSH_SELECTION) {
+        state.scenePaintSelection = undefined;
+      }
     },
 
     setSelectedPalette: (
@@ -384,6 +448,7 @@ const editorSlice = createSlice({
       action: PayloadAction<{ paletteIndex: number }>,
     ) => {
       state.selectedPalette = action.payload.paletteIndex;
+      state.scenePaintEraser = false;
       if (state.selectedBrush === BRUSH_SELECTION) {
         state.selectedBrush = BRUSH_8PX;
       }
@@ -395,7 +460,46 @@ const editorSlice = createSlice({
     ) => {
       state.selectedTileType = action.payload.tileType;
       state.selectedTileMask = action.payload.tileMask;
+      state.scenePaintEraser = false;
+    },
+
+    setSelectedSceneTile: (
+      state,
+      action: PayloadAction<{
+        tilesetId: string;
+        tileIndex: number;
+        width?: number;
+        height?: number;
+        tilesetWidth?: number;
+      }>,
+    ) => {
+      state.selectedSceneTile = {
+        tilesetId: action.payload.tilesetId,
+        tileIndex: action.payload.tileIndex,
+        width: action.payload.width ?? 1,
+        height: action.payload.height ?? 1,
+        tilesetWidth: action.payload.tilesetWidth ?? 0,
+        autotile: state.selectedSceneTile?.autotile ?? false,
+      };
+      state.scenePaintEraser = false;
       if (state.selectedBrush === BRUSH_SELECTION) {
+        state.selectedBrush = BRUSH_8PX;
+      }
+    },
+
+    setSelectedTilemapLayerId: (state, action: PayloadAction<string>) => {
+      state.selectedTilemapLayerId = action.payload;
+    },
+
+    setSelectedSceneTileAutotile: (state, action: PayloadAction<boolean>) => {
+      if (state.selectedSceneTile) {
+        state.selectedSceneTile.autotile = action.payload;
+      }
+    },
+
+    setScenePaintEraser: (state, action: PayloadAction<boolean>) => {
+      state.scenePaintEraser = action.payload;
+      if (action.payload && state.selectedBrush === BRUSH_SLOPE) {
         state.selectedBrush = BRUSH_8PX;
       }
     },
@@ -1233,6 +1337,15 @@ const editorSlice = createSlice({
           action.payload.resources.settings?.worldScrollX || state.worldScrollX;
         state.worldScrollY =
           action.payload.resources.settings?.worldScrollY || state.worldScrollY;
+        state.selectedSceneTile = {
+          tilesetId:
+            action.payload.resources.settings?.selectedSceneTilesetId ?? "",
+          tileIndex: 0,
+          width: 1,
+          height: 1,
+          tilesetWidth: 0,
+          autotile: false,
+        };
         if (
           initialState.navigatorSplitSizes.length ===
           action.payload.resources.settings?.navigatorSplitSizes?.length
@@ -1294,7 +1407,8 @@ const editorSlice = createSlice({
       .addMatcher(
         (action): action is PayloadAction<{ sceneId: string }> =>
           entitiesActions.paintCollision.match(action) ||
-          entitiesActions.paintColor.match(action),
+          entitiesActions.paintColor.match(action) ||
+          entitiesActions.paintSceneTile.match(action),
         (state, action) => {
           state.type = "scene";
           state.scene = action.payload.sceneId;
@@ -1308,8 +1422,9 @@ const editorSlice = createSlice({
       // On clear selection tiles from scene also remove selection
       .addMatcher(
         (action): action is PayloadAction<{ sceneId: string }> =>
-          entitiesActions.clearSceneCollisionSelection.match(action) ||
-          entitiesActions.clearSceneColorSelection.match(action),
+          entitiesActions.deleteSceneCollisionSelection.match(action) ||
+          entitiesActions.deleteSceneColorSelection.match(action) ||
+          entitiesActions.deleteSceneTileSelection.match(action),
         (state, action) => {
           if (state.scenePaintSelection?.sceneId === action.payload.sceneId) {
             state.scenePaintSelection = undefined;

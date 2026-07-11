@@ -1446,6 +1446,26 @@
   "FIELD_DEFAULT_WEB_TEMPLATE_BINJGB": "Default (Binjgb)",
   "FIELD_WEB_TEMPLATE_PLUGIN": "Web Template Plugin",
   "FIELD_WEB_TEMPLATE_PLUGIN_DESC": "A web template plugin allows you to replace the HTML wrapper used when exporting your game for web.",
+  "FIELD_HIDE_LAYER": "Hide Layer",
+  "FIELD_SHOW_LAYER": "Show Layer",
+  "FIELD_DELETE_LAYER": "Delete Layer",
+  "FIELD_TILE_N": "Tile {tile}",
+  "FIELD_ADD_LAYER": "Add Layer",
+  "FIELD_KEEP": "Keep",
+  "FIELD_EDIT_TILE_DEFAULTS": "Edit Tile Defaults",
+  "FIELD_NO_COLLISION": "No Collision",
+  "FIELD_COLORS": "Colors",
+  "FIELD_AUTOTILES": "Autotiles",
+  "FIELD_AUTOTILE_TYPE_2X2": "2x2",
+  "FIELD_AUTOTILE_TYPE_9_SLICE": "9 Slice",
+  "FIELD_EDIT_TILEMAP": "Edit Tilemap",
+  "FIELD_IMAGE": "Image",
+  "FIELD_TILEMAP": "Tilemap",
+  "FIELD_IMAGE_SCENE": "Image Scene",
+  "FIELD_TILEMAP_SCENE": "Tilemap Scene",
+  "FIELD_MERGE_DOWN": "Merge Down",
+  "FIELD_INFO": "Info",
+  "FIELD_UNIQUE_TILES": "Unique Tiles",
 
   "// 7": "Asset Viewer ---------------------------------------------",
   "ASSET_SEARCH": "Search...",
@@ -2088,6 +2108,7 @@
   "WARNING_PLUGIN_MODIFIED_OUTSIDE_ENGINE_ROOT": "Plugin attempted to modify a file outside of engine root \"{filename}\"",
   "WARNING_PLUGIN_OVERWROTE_FILE": "Plugin \"{pluginName}\" overwrote \"{filename}\" which was already written by \"{previousPlugin}\"",
   "WARNING_PLUGIN_PATCH_CONFLICT_OVERWRITTEN": "Plugin \"{pluginName}\" could not patch \"{filename}\" because it was already overwritten by plugin \"{previousPlugin}\"",
+  "WARNING_TILEMAP_TOO_MANY_TILES": "Tilemap contains too many unique 8x8px tiles ({tilesetLength} where limit is {maxTilesetLength}) meaning it may not display correctly.",
 
   "// 12": "Errors -------------------------------------------------------",
 
@@ -2119,6 +2140,7 @@
   "ERROR_DATA_TABLE_CSV_INVALID": "Imported CSV is not valid.",
   "ERROR_DATA_TABLE_CSV_NO_VARIABLES": "Imported CSV contains no variables.",
   "ERROR_DATA_TABLE_CSV_NO_ROW_DATA": "Imported CSV contains no row data.",
+  "ERROR_SCENE_TARGET_LAYER_HIDDEN": "Could not edit as the target layer is hidden.",
 
   "// 13": "Splash -------------------------------------------------------",
 
@@ -2317,6 +2339,8 @@
 
   "// 21": "Messages -----------------------------------------------------",
 
+  "MESSAGE_NO_TILESETS_FOUND": "No tilesets found",
+  "MESSAGE_ADD_TILESET_FILES": "Add tileset .png files to the project assets/tilesets folder to create tilemaps.",
   "MESSAGE_NO_SONGS_FOUND": "No songs found",
   "MESSAGE_ADD_UGE_FILES": "Please add .uge files to the project assets/music folder or create a new song with the + button above.",
   "MESSAGE_WHAT_ABOUT_MOD": "What about .mod files?",

@@ -267,6 +267,70 @@ export const TriggerPrefabResource = Type.Composite([
 
 export type TriggerPrefabResource = Static<typeof TriggerPrefabResource>;
 
+export const AutotileDefinition = Type.Union([
+  Type.Object({
+    type: Type.Literal("2x2"),
+    startTile: Type.Number(),
+  }),
+  Type.Object({
+    type: Type.Literal("9slice"),
+    startTile: Type.Number(),
+  }),
+]);
+
+export type AutotileDefinition = Static<typeof AutotileDefinition>;
+export type AutotileType = AutotileDefinition["type"];
+
+export const CompressedSceneTilemapLayer = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+  visible: Type.Boolean(),
+  tiles: Type.String(),
+  autotiles: Type.Optional(Type.String()),
+});
+
+export type CompressedSceneTilemapLayer = Static<
+  typeof CompressedSceneTilemapLayer
+>;
+
+export const TilesetSnapshot = Type.Object({
+  id: Type.String(),
+  width: Type.Integer({ minimum: 0 }),
+  height: Type.Integer({ minimum: 0 }),
+});
+
+export type TilesetSnapshot = Static<typeof TilesetSnapshot>;
+
+export const CompressedSceneTilemapData = Type.Object({
+  tilesets: Type.Array(TilesetSnapshot),
+  autotiles: Type.Optional(Type.Array(AutotileDefinition)),
+  tileColors: Type.Optional(Type.String()),
+  layers: Type.Array(CompressedSceneTilemapLayer),
+});
+
+export type CompressedSceneTilemapData = Static<
+  typeof CompressedSceneTilemapData
+>;
+
+export const SceneTilemapLayer = Type.Composite([
+  Type.Omit(CompressedSceneTilemapLayer, ["tiles", "autotiles"]),
+  Type.Object({
+    tiles: Type.Array(Type.Number()),
+    autotiles: Type.Optional(Type.Array(Type.Number())),
+  }),
+]);
+
+export type SceneTilemapLayer = Static<typeof SceneTilemapLayer>;
+
+export const SceneTilemapData = Type.Object({
+  tilesets: Type.Array(TilesetSnapshot),
+  autotiles: Type.Optional(Type.Array(AutotileDefinition)),
+  tileColors: Type.Optional(Type.Array(Type.Number())),
+  layers: Type.Array(SceneTilemapLayer),
+});
+
+export type SceneTilemapData = Static<typeof SceneTilemapData>;
+
 export const CompressedSceneResource = Type.Object({
   _resourceType: Type.Literal("scene"),
   _index: Type.Number(),
@@ -281,6 +345,7 @@ export const CompressedSceneResource = Type.Object({
   width: Type.Number(),
   height: Type.Number(),
   backgroundId: Type.String(),
+  tilemap: Type.Optional(CompressedSceneTilemapData),
   tilesetId: Type.String(),
   colorModeOverride: ColorModeOverrideSetting,
   paletteIds: Type.Array(Type.String()),
@@ -350,9 +415,10 @@ export type CompressedSceneResourceWithChildren = Static<
 >;
 
 export const SceneResource = Type.Composite([
-  Type.Omit(CompressedSceneResourceWithChildren, ["collisions"]),
+  Type.Omit(CompressedSceneResourceWithChildren, ["collisions", "tilemap"]),
   Type.Object({
     collisions: Type.Array(Type.Number()),
+    tilemap: Type.Optional(SceneTilemapData),
   }),
 ]);
 
@@ -435,7 +501,7 @@ export type BackgroundResourceAsset = BackgroundResource & AssetMetadata;
 
 export type BackgroundAsset = ExtractResource<BackgroundResourceAsset>;
 
-export const TilesetResource = Type.Object({
+export const CompressedTilesetResource = Type.Object({
   _resourceType: Type.Literal("tileset"),
   id: Type.String(),
   name: Type.String(),
@@ -445,8 +511,26 @@ export const TilesetResource = Type.Object({
   height: Type.Number(),
   imageWidth: Type.Number(),
   imageHeight: Type.Number(),
+  tileColors: Type.Optional(Type.String()),
+  tileCollisions: Type.Optional(Type.String()),
+  autotiles: Type.Optional(Type.Array(AutotileDefinition)),
   plugin: Type.Optional(Type.String()),
 });
+
+export type CompressedTilesetResource = Static<
+  typeof CompressedTilesetResource
+>;
+
+export type CompressedTilesetResourceAsset = CompressedTilesetResource &
+  AssetMetadata;
+
+export const TilesetResource = Type.Composite([
+  Type.Omit(CompressedTilesetResource, ["tileColors", "tileCollisions"]),
+  Type.Object({
+    tileColors: Type.Array(Type.Number()),
+    tileCollisions: Type.Array(Type.Number()),
+  }),
+]);
 
 export type TilesetResource = Static<typeof TilesetResource>;
 
@@ -914,6 +998,7 @@ export const SettingsResource = Type.Object({
   disabledSceneTypeIds: Type.Array(Type.String()),
   autoTileFlipEnabled: Type.Boolean(),
   webTemplate: Type.String(),
+  selectedSceneTilesetId: Type.String(),
 });
 
 export type SettingsResource = Static<typeof SettingsResource>;
@@ -972,7 +1057,7 @@ export type CompressedResource =
   | EmoteResource
   | AvatarResource
   | FontResource
-  | TilesetResource
+  | CompressedTilesetResource
   | SoundResource
   | MusicResource
   | PaletteResource
@@ -1005,7 +1090,7 @@ export type CompressedProjectResources = {
   emotes: EmoteResource[];
   avatars: AvatarResource[];
   fonts: FontResource[];
-  tilesets: TilesetResource[];
+  tilesets: CompressedTilesetResource[];
   sounds: SoundResource[];
   music: MusicResource[];
   palettes: PaletteResource[];
@@ -1018,10 +1103,11 @@ export type CompressedProjectResources = {
 
 export type ProjectResources = Omit<
   CompressedProjectResources,
-  "scenes" | "backgrounds"
+  "scenes" | "backgrounds" | "tilesets"
 > & {
   scenes: SceneResource[];
   backgrounds: BackgroundResource[];
+  tilesets: TilesetResource[];
 };
 
 export type ProjectEntityResources = Omit<

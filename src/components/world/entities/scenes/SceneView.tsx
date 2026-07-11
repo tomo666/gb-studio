@@ -1,16 +1,16 @@
-import React, { memo, useCallback, useMemo } from "react";
+import React, { memo, useCallback } from "react";
 import {
   TOOL_COLORS,
   TOOL_COLLISIONS,
   TOOL_ERASER,
   TOOL_SELECT,
+  TOOL_TILES,
   TILE_SIZE,
 } from "consts";
 import SceneInfo from "./SceneInfo";
 import { sceneSelectors } from "store/features/entities/entitiesSelectors";
 import editorActions from "store/features/editor/editorActions";
 import { SceneEventHelper } from "./SceneEventHelper";
-import { sceneName } from "shared/lib/entities/entitiesHelpers";
 import styled, { css } from "styled-components";
 import { LabelSpan } from "ui/buttons/LabelButton";
 import {
@@ -29,8 +29,23 @@ import { SceneEntities } from "components/world/entities/scenes/SceneEntities";
 import { SceneTileSelectionOverlay } from "components/world/entities/scenes/SceneTileSelectionOverlay";
 import { SceneTypeDisabledOverlay } from "components/world/entities/scenes/SceneTypeDisabledOverlay";
 import { useSceneContextMenu } from "components/world/contextMenus/useSceneContextMenu";
+import SceneResizeHandles from "components/world/entities/scenes/SceneResizeHandles";
+import { SceneFilteredOverlay } from "components/world/entities/scenes/SceneFilteredOverlay";
 
 const SCENE_LABEL_MARGIN = 50;
+
+export const shouldShowSceneResizeHandles = (
+  editable: boolean | undefined,
+  selected: boolean,
+  isTilemapScene: boolean,
+  sceneType: string | undefined,
+  tool: string,
+) =>
+  !!editable &&
+  selected &&
+  isTilemapScene &&
+  sceneType !== "LOGO" &&
+  (tool === TOOL_COLLISIONS || tool === TOOL_COLORS || tool === TOOL_TILES);
 
 interface SceneViewProps {
   id: string;
@@ -49,6 +64,10 @@ const SceneName = styled.div`
   white-space: nowrap;
 `;
 
+const SceneContentFrame = styled.div`
+  position: relative;
+`;
+
 const SceneContent = styled.div`
   position: relative;
   background-color: ${(props) => props.theme.colors.sidebar.background};
@@ -60,7 +79,6 @@ const SceneContent = styled.div`
 interface WrapperProps {
   $selected?: boolean;
   $multiSelected?: boolean;
-  $filtered?: boolean;
 }
 
 const Wrapper = styled.div<WrapperProps>`
@@ -128,24 +146,6 @@ const Wrapper = styled.div<WrapperProps>`
           }
         `
       : ""}
-
-  ${(props) =>
-    props.$filtered
-      ? css`
-          &:after {
-            content: "";
-            background-color: ${(props) => props.theme.colors.background};
-            border-radius: 4px;
-            opacity: 0.8;
-            position: absolute;
-            top: -5px;
-            left: -5px;
-            right: -5px;
-            bottom: -5px;
-            pointer-events: none;
-          }
-        `
-      : ""}
 `;
 
 interface SceneOverlayProps {
@@ -172,37 +172,28 @@ const SceneView = memo(({ id, index, editable }: SceneViewProps) => {
 
   const scene = useAppSelectorPick(
     (state) => sceneSelectors.selectById(state, id),
-    ["name", "x", "y", "width", "height", "scrollBounds"],
+    ["x", "y", "width", "height", "scrollBounds", "type"],
+  );
+
+  const isTilemapScene = useAppSelector(
+    (state) => !!sceneSelectors.selectById(state, id)?.tilemap,
   );
 
   const selected = useAppSelector((state) => state.editor.scene === id);
-  const sceneSelectionIds = useAppSelector(
-    (state) => state.editor.sceneSelectionIds,
+  const multiSelected = useAppSelector((state) =>
+    state.editor.sceneSelectionIds.includes(id),
   );
-  const multiSelected = sceneSelectionIds.includes(id);
-
-  const searchTerm = useAppSelector((state) => state.editor.searchTerm);
-  const name = useMemo(
-    () => (scene ? sceneName(scene, index) : ""),
-    [index, scene],
-  );
-
-  const sceneFiltered =
-    (searchTerm &&
-      name.toUpperCase().indexOf(searchTerm.toUpperCase()) === -1 &&
-      id !== searchTerm) ||
-    (sceneSelectionIds.length > 1 && !multiSelected) ||
-    false;
-
   const tool = useAppSelector((state) => state.editor.tool);
-
   const showLayers = useAppSelector((state) => state.editor.showLayers);
+  const zoomRatio = useAppSelector((state) => state.editor.zoom / 100);
 
   const showEntities =
     (tool !== TOOL_COLORS &&
       tool !== TOOL_COLLISIONS &&
+      tool !== TOOL_TILES &&
       tool !== TOOL_ERASER) ||
     showLayers;
+
   const showSceneScreenGrid = useAppSelector(
     (state) => state.project.present.settings.showSceneScreenGrid,
   );
@@ -246,14 +237,23 @@ const SceneView = memo(({ id, index, editable }: SceneViewProps) => {
     return <></>;
   }
 
-  const scenePxWidth = scene.width * TILE_SIZE;
-  const scenePxHeight = scene.height * TILE_SIZE;
+  const sceneWidth = scene.type === "LOGO" ? 20 : scene.width;
+  const sceneHeight = scene.type === "LOGO" ? 18 : scene.height;
+
+  const scenePxWidth = sceneWidth * TILE_SIZE;
+  const scenePxHeight = sceneHeight * TILE_SIZE;
+  const showResizeHandles = shouldShowSceneResizeHandles(
+    editable,
+    selected,
+    isTilemapScene,
+    scene.type,
+    tool,
+  );
 
   return (
     <Wrapper
       $selected={selected}
       $multiSelected={multiSelected}
-      $filtered={sceneFiltered}
       style={{
         left: scene.x,
         top: scene.y,
@@ -264,42 +264,55 @@ const SceneView = memo(({ id, index, editable }: SceneViewProps) => {
       <div onMouseDown={onStartDrag}>
         <SceneTitle sceneId={id} sceneIndex={index} />
       </div>
-      <SceneContent
-        data-scene-content-id={id}
-        style={{
-          width: scenePxWidth,
-          height: scenePxHeight,
-        }}
-      >
-        <SceneTileLayers sceneId={id} />
-        {scene.scrollBounds && showLayers && (
-          <SceneOverlay $noPointerEvents>
-            <SceneScrollBounds
-              width={scene.width}
-              height={scene.height}
-              scrollBounds={scene.scrollBounds}
-            />
-          </SceneOverlay>
+      <SceneContentFrame style={{ width: scenePxWidth, height: scenePxHeight }}>
+        <SceneContent
+          data-scene-content-id={id}
+          style={{
+            width: scenePxWidth,
+            height: scenePxHeight,
+          }}
+        >
+          <SceneTileLayers sceneId={id} />
+          {scene.scrollBounds && showLayers && (
+            <SceneOverlay $noPointerEvents>
+              <SceneScrollBounds
+                width={sceneWidth}
+                height={sceneHeight}
+                scrollBounds={scene.scrollBounds}
+              />
+            </SceneOverlay>
+          )}
+          {showSceneScreenGrid && selected && (
+            <SceneOverlay $noPointerEvents>
+              <SceneScreenGrid
+                width={sceneWidth}
+                height={sceneHeight}
+                scrollBounds={scene.scrollBounds}
+              />
+            </SceneOverlay>
+          )}
+          {selected && <SceneParallaxOverlay sceneId={id} />}
+          <SceneTypeDisabledOverlay sceneId={id} />
+          {selected && <SceneTileSelectionOverlay sceneId={id} />}
+          {showEntities && <SceneEntities sceneId={id} editable={editable} />}
+          {selected && (
+            <SceneOverlay $noPointerEvents>
+              <SceneEventHelper sceneId={id} />
+            </SceneOverlay>
+          )}
+          <SceneFilteredOverlay sceneId={id} index={index} />
+        </SceneContent>
+        {showResizeHandles && (
+          <SceneResizeHandles
+            sceneId={id}
+            x={scene.x}
+            y={scene.y}
+            width={sceneWidth}
+            height={sceneHeight}
+            zoomRatio={zoomRatio}
+          />
         )}
-        {showSceneScreenGrid && selected && (
-          <SceneOverlay $noPointerEvents>
-            <SceneScreenGrid
-              width={scene.width}
-              height={scene.height}
-              scrollBounds={scene.scrollBounds}
-            />
-          </SceneOverlay>
-        )}
-        {selected && <SceneParallaxOverlay sceneId={id} />}
-        <SceneTypeDisabledOverlay sceneId={id} />
-        {selected && <SceneTileSelectionOverlay sceneId={id} />}
-        {showEntities && <SceneEntities sceneId={id} editable={editable} />}
-        {selected && (
-          <SceneOverlay $noPointerEvents>
-            <SceneEventHelper sceneId={id} />
-          </SceneOverlay>
-        )}
-      </SceneContent>
+      </SceneContentFrame>
       {selected && (
         <div onMouseDown={onStartDrag}>
           <SceneInfo sceneId={id} />

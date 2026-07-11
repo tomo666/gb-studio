@@ -5,7 +5,10 @@ import {
   CompressedSceneResourceWithChildren,
   ProjectResources,
   SceneResource,
+  TilesetResource,
+  CompressedTilesetResource,
 } from "shared/lib/resources/types";
+import { pruneTilemapLayersTilesets } from "shared/lib/tiles/sceneTilemapData";
 
 export const compress8bitNumberArray = (arr: number[] | undefined): string => {
   if (!arr) {
@@ -73,12 +76,93 @@ export const decompress8bitNumberString = (str: string): number[] => {
   return arr;
 };
 
+export const compressNumberArray = (arr: number[] | undefined): string => {
+  if (!arr?.length) {
+    return "";
+  }
+  let lastValue = 0;
+  let hasLastValue = false;
+  let output = "";
+  let count = 0;
+
+  for (const value of arr) {
+    if (!hasLastValue || value !== lastValue) {
+      if (hasLastValue) {
+        if (output) {
+          output += ";";
+        }
+        output += lastValue.toString(36);
+        if (count > 1) {
+          output += `:${count.toString(36)}`;
+        }
+      }
+      lastValue = value;
+      hasLastValue = true;
+      count = 0;
+    }
+    count++;
+  }
+
+  if (hasLastValue) {
+    if (output) {
+      output += ";";
+    }
+    output += lastValue.toString(36);
+    if (count > 1) {
+      output += `:${count.toString(36)}`;
+    }
+  }
+
+  return output;
+};
+
+export const decompressNumberString = (str: string): number[] => {
+  if (!str) {
+    return [];
+  }
+  const arr: number[] = [];
+  for (const part of str.split(";")) {
+    const pieces = part.split(":");
+    if (pieces.length > 2 || pieces[0] === "") {
+      return [];
+    }
+    const value = Number.parseInt(pieces[0], 36);
+    const count = pieces.length === 1 ? 1 : Number.parseInt(pieces[1], 36);
+    if (
+      !Number.isSafeInteger(value) ||
+      !Number.isSafeInteger(count) ||
+      count < 1
+    ) {
+      return [];
+    }
+    for (let j = 0; j < count; j++) {
+      arr.push(value);
+    }
+  }
+  return arr;
+};
+
 const decompressSceneResource = (
   scene: CompressedSceneResourceWithChildren,
 ): SceneResource => {
   return {
     ...scene,
     collisions: decompress8bitNumberString(scene.collisions),
+    tilemap: scene.tilemap
+      ? {
+          ...scene.tilemap,
+          tileColors: scene.tilemap.tileColors
+            ? decompress8bitNumberString(scene.tilemap.tileColors)
+            : undefined,
+          layers: scene.tilemap.layers.map((layer) => ({
+            ...layer,
+            tiles: decompressNumberString(layer.tiles),
+            autotiles: layer.autotiles
+              ? decompressNumberString(layer.autotiles)
+              : undefined,
+          })),
+        }
+      : undefined,
   };
 };
 
@@ -91,6 +175,18 @@ const decompressBackgroundResource = (
   };
 };
 
+const decompressTilesetResource = (
+  tileset: CompressedTilesetResource,
+): TilesetResource => ({
+  ...tileset,
+  tileColors: tileset.tileColors
+    ? decompressNumberString(tileset.tileColors)
+    : [],
+  tileCollisions: tileset.tileCollisions
+    ? decompressNumberString(tileset.tileCollisions)
+    : [],
+});
+
 export const decompressProjectResources = (
   compressedResources: CompressedProjectResources,
 ): ProjectResources => {
@@ -100,15 +196,34 @@ export const decompressProjectResources = (
     backgrounds: compressedResources.backgrounds.map(
       decompressBackgroundResource,
     ),
+    tilesets: compressedResources.tilesets.map(decompressTilesetResource),
   };
 };
 
 export const compressSceneResource = (
   scene: SceneResource,
 ): CompressedSceneResourceWithChildren => {
+  const tilemap = scene.tilemap
+    ? pruneTilemapLayersTilesets(scene.tilemap)
+    : undefined;
   return {
     ...scene,
     collisions: compress8bitNumberArray(scene.collisions),
+    tilemap: tilemap
+      ? {
+          ...tilemap,
+          tileColors: tilemap.tileColors
+            ? compress8bitNumberArray(tilemap.tileColors)
+            : undefined,
+          layers: tilemap.layers.map((layer) => ({
+            ...layer,
+            tiles: compressNumberArray(layer.tiles),
+            autotiles: layer.autotiles
+              ? compressNumberArray(layer.autotiles)
+              : undefined,
+          })),
+        }
+      : undefined,
   };
 };
 
@@ -121,6 +236,14 @@ export const compressBackgroundResource = (
   };
 };
 
+export const compressTilesetResource = (
+  tileset: TilesetResource,
+): CompressedTilesetResource => ({
+  ...tileset,
+  tileColors: compressNumberArray(tileset.tileColors),
+  tileCollisions: compressNumberArray(tileset.tileCollisions),
+});
+
 export const compressProjectResources = (
   resources: ProjectResources,
 ): CompressedProjectResources => {
@@ -128,5 +251,6 @@ export const compressProjectResources = (
     ...resources,
     scenes: resources.scenes.map(compressSceneResource),
     backgrounds: resources.backgrounds.map(compressBackgroundResource),
+    tilesets: resources.tilesets.map(compressTilesetResource),
   };
 };

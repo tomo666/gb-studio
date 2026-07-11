@@ -1,7 +1,33 @@
 import {
   clearGridSelection,
+  copyGridSelection,
   moveGridSelection,
-} from "shared/lib/tiles/gridSelection";
+  moveGridSelectionMasked,
+  pasteGridSelection,
+  resizeGrid,
+} from "shared/lib/tiles/grid";
+
+describe("copyGridSelection and pasteGridSelection", () => {
+  test("copies a rectangular selection and pastes it at an offset", () => {
+    const copied = copyGridSelection(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      3,
+      3,
+      { x: 1, y: 0, width: 2, height: 2 },
+      0,
+    );
+    expect(copied).toEqual([2, 3, 5, 6]);
+    expect(
+      pasteGridSelection(new Array(9).fill(0), 3, 3, 0, 1, 2, 2, copied, 0),
+    ).toEqual([0, 0, 0, 2, 3, 0, 5, 6, 0]);
+  });
+
+  test("clips values pasted beyond the grid edge", () => {
+    expect(
+      pasteGridSelection([1, 2, 3, 4], 2, 2, 1, 1, 2, 2, [5, 6, 7, 8], 0),
+    ).toEqual([1, 2, 3, 5]);
+  });
+});
 
 describe("clearGridSelection", () => {
   test("It clears a rectangular selection", () => {
@@ -354,5 +380,70 @@ describe("moveGridSelection", () => {
     );
 
     expect(result).toEqual([]);
+  });
+});
+
+describe("moveGridSelectionMasked", () => {
+  test("moves masked grid selections using source and target predicates", () => {
+    const result = moveGridSelectionMasked(
+      [1, 2, 3, 4, 5, 6],
+      3,
+      2,
+      { x: 0, y: 0, width: 2, height: 1 },
+      { x: 1, y: 1 },
+      0,
+      (sourceIndex) => sourceIndex === 0 || sourceIndex === 1,
+      (targetIndex) => targetIndex !== 4,
+    );
+
+    expect(result).toEqual([0, 0, 3, 4, 5, 2]);
+  });
+
+  test("does not clear or move cells rejected by the source predicate", () => {
+    const result = moveGridSelectionMasked(
+      [1, 2, 3, 4],
+      2,
+      2,
+      { x: 0, y: 0, width: 2, height: 1 },
+      { x: 0, y: 1 },
+      0,
+      (sourceIndex) => sourceIndex === 1,
+      () => true,
+    );
+
+    expect(result).toEqual([1, 0, 3, 2]);
+  });
+
+  test("clears moving masked source cells even when their target is outside the grid", () => {
+    const result = moveGridSelectionMasked(
+      [1, 2, 3, 4],
+      2,
+      2,
+      { x: 0, y: 0, width: 2, height: 1 },
+      { x: 0, y: -1 },
+      0,
+      () => true,
+      () => true,
+    );
+
+    expect(result).toEqual([0, 0, 3, 4]);
+  });
+});
+
+describe("resizeGrid", () => {
+  test("It resizes a grid to increase width", () => {
+    expect(resizeGrid([1, 2, 3, 4], 2, 2, 3, 2, 0)).toEqual([1, 2, 0, 3, 4, 0]);
+  });
+
+  test("It resizes a grid to decrease width", () => {
+    expect(resizeGrid([1, 2, 3, 4, 5, 6], 3, 2, 2, 2, 0)).toEqual([1, 2, 4, 5]);
+  });
+
+  test("It resizes a grid to increase height", () => {
+    expect(resizeGrid([1, 2, 3, 4], 2, 2, 2, 3, 0)).toEqual([1, 2, 3, 4, 0, 0]);
+  });
+
+  test("It resizes a grid to decrease height", () => {
+    expect(resizeGrid([1, 2, 3, 4, 5, 6], 2, 3, 2, 2, 0)).toEqual([1, 2, 3, 4]);
   });
 });

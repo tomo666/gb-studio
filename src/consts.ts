@@ -48,6 +48,7 @@ export const EMULATOR_MUTED_SETTING_KEY = "emulatorMuted";
 export const NUM_SUBPIXEL_BITS = 5;
 
 // Scene Limits
+export const MAX_SCENE_TILE_COUNT = 16380;
 export const MAX_ACTORS = 20;
 export const MAX_ACTORS_SMALL = 10;
 export const MAX_TRIGGERS = 30;
@@ -71,6 +72,10 @@ export const SCREEN_HEIGHT_PX = SCREEN_HEIGHT * TILE_SIZE;
 
 export const SCENE_MAX_SIZE_PX = 2040;
 
+// Background tile allocation
+export const TILE_FIRST_CHUNK_SIZE = 128;
+export const TILE_BANK_SIZE = 192;
+
 // Scripts
 export const MAX_NESTED_SCRIPT_DEPTH = 5;
 
@@ -93,6 +98,7 @@ export const TOOL_SCENE = "scene";
 export const TOOL_TRIGGERS = "triggers";
 export const TOOL_ERASER = "eraser";
 export const TOOL_NOTE = "note";
+export const TOOL_TILES = "tiles";
 
 // Brushes
 export const BRUSH_8PX = "8px";
@@ -139,6 +145,7 @@ export const TILE_COLOR_PROPS = 0xf8;
 export const TILE_COLOR_PROP_FLIP_HORIZONTAL = 0x20;
 export const TILE_COLOR_PROP_FLIP_VERTICAL = 0x40;
 export const TILE_COLOR_PROP_PRIORITY = 0x80;
+export const TILE_DEFAULT_UNSET = -1;
 export const DMG_PALETTE = {
   id: "dmg",
   name: "DMG (GB Default)",
@@ -341,6 +348,7 @@ export const defaultProjectSettings: Settings = {
   disabledSceneTypeIds: [],
   autoTileFlipEnabled: true,
   webTemplate: "",
+  selectedSceneTilesetId: "",
 };
 
 export const defaultPalettes: Palette[] = [
