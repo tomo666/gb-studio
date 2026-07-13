@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - main
+      - gbs-next
       - feat-*
       - beta-*
       - wip-*
@@ -16,13 +17,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "21.7.1"
+          node-version: "24.16.0"
 
       - name: Enable Corepack
         run: corepack enable
@@ -38,7 +39,7 @@ jobs:
   deploy:
     needs: test
     runs-on: ${{ matrix.os }}
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/beta-') || startsWith(github.ref, 'refs/heads/feat-') || startsWith(github.ref, 'refs/heads/wip-') || startsWith(github.ref, 'refs/heads/fix-')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/beta-') || startsWith(github.ref, 'refs/heads/feat-') || startsWith(github.ref, 'refs/heads/wip-') || startsWith(github.ref, 'refs/heads/fix-') || github.ref == 'refs/heads/gbs-next'
 
     strategy:
       matrix:
@@ -63,13 +64,13 @@ jobs:
             os: ubuntu-22.04-arm
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "21.7.1"
+          node-version: "24.16.0"
 
       - name: Enable Corepack
         run: corepack enable
@@ -179,7 +180,7 @@ jobs:
           mv ./out/make/zip/win32/x64/*.zip ./out/keep/gb-studio-${CIRCLE_BRANCH}-windows_x86_64.zip
           mv ./out/make/squirrel.windows/x64 ./out/keep/gb-studio-${CIRCLE_BRANCH}-windows_x86_64-squirrel
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.label }} build
           path: |

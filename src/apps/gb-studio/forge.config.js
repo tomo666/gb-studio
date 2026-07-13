@@ -82,9 +82,13 @@ module.exports = async () => {
         "hardened-runtime": true,
         entitlements: "./entitlements.plist",
       },
-    },
-    hooks: {
-      postPackage: require("../../../src/lib/forge/hooks/notarize"),
+      osxNotarize: process.env.APPLE_ID
+        ? {
+            appleId: process.env.APPLE_ID,
+            appleIdPassword: process.env.APPLE_ID_PASSWORD,
+            teamId: process.env.APPLE_TEAM_ID,
+          }
+        : undefined,
     },
     plugins: [
       {

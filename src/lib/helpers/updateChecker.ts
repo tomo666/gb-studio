@@ -49,7 +49,7 @@ const needsUpdate = (latestVersion: string) => {
       return semverGt(latestVersion, currentVersion);
     }
     return false;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -57,10 +57,10 @@ const needsUpdate = (latestVersion: string) => {
 export const checkForUpdate = async (force?: boolean) => {
   if (force) {
     // If manually checking for updates using menu, clear previous settings
-    settings.set("dontCheckForUpdates", false);
-    settings.set("dontNotifyUpdatesForVersion", false);
+    settings.setSync("dontCheckForUpdates", false);
+    settings.setSync("dontNotifyUpdatesForVersion", false);
   }
-  if (!settings.get("dontCheckForUpdates")) {
+  if (!settings.getSync("dontCheckForUpdates")) {
     let latestVersion = VERSION;
 
     try {
@@ -68,7 +68,7 @@ export const checkForUpdate = async (force?: boolean) => {
       if (!latestVersion) {
         throw new Error("NO_LATEST");
       }
-    } catch (e) {
+    } catch {
       // If explicitly asked to check latest version and checking failed
       // (no internet connection / github down)
       // Show an error message
@@ -85,7 +85,7 @@ export const checkForUpdate = async (force?: boolean) => {
     }
 
     if (needsUpdate(latestVersion)) {
-      if (settings.get("dontNotifyUpdatesForVersion") === latestVersion) {
+      if (settings.getSync("dontNotifyUpdatesForVersion") === latestVersion) {
         // User has chosen to ignore this version so don't show any details
         return;
       }
@@ -111,13 +111,13 @@ export const checkForUpdate = async (force?: boolean) => {
 
       if (checkboxChecked) {
         // Ignore all updates until manually check for updates
-        settings.set("dontCheckForUpdates", true);
+        settings.setSync("dontCheckForUpdates", true);
       }
       if (buttonIndex === 0) {
         shell.openExternal("https://www.gbstudio.dev/download/");
       } else if (buttonIndex === 2) {
         // Ingore this version but notify for next
-        settings.set("dontNotifyUpdatesForVersion", latestVersion);
+        settings.setSync("dontNotifyUpdatesForVersion", latestVersion);
       }
     } else if (force) {
       // If specifically asked to check for updates need to show message

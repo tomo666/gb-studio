@@ -32,8 +32,7 @@ import identity from "lodash/identity";
 import { defaultProjectSettings } from "consts";
 import { readJson } from "lib/helpers/fs/readJson";
 import { Value } from "@sinclair/typebox/value";
-import { TSchema } from "@sinclair/typebox/build/cjs/type/schema";
-import { Static } from "@sinclair/typebox";
+import type { Static, TSchema } from "@sinclair/typebox";
 import { naturalSortPaths, pathToPosix } from "shared/lib/helpers/path";
 
 const globAsync = promisify(glob);
@@ -105,7 +104,7 @@ export const loadProjectResources = async (
             path: pathToPosix(path.relative(projectRoot, projectResourcePath)),
             data: resourceData,
           };
-        } catch (e) {
+        } catch {
           console.error("Failed to load resource: " + projectResourcePath);
           return undefined;
         }

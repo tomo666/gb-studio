@@ -16,7 +16,7 @@ export const locales = glob
   .map((path) => Path.basename(path, ".json"));
 
 export const getAppLocale = () => {
-  const settingsLocale = app && settings.get(LOCALE_SETTING_KEY);
+  const settingsLocale = app && settings.getSync(LOCALE_SETTING_KEY);
   const systemLocale = app ? app.getLocale() : "en";
   return String(settingsLocale || systemLocale);
 };
@@ -56,7 +56,7 @@ export const loadLanguage = (locale: string) => {
         setL10NData(translation);
         return translation;
       }
-    } catch (e) {
+    } catch {
       console.warn("No language pack for user setting, falling back to en");
       console.warn(
         `Add a language pack by making the file src/lang/${locale}.json`,
