@@ -1,5 +1,4 @@
 import openAboutWindow from "about-window";
-import settings from "electron-settings";
 import {
   app,
   Menu,
@@ -18,6 +17,7 @@ import { ThemeManager } from "lib/themes/themeManager";
 import { L10nManager } from "lib/lang/l10nManager";
 import { MenuListenerFn, MenuListenerKey } from "shared/lib/menu/types";
 import { defaultMusicMidiState, MusicMidiState } from "shared/lib/music/midi";
+import { settingsGetAll } from "lib/helpers/appSettings";
 
 declare const COMMITHASH: string;
 
@@ -117,16 +117,14 @@ const buildMidiInputSubmenu = (
 
   const deviceItems =
     midiInputState.inputs.length > 0
-      ? midiInputState.inputs.map(
-          (input): MenuItemConstructorOptions => ({
-            label: input.name,
-            type: "checkbox",
-            checked: midiInputState.selectedInputId === input.id,
-            click: () => {
-              notifyListeners("selectMidiInput", input.id);
-            },
-          }),
-        )
+      ? midiInputState.inputs.map((input): MenuItemConstructorOptions => ({
+          label: input.name,
+          type: "checkbox",
+          checked: midiInputState.selectedInputId === input.id,
+          click: () => {
+            notifyListeners("selectMidiInput", input.id);
+          },
+        }))
       : [
           {
             label: l10n("FIELD_NO_DEVICES_FOUND"),
@@ -144,6 +142,7 @@ const buildMenu = async ({
   midiInputAvailable = false,
   midiInputVisible = false,
 }: BuildMenuProps) => {
+  const settings = await settingsGetAll();
   const pluginThemes = themeManager.getPluginThemes();
   const pluginLangs = l10nManager.getPluginL10Ns();
   const systemLangs = l10nManager.getSystemL10Ns();
@@ -243,12 +242,9 @@ const buildMenu = async ({
             {
               label: l10n("MENU_CHECK_SPELLING_WHILE_TYPING"),
               type: "checkbox",
-              checked: settings.getSync("checkSpelling") !== false,
-              click() {
-                notifyListeners(
-                  "updateCheckSpelling",
-                  settings.getSync("checkSpelling") === false,
-                );
+              checked: settings["checkSpelling"] !== false,
+              click: (item: MenuItem) => {
+                notifyListeners("updateCheckSpelling", item.checked);
               },
             },
           ],
@@ -422,7 +418,7 @@ const buildMenu = async ({
               id: "themeDefault",
               label: l10n("MENU_THEME_DEFAULT"),
               type: "checkbox",
-              checked: settings.getSync(THEME_SETTING_KEY) === undefined,
+              checked: settings[THEME_SETTING_KEY] === undefined,
               click() {
                 notifyListeners("updateTheme", undefined);
               },
@@ -432,7 +428,7 @@ const buildMenu = async ({
               id: "themeLight",
               label: l10n("MENU_THEME_LIGHT"),
               type: "checkbox",
-              checked: settings.getSync(THEME_SETTING_KEY) === "light",
+              checked: settings[THEME_SETTING_KEY] === "light",
               click() {
                 notifyListeners("updateTheme", "light");
               },
@@ -441,7 +437,7 @@ const buildMenu = async ({
               id: "themeDark",
               label: l10n("MENU_THEME_DARK"),
               type: "checkbox",
-              checked: settings.getSync(THEME_SETTING_KEY) === "dark",
+              checked: settings[THEME_SETTING_KEY] === "dark",
               click() {
                 notifyListeners("updateTheme", "dark");
               },
@@ -449,17 +445,15 @@ const buildMenu = async ({
             ...(pluginThemes.length > 0
               ? ([{ type: "separator" }] as MenuItemConstructorOptions[])
               : []),
-            ...pluginThemes.map(
-              (theme): MenuItemConstructorOptions => ({
-                id: `theme-${theme.id}`,
-                label: theme.name,
-                type: "checkbox",
-                checked: settings.getSync(THEME_SETTING_KEY) === theme.id,
-                click() {
-                  notifyListeners("updateTheme", theme.id);
-                },
-              }),
-            ),
+            ...pluginThemes.map((theme): MenuItemConstructorOptions => ({
+              id: `theme-${theme.id}`,
+              label: theme.name,
+              type: "checkbox",
+              checked: settings[THEME_SETTING_KEY] === theme.id,
+              click() {
+                notifyListeners("updateTheme", theme.id);
+              },
+            })),
           ],
         },
         {
@@ -470,7 +464,7 @@ const buildMenu = async ({
                 id: "localeDefault",
                 label: l10n("MENU_LANGUAGE_DEFAULT"),
                 type: "checkbox",
-                checked: settings.getSync(LOCALE_SETTING_KEY) === undefined,
+                checked: settings[LOCALE_SETTING_KEY] === undefined,
                 click() {
                   notifyListeners("updateLocale", undefined);
                 },
@@ -482,7 +476,7 @@ const buildMenu = async ({
                 id: `locale-${language.id}`,
                 label: language.name,
                 type: "checkbox",
-                checked: settings.getSync(LOCALE_SETTING_KEY) === language.id,
+                checked: settings[LOCALE_SETTING_KEY] === language.id,
                 click() {
                   notifyListeners("updateLocale", language.id);
                 },
@@ -491,17 +485,15 @@ const buildMenu = async ({
             ...(pluginLangs.length > 0
               ? ([{ type: "separator" }] as MenuItemConstructorOptions[])
               : []),
-            ...pluginLangs.map(
-              (language): MenuItemConstructorOptions => ({
-                id: `locale-${language.id}`,
-                label: language.name,
-                type: "checkbox",
-                checked: settings.getSync(LOCALE_SETTING_KEY) === language.id,
-                click() {
-                  notifyListeners("updateLocale", language.id);
-                },
-              }),
-            ),
+            ...pluginLangs.map((language): MenuItemConstructorOptions => ({
+              id: `locale-${language.id}`,
+              label: language.name,
+              type: "checkbox",
+              checked: settings[LOCALE_SETTING_KEY] === language.id,
+              click() {
+                notifyListeners("updateLocale", language.id);
+              },
+            })),
           ),
         },
         { type: "separator" },
@@ -521,7 +513,7 @@ const buildMenu = async ({
               id: "showConnectionsAll",
               label: l10n("MENU_SHOW_CONNECTIONS_ALL"),
               type: "checkbox",
-              checked: settings.getSync("showConnections") === "all",
+              checked: settings["showConnections"] === "all",
               click() {
                 notifyListeners("updateShowConnections", "all");
               },
@@ -531,8 +523,8 @@ const buildMenu = async ({
               label: l10n("MENU_SHOW_CONNECTIONS_SELECTED"),
               type: "checkbox",
               checked:
-                settings.getSync("showConnections") === "selected" ||
-                settings.getSync("showConnections") === true,
+                settings["showConnections"] === "selected" ||
+                settings["showConnections"] === true,
               click() {
                 notifyListeners("updateShowConnections", "selected");
               },
@@ -542,7 +534,7 @@ const buildMenu = async ({
               id: "showConnectionsNone",
               label: l10n("MENU_SHOW_CONNECTIONS_NONE"),
               type: "checkbox",
-              checked: settings.getSync("showConnections") === false,
+              checked: settings["showConnections"] === false,
               click() {
                 notifyListeners("updateShowConnections", false);
               },
@@ -552,7 +544,7 @@ const buildMenu = async ({
         {
           id: "showNavigator",
           label: l10n("MENU_SHOW_NAVIGATOR"),
-          checked: settings.getSync("showNavigator") !== false,
+          checked: settings["showNavigator"] !== false,
           type: "checkbox",
           click: (item: MenuItem) => {
             notifyListeners("updateShowNavigator", item.checked);
@@ -565,7 +557,7 @@ const buildMenu = async ({
               id: "showSceneScreenGridTopLeft",
               label: l10n("MENU_SHOW_SCREEN_GRID_TOP_LEFT"),
               type: "checkbox",
-              checked: settings.getSync("showSceneScreenGrid") === "topLeft",
+              checked: settings["showSceneScreenGrid"] === "topLeft",
               click() {
                 notifyListeners("updateShowSceneScreenGrid", "topLeft");
               },
@@ -574,7 +566,7 @@ const buildMenu = async ({
               id: "showSceneScreenGridTopRight",
               label: l10n("MENU_SHOW_SCREEN_GRID_TOP_RIGHT"),
               type: "checkbox",
-              checked: settings.getSync("showSceneScreenGrid") === "topRight",
+              checked: settings["showSceneScreenGrid"] === "topRight",
               click() {
                 notifyListeners("updateShowSceneScreenGrid", "topRight");
               },
@@ -583,7 +575,7 @@ const buildMenu = async ({
               id: "showSceneScreenGridBottomLeft",
               label: l10n("MENU_SHOW_SCREEN_GRID_BOTTOM_LEFT"),
               type: "checkbox",
-              checked: settings.getSync("showSceneScreenGrid") === "bottomLeft",
+              checked: settings["showSceneScreenGrid"] === "bottomLeft",
               click() {
                 notifyListeners("updateShowSceneScreenGrid", "bottomLeft");
               },
@@ -592,8 +584,7 @@ const buildMenu = async ({
               id: "showSceneScreenGridBottomRight",
               label: l10n("MENU_SHOW_SCREEN_GRID_BOTTOM_RIGHT"),
               type: "checkbox",
-              checked:
-                settings.getSync("showSceneScreenGrid") === "bottomRight",
+              checked: settings["showSceneScreenGrid"] === "bottomRight",
               click() {
                 notifyListeners("updateShowSceneScreenGrid", "bottomRight");
               },
@@ -603,7 +594,7 @@ const buildMenu = async ({
               id: "showSceneScreenGridNone",
               label: l10n("MENU_SHOW_SCREEN_GRID_NONE"),
               type: "checkbox",
-              checked: settings.getSync("showSceneScreenGrid") === false,
+              checked: settings["showSceneScreenGrid"] === false,
               click() {
                 notifyListeners("updateShowSceneScreenGrid", false);
               },
@@ -652,7 +643,7 @@ const buildMenu = async ({
             {
               label: l10n("MENU_MUTE_AUDIO"),
               type: "checkbox",
-              checked: settings.getSync(EMULATOR_MUTED_SETTING_KEY) === true,
+              checked: settings[EMULATOR_MUTED_SETTING_KEY] === true,
               click: (item: MenuItem) => {
                 notifyListeners("updateEmulatorMuted", item.checked);
               },
@@ -768,7 +759,7 @@ const buildMenu = async ({
             {
               label: l10n("MENU_MUTE_AUDIO"),
               type: "checkbox",
-              checked: settings.getSync(EMULATOR_MUTED_SETTING_KEY) === true,
+              checked: settings[EMULATOR_MUTED_SETTING_KEY] === true,
               click: (item: MenuItem) => {
                 notifyListeners("updateEmulatorMuted", item.checked);
               },

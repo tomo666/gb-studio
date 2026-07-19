@@ -25,7 +25,7 @@ import {
   useAppSelectorPick,
   useAppStore,
 } from "store/hooks";
-import ConnectionsWorker, {
+import type {
   ConnectionScene,
   ConnectionScriptEvent,
   ConnectionScriptSource,
@@ -42,7 +42,7 @@ import {
   triggerScriptKeys,
 } from "shared/lib/entities/entitiesTypes";
 
-const worker = new ConnectionsWorker();
+const worker = new Worker(new URL("./Connections.worker.ts", import.meta.url));
 
 interface ConnectionsProps {
   width: number;
@@ -203,8 +203,9 @@ const buildConnectionsWorkerRequest = (
     };
   };
 
-  const scenes = sceneSelectors.selectAll(state).map(
-    (scene): ConnectionScene => ({
+  const scenes = sceneSelectors
+    .selectAll(state)
+    .map((scene): ConnectionScene => ({
       id: scene.id,
       scripts: sceneScriptKeys.map((key) => scene[key]),
       actors: scene.actors
@@ -213,8 +214,7 @@ const buildConnectionsWorkerRequest = (
       triggers: scene.triggers
         .map(toTrigger)
         .filter((trigger): trigger is ConnectionScriptSource => !!trigger),
-    }),
-  );
+    }));
 
   const events = Object.fromEntries(
     scriptEventSelectors.selectAll(state).map((event) => {

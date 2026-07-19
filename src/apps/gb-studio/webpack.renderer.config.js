@@ -10,28 +10,7 @@ const isDevelopment = process.env.NODE_ENV !== "production";
 
 const rendererRules = [
   {
-    test: /\.worker\.(ts|js)$/,
-    exclude: /(node_modules|.webpack)/,
-    rules: [
-      {
-        loader: "worker-loader",
-        options: { publicPath: "../" },
-      },
-      {
-        loader: "ts-loader",
-        options: {
-          getCustomTransformers: isDevelopment
-            ? () => ({
-                before: [ReactRefreshTypeScript()],
-              })
-            : undefined,
-          transpileOnly: true,
-        },
-      },
-    ],
-  },
-  {
-    test: /^(?!.*\.worker\.ts$).*\.(ts|tsx|js|jsx)$/,
+    test: /\.(ts|tsx|js|jsx)$/,
     exclude: /(node_modules|.webpack)/,
     use: [
       {
@@ -48,10 +27,6 @@ const rendererRules = [
     ],
   },
   ...rules.slice(1), // Remove global ts-loader rule replaced with ReactRefreshTypeScript version defined above
-  {
-    test: /\.css$/,
-    use: [{ loader: "style-loader" }, { loader: "css-loader" }],
-  },
 ];
 
 const rendererPlugins = [
@@ -68,6 +43,9 @@ if (isDevelopment) {
 module.exports = {
   // Put your normal webpack config below here
   target: "web",
+  output: {
+    workerPublicPath: "../",
+  },
   node: {
     __dirname: true,
     __filename: true,
@@ -104,9 +82,6 @@ module.exports = {
   resolve: {
     extensions: [".js", ".ts", ".jsx", ".tsx", ".wasm", ".css"],
     alias: {
-      mediabunny$: require.resolve("mediabunny"),
-      "@mediabunny/mp3-encoder$": require.resolve("@mediabunny/mp3-encoder"),
-      "@mediabunny/flac-encoder$": require.resolve("@mediabunny/flac-encoder"),
       store: srcPath("store"),
       components: srcPath("components"),
       lang: srcPath("lang"),
@@ -120,9 +95,8 @@ module.exports = {
       "contributors.json": repoPath("contributors.json"),
       "contributors-external.json": repoPath("contributors-external.json"),
       "patrons.json": repoPath("patrons.json"),
-      "#my-quickjs-variant": require.resolve(
-        "@jitl/quickjs-singlefile-browser-release-sync",
-      ),
+      "#my-quickjs-variant":
+        require.resolve("@jitl/quickjs-singlefile-browser-release-sync"),
     },
     fallback: {
       path: require.resolve("path-browserify"),

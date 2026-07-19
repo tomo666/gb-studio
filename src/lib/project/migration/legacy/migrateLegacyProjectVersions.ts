@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable no-nested-ternary */
 import keyBy from "lodash/keyBy";
 import { filterScenesEvents, filterEvents } from "lib/helpers/eventSystem";
 import generateRandomWalkScript from "lib/movement/generateRandomWalkScript";
@@ -10,7 +9,7 @@ import {
   EVENT_END,
   projectTemplatesRoot,
 } from "consts";
-import uuid from "uuid";
+import { v4 as uuid } from "uuid";
 import { copySync, chmodSync } from "fs-extra";
 import uniq from "lodash/uniq";
 import { toValidSymbol } from "shared/lib/helpers/symbols";

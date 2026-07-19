@@ -1,55 +1,139 @@
-import { EVENT_FADE_IN } from "consts";
+import { EVENT_CALL_CUSTOM_EVENT, EVENT_FADE_IN } from "consts";
 import type { ScriptEventDef } from "lib/scriptEventsHandlers/handlerTypes";
 import type {
   ScriptEventNormalized,
   ScriptNormalized,
 } from "shared/lib/entities/entitiesTypes";
-import { Script, ScriptEvent } from "shared/lib/resources/types";
+import {
+  Script,
+  ScriptEvent,
+  ScriptEventArgsOverride,
+} from "shared/lib/resources/types";
 import { walkNormalizedScript, walkScript } from "shared/lib/scripts/walk";
+import { mapScriptValueLeafNodes } from "shared/lib/scriptValue/helpers";
+import { isScriptValue } from "shared/lib/scriptValue/types";
+import type { ScriptValue } from "shared/lib/scriptValue/types";
 
 export type ScriptEventDefs = Record<string, ScriptEventDef>;
 
-export const patchEventArgs = (
+const remapActorReferencesInScriptValue = (
+  scriptValue: ScriptValue,
+  actorMapping: Record<string, string>,
+) => {
+  return mapScriptValueLeafNodes(scriptValue, (value) => {
+    if (value.type !== "property") {
+      return value;
+    }
+
+    const replacement = actorMapping[value.target];
+    if (replacement === undefined) {
+      return value;
+    }
+
+    return {
+      ...value,
+      target: replacement,
+    };
+  }) as ScriptValue;
+};
+
+export const remapActorReferencesInEventArgs = (
   command: string,
-  type: string,
   args: Record<string, unknown>,
-  replacements: Record<string, unknown>,
+  actorMapping: Record<string, string>,
   scriptEventDefs: ScriptEventDefs,
 ) => {
-  const events = scriptEventDefs;
-  const eventSchema = events[command];
+  if (command === EVENT_CALL_CUSTOM_EVENT) {
+    return remapActorReferencesInCallScriptEventArgs(args, actorMapping);
+  }
+
+  const eventSchema = scriptEventDefs[command];
 
   if (!eventSchema) {
     return args;
   }
 
-  const patchArgs: Record<string, unknown> = {};
-  eventSchema.fields.forEach((field) => {
-    const key = field.key ?? "";
-    if (field.type === type) {
-      if (replacements[args[key] as string]) {
-        patchArgs[key] = replacements[args[key] as string];
+  const patchArgs = Object.keys(args).reduce(
+    (memo, key) => {
+      const field = eventSchema.fieldsLookup[key];
+      const arg = args[key];
+
+      if (field?.type === "actor" && typeof arg === "string") {
+        const replacement = actorMapping[arg];
+        if (replacement !== undefined) {
+          memo[key] = replacement;
+        }
+      } else if (field && isScriptValue(arg)) {
+        memo[key] = remapActorReferencesInScriptValue(arg, actorMapping);
       }
-    } else if (
-      type === "actor" &&
-      (args[key] as { type?: string })?.type === "property"
-    ) {
-      const propertyParts = (
-        (args[key] as { value?: string })?.value || ""
-      ).split(":");
-      if (propertyParts.length === 2) {
-        patchArgs[key] = {
-          type: "property",
-          value: `${replacements[propertyParts[0]]}:${propertyParts[1]}`,
-        };
-      }
-    }
-  });
+      return memo;
+    },
+    {} as Record<string, unknown>,
+  );
 
   return {
     ...args,
     ...patchArgs,
   };
+};
+
+export const remapActorReferencesInCallScriptEventArgs = (
+  args: Record<string, unknown>,
+  actorMapping: Record<string, string>,
+) => {
+  const patchArgs = Object.keys(args).reduce(
+    (memo, key) => {
+      const arg = args[key];
+      if (key.startsWith("$actor") && typeof arg === "string") {
+        const replacement = actorMapping[arg];
+        if (replacement !== undefined) {
+          memo[key] = replacement;
+        }
+      } else if (key.startsWith("$variable") && isScriptValue(arg)) {
+        memo[key] = remapActorReferencesInScriptValue(arg, actorMapping);
+      }
+
+      return memo;
+    },
+    {} as Record<string, unknown>,
+  );
+
+  return {
+    ...args,
+    ...patchArgs,
+  };
+};
+
+export const remapActorReferencesInEventOverrides = (
+  eventOverrides: Record<string, ScriptEventArgsOverride> | null | undefined,
+  scriptEventsLookup: Record<string, ScriptEventNormalized>,
+  actorMapping: Record<string, string>,
+  scriptEventDefs: ScriptEventDefs,
+) => {
+  if (!eventOverrides) {
+    return eventOverrides;
+  }
+
+  return Object.fromEntries(
+    Object.entries(eventOverrides).map(([scriptEventId, override]) => {
+      const command = scriptEventsLookup[scriptEventId]?.command;
+
+      return [
+        scriptEventId,
+        {
+          ...override,
+          args: command
+            ? remapActorReferencesInEventArgs(
+                command,
+                override.args,
+                actorMapping,
+                scriptEventDefs,
+              )
+            : override.args,
+        },
+      ];
+    }),
+  );
 };
 
 export const calculateAutoFadeEventIdNormalized = (

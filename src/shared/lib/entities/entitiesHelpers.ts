@@ -28,7 +28,14 @@ import {
   TriggerPrefabNormalized,
   TriggerScriptKey,
 } from "shared/lib/entities/entitiesTypes";
-import { EntityAdapter, EntityId, EntityState } from "@reduxjs/toolkit";
+import {
+  Draft,
+  EntityAdapter,
+  EntityId,
+  EntityState,
+  current,
+  isDraft,
+} from "@reduxjs/toolkit";
 import { genSymbol, toValidSymbol } from "shared/lib/helpers/symbols";
 import { Asset, assetNameFromFilename } from "shared/lib/helpers/assets";
 import l10n from "shared/lib/lang/l10n";
@@ -633,12 +640,20 @@ const hasValidInode = (
   return typeof asset.inode === "string" && asset.inode.length > 0;
 };
 
+const isImmerDraft = <T>(value: T | Draft<T>): value is Draft<T> => {
+  return isDraft(value);
+};
+
+const currentIfDraft = <T>(value: T | Draft<T>): T => {
+  return isImmerDraft(value) ? current(value) : value;
+};
+
 const cacheAssetByInode = <T extends Asset & { inode: string }>(asset: T) => {
   if (!hasValidInode(asset)) {
     return;
   }
 
-  inodeToAssetCache[asset.inode] = cloneDeep(asset);
+  inodeToAssetCache[asset.inode] = cloneDeep(currentIfDraft(asset));
 };
 
 const takeCachedAsset = <T extends Asset & { inode: string }>(
@@ -693,13 +708,15 @@ export const isUnionVariableValue = (
 export const isUnionPropertyValue = (
   input: unknown,
 ): input is UnionPropertyValue => {
-  if (!isUnionValue(input)) {
+  if (!isUnionValue(input) || input.type !== "property") {
     return false;
   }
-  if (input.type !== "property") {
-    return false;
-  }
-  return true;
+
+  return (
+    !("value" in input) ||
+    input.value === undefined ||
+    typeof input.value === "string"
+  );
 };
 
 export const toVariableNumber = (variable: string) => {

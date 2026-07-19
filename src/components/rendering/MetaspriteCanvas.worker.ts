@@ -183,11 +183,3 @@ workerCtx.onmessage = async (evt) => {
   const canvasImage = canvas.transferToImageBitmap();
   workerCtx.postMessage({ id, canvasImage }, [canvasImage]);
 };
-
-// -----------------------------------------------------------------
-
-export default class W extends Worker {
-  constructor() {
-    super("");
-  }
-}

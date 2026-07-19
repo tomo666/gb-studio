@@ -72,11 +72,3 @@ workerCtx.onmessage = async (evt) => {
   const res: SpriteSliceCanvasResult = { id, canvasImage };
   workerCtx.postMessage(res, [canvasImage]);
 };
-
-// -----------------------------------------------------------------
-
-export default class W extends Worker {
-  constructor() {
-    super("");
-  }
-}

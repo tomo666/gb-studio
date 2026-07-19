@@ -3,7 +3,7 @@ import editorActions from "store/features/editor/editorActions";
 import { getSettings } from "store/features/settings/settingsState";
 import settingsActions from "store/features/settings/settingsActions";
 import navigationActions from "store/features/navigation/navigationActions";
-import { Dispatch, Middleware } from "@reduxjs/toolkit";
+import { Dispatch, Middleware, unwrapResult } from "@reduxjs/toolkit";
 import { RootState } from "store/storeTypes";
 import projectActions from "store/features/project/projectActions";
 import {
@@ -22,7 +22,6 @@ import API from "renderer/lib/api";
 import { EVENT_CALL_CUSTOM_EVENT, NAVIGATOR_MIN_WIDTH } from "consts";
 import l10n, { getL10NData } from "shared/lib/lang/l10n";
 import { walkNormalizedScenesScripts } from "shared/lib/scripts/walk";
-import { unwrapResult } from "@reduxjs/toolkit";
 import errorActions from "store/features/error/errorActions";
 import {
   actorName,
@@ -32,7 +31,7 @@ import {
 import type { DeleteScriptConfirmButton } from "lib/electron/dialog/confirmDeleteCustomEvent";
 import { worker } from "components/world/inspector/constants/ConstantInspector";
 import { selectScriptEventDefs } from "store/features/scriptEventDefs/scriptEventDefsState";
-import { ConstantUseResult } from "components/world/inspector/constants/ConstantUses.worker";
+import type { ConstantUseResult } from "components/world/inspector/constants/ConstantUses.worker";
 
 const electronMiddleware: Middleware<Dispatch, RootState> =
   (store) => (next) => async (action) => {

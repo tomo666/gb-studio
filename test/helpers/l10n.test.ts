@@ -1,7 +1,7 @@
 import l10n, { L10NKey, replaceParams } from "../../src/shared/lib/lang/l10n";
 import { loadLanguage } from "../../src/lib/lang/initElectronL10N";
 
-import glob from "glob";
+import { globSync } from "lib/helpers/glob";
 import { readFile } from "fs-extra";
 
 jest.mock("../../src/consts");
@@ -41,32 +41,29 @@ test("should be able to read language overrides", () => {
 });
 
 test("should warn if locale has no translation", () => {
-  // eslint-disable-next-line no-console
   console.warn = jest.fn();
   loadLanguage("NEW-LANG");
-  // eslint-disable-next-line no-console
   expect(console.warn).toHaveBeenCalled();
 });
 
 test("should trace to console if locale is empty", () => {
-  // eslint-disable-next-line no-console
   console.warn = jest.fn();
-  // eslint-disable-next-line no-console
   console.trace = jest.fn();
   loadLanguage("");
-  // eslint-disable-next-line no-console
   expect(console.warn).toHaveBeenCalled();
-  // eslint-disable-next-line no-console
   expect(console.trace).toHaveBeenCalled();
 });
 
 test("should be able to parse all language files", async () => {
-  const languagePackPaths = glob.sync(`${__dirname}/../../src/lang/*.json`);
+  const languagePackPaths = globSync("*.json", {
+    cwd: `${__dirname}/../../src/lang`,
+    absolute: true,
+  });
   for (const languagePackPath of languagePackPaths) {
     const rawFile = await readFile(languagePackPath, "utf8");
     try {
       JSON.parse(rawFile);
-    } catch (e) {
+    } catch {
       throw new Error(`Error parsing language file ${languagePackPath}`);
     }
   }

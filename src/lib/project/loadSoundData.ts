@@ -1,14 +1,12 @@
-import glob from "glob";
+import { glob } from "lib/helpers/glob";
 import { promisify } from "util";
-import uuidv4 from "uuid/v4";
+import { v4 as uuidv4 } from "uuid";
 import { stat } from "fs";
 import parseAssetPath from "shared/lib/assets/parseAssetPath";
 import { toValidSymbol } from "shared/lib/helpers/symbols";
 import { readFXHammerNumEffects } from "lib/compiler/sounds/compileFXHammer";
 import { getAssetResource } from "./assets";
 import { SoundResource, SoundResourceAsset } from "shared/lib/resources/types";
-
-const globAsync = promisify(glob);
 const statAsync = promisify(stat);
 
 type SoundAssetType = "wav" | "vgm" | "fxhammer";
@@ -55,11 +53,19 @@ const loadSoundData =
   };
 
 const loadAllSoundData = async (projectRoot: string) => {
-  const soundPaths = await globAsync(
-    `${projectRoot}/assets/sounds/**/@(*.vgm|*.VGM|*.vgz|*.VGZ|*.wav|*.WAV|*.sav|*.SAV)`,
+  const soundPaths = await glob(
+    "assets/sounds/**/@(*.vgm|*.VGM|*.vgz|*.VGZ|*.wav|*.WAV|*.sav|*.SAV)",
+    {
+      cwd: projectRoot,
+      absolute: true,
+    },
   );
-  const pluginPaths = await globAsync(
-    `${projectRoot}/plugins/*/**/sounds/**/@(*.vgm|*.VGM|*.vgz|*.VGZ|*.wav|*.WAV|*.sav|*.SAV)`,
+  const pluginPaths = await glob(
+    "plugins/*/**/sounds/**/@(*.vgm|*.VGM|*.vgz|*.VGZ|*.wav|*.WAV|*.sav|*.SAV)",
+    {
+      cwd: projectRoot,
+      absolute: true,
+    },
   );
   const soundsData = await Promise.all(
     ([] as Promise<SoundResourceAsset>[]).concat(

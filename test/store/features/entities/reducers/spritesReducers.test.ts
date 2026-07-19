@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import reducer, { initialState } from "store/features/entities/entitiesState";
 import { EntitiesState } from "shared/lib/entities/entitiesTypes";
 import entitiesActions from "store/features/entities/entitiesActions";
@@ -13,7 +12,7 @@ import { dummySpriteSheet } from "../../../../dummydata";
 
 jest.mock("uuid");
 
-const mockUuid = uuid as jest.MockedFunction<typeof uuid>;
+const mockUuid = uuid as unknown as jest.MockedFunction<() => string>;
 
 beforeEach(() => {
   let id = 0;

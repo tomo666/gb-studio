@@ -2,6 +2,7 @@
 const plugins = require("../shared/webpack.plugins");
 const { appPath, repoPath, srcPath } = require("../shared/webpack.paths");
 const webpack = require("webpack");
+const rules = require("../shared/webpack.rules");
 
 module.exports = {
   target: "electron-main",
@@ -30,7 +31,7 @@ module.exports = {
   },
   // Put your normal webpack config below here
   module: {
-    rules: require("../shared/webpack.rules"),
+    rules,
   },
   plugins: [].concat(
     plugins,
@@ -46,9 +47,8 @@ module.exports = {
       ui: srcPath("components", "ui"),
       shared: srcPath("shared"),
       consts: srcPath("consts.ts"),
-      "#my-quickjs-variant": require.resolve(
-        "@jitl/quickjs-singlefile-cjs-release-sync",
-      ),
+      "#my-quickjs-variant":
+        require.resolve("@jitl/quickjs-singlefile-cjs-release-sync"),
     },
   },
 };

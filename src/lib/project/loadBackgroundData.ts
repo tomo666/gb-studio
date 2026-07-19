@@ -1,8 +1,8 @@
-import glob from "glob";
+import { glob } from "lib/helpers/glob";
 import { promisify } from "util";
-import uuid from "uuid/v4";
-import sizeOf from "image-size";
+import { v4 as uuid } from "uuid";
 import { stat } from "fs";
+import pngSize from "lib/helpers/pngSize";
 import parseAssetPath from "shared/lib/assets/parseAssetPath";
 import { toValidSymbol } from "shared/lib/helpers/symbols";
 import { TILE_SIZE } from "consts";
@@ -11,9 +11,6 @@ import {
   CompressedBackgroundResourceAsset,
 } from "shared/lib/resources/types";
 import { getAssetResource } from "./assets";
-
-const globAsync = promisify(glob);
-const sizeOfAsync = promisify(sizeOf);
 const statAsync = promisify(stat);
 
 const loadBackgroundData =
@@ -33,7 +30,7 @@ const loadBackgroundData =
     );
 
     try {
-      const size = await sizeOfAsync(filename);
+      const size = await pngSize(filename);
       const fileStat = await statAsync(filename, { bigint: true });
       const inode = fileStat.ino.toString();
       const name = file.replace(/.png/i, "");
@@ -64,12 +61,14 @@ const loadBackgroundData =
   };
 
 const loadAllBackgroundData = async (projectRoot: string) => {
-  const imagePaths = await globAsync(
-    `${projectRoot}/assets/backgrounds/**/@(*.png|*.PNG)`,
-  );
-  const pluginPaths = await globAsync(
-    `${projectRoot}/plugins/*/**/backgrounds/**/@(*.png|*.PNG)`,
-  );
+  const imagePaths = await glob("assets/backgrounds/**/@(*.png|*.PNG)", {
+    cwd: projectRoot,
+    absolute: true,
+  });
+  const pluginPaths = await glob("plugins/*/**/backgrounds/**/@(*.png|*.PNG)", {
+    cwd: projectRoot,
+    absolute: true,
+  });
   const imageData = (
     await Promise.all(
       ([] as Array<Promise<CompressedBackgroundResourceAsset | null>>).concat(

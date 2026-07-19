@@ -1,8 +1,8 @@
-import glob from "glob";
+import { glob } from "lib/helpers/glob";
 import { promisify } from "util";
-import uuidv4 from "uuid/v4";
-import sizeOf from "image-size";
+import { v4 as uuidv4 } from "uuid";
 import { stat } from "fs";
+import pngSize from "lib/helpers/pngSize";
 import parseAssetPath from "shared/lib/assets/parseAssetPath";
 import { checksumFile } from "lib/helpers/checksum";
 import { toValidSymbol } from "shared/lib/helpers/symbols";
@@ -11,9 +11,6 @@ import {
   SpriteResourceAsset,
 } from "shared/lib/resources/types";
 import { getAssetResource } from "./assets";
-
-const globAsync = promisify(glob);
-const sizeOfAsync = promisify(sizeOf);
 const statAsync = promisify(stat);
 
 const loadSpriteData =
@@ -24,7 +21,7 @@ const loadSpriteData =
     const resource = await getAssetResource(SpriteResource, filename);
 
     try {
-      const size = await sizeOfAsync(filename);
+      const size = await pngSize(filename);
       if (!size || !size.width || !size.height) {
         return null;
       }
@@ -80,12 +77,14 @@ const loadSpriteData =
   };
 
 const loadAllSpriteData = async (projectRoot: string) => {
-  const spritePaths = await globAsync(
-    `${projectRoot}/assets/sprites/**/@(*.png|*.PNG)`,
-  );
-  const pluginPaths = await globAsync(
-    `${projectRoot}/plugins/*/**/sprites/**/@(*.png|*.PNG)`,
-  );
+  const spritePaths = await glob("assets/sprites/**/@(*.png|*.PNG)", {
+    cwd: projectRoot,
+    absolute: true,
+  });
+  const pluginPaths = await glob("plugins/*/**/sprites/**/@(*.png|*.PNG)", {
+    cwd: projectRoot,
+    absolute: true,
+  });
   const spriteData = (
     await Promise.all(
       ([] as Promise<SpriteResourceAsset | null>[]).concat(
