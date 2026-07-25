@@ -84,6 +84,19 @@ export const zoomSections = [
 
 export type ZoomSection = (typeof zoomSections)[number];
 
+export type NavigatorSearchKey =
+  | "backgrounds"
+  | "constants"
+  | "customEvents"
+  | "palettes"
+  | "prefabs"
+  | "scenes"
+  | "songs"
+  | "sounds"
+  | "sprites"
+  | "tilesets"
+  | "variables";
+
 export interface SpriteTileSelection {
   x: number;
   y: number;
@@ -103,6 +116,8 @@ export interface SlopePreview {
 }
 
 export type SceneGridSelectionMode = "tiles" | "collisions" | "colors";
+
+export type PaletteEditorTab = "rgb" | "hsb" | "hex";
 
 export interface ScenePaintSelection {
   sceneId: string;
@@ -159,6 +174,7 @@ export interface EditorState {
   worldViewWidth: number;
   worldViewHeight: number;
   selectedPalette: number;
+  paletteEditorTab: PaletteEditorTab;
   selectedTileType: number;
   selectedTileMask: number;
   selectedSceneTile?: SelectedSceneTile;
@@ -177,6 +193,7 @@ export interface EditorState {
   filesSidebarWidth: number;
   navigatorSplitSizes: number[];
   navigatorSplitSizesManuallyEdited: boolean;
+  navigatorSearch: Record<NavigatorSearchKey, string | undefined>;
   focusSceneId: string;
   selectedSpriteSheetId: string;
   selectedSpriteStateId: string;
@@ -238,6 +255,7 @@ export const initialState: EditorState = {
   worldViewWidth: 0,
   worldViewHeight: 0,
   selectedPalette: 0,
+  paletteEditorTab: "rgb",
   selectedTileType: COLLISION_ALL,
   selectedTileMask: 0xff,
   selectedSceneTile: undefined,
@@ -257,6 +275,19 @@ export const initialState: EditorState = {
   clipboardVariables: [],
   navigatorSplitSizes: [400, 30, 30, 30, 30],
   navigatorSplitSizesManuallyEdited: false,
+  navigatorSearch: {
+    backgrounds: undefined,
+    constants: undefined,
+    customEvents: undefined,
+    palettes: undefined,
+    prefabs: undefined,
+    scenes: undefined,
+    songs: undefined,
+    sounds: undefined,
+    sprites: undefined,
+    tilesets: undefined,
+    variables: undefined,
+  },
   focusSceneId: "",
   selectedSpriteSheetId: "",
   selectedSpriteStateId: "",
@@ -452,6 +483,10 @@ const editorSlice = createSlice({
       if (state.selectedBrush === BRUSH_SELECTION) {
         state.selectedBrush = BRUSH_8PX;
       }
+    },
+
+    setPaletteEditorTab: (state, action: PayloadAction<PaletteEditorTab>) => {
+      state.paletteEditorTab = action.payload;
     },
 
     setSelectedTileType: (
@@ -891,6 +926,25 @@ const editorSlice = createSlice({
       state.searchTerm = action.payload;
       state.focusSceneId = "";
       state.sceneSelectionIds = [];
+    },
+
+    setNavigatorSearchTerm: (
+      state,
+      action: PayloadAction<{
+        key: NavigatorSearchKey;
+        searchTerm: string;
+      }>,
+    ) => {
+      state.navigatorSearch[action.payload.key] = action.payload.searchTerm;
+    },
+
+    toggleNavigatorSearch: (
+      state,
+      action: PayloadAction<NavigatorSearchKey>,
+    ) => {
+      const searchTerm = state.navigatorSearch[action.payload];
+      state.navigatorSearch[action.payload] =
+        searchTerm === undefined ? "" : undefined;
     },
 
     setScriptTab: (state, action: PayloadAction<string>) => {

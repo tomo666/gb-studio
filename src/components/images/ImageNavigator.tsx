@@ -23,6 +23,7 @@ import useToggleableList from "ui/hooks/use-toggleable-list";
 import { Button } from "ui/buttons/Button";
 import { SearchIcon } from "ui/icons/Icons";
 import { BackgroundAsset, TilesetAsset } from "shared/lib/resources/types";
+import { useNavigatorSearch } from "store/features/editor/hooks/useNavigatorSearch";
 
 interface ImageNavigatorProps {
   height: number;
@@ -49,16 +50,22 @@ export const ImageNavigator = ({ height, selectedId }: ImageNavigatorProps) => {
     toggle: toggleFolderOpen,
     set: openFolder,
     unset: closeFolder,
-  } = useToggleableList<string>([]);
+  } = useToggleableList<string>([], "imageNavigator");
 
   const dispatch = useAppDispatch();
 
-  const [backgroundsSearchTerm, setBackgroundsSearchTerm] = useState("");
-  const [backgroundsSearchEnabled, setBackgroundsSearchEnabled] =
-    useState(false);
-
-  const [tilesetsSearchTerm, setTilesetsSearchTerm] = useState("");
-  const [tilesetsSearchEnabled, setTilesetsSearchEnabled] = useState(false);
+  const {
+    searchEnabled: backgroundsSearchEnabled,
+    searchTerm: backgroundsSearchTerm,
+    setSearchTerm: setBackgroundsSearchTerm,
+    toggleSearchEnabled: toggleBackgroundsSearchEnabled,
+  } = useNavigatorSearch("backgrounds");
+  const {
+    searchEnabled: tilesetsSearchEnabled,
+    searchTerm: tilesetsSearchTerm,
+    setSearchTerm: setTilesetsSearchTerm,
+    toggleSearchEnabled: toggleTilesetsSearchEnabled,
+  } = useNavigatorSearch("tilesets");
 
   const nestedBackgroundItems = useMemo(
     () =>
@@ -201,20 +208,6 @@ export const ImageNavigator = ({ height, selectedId }: ImageNavigatorProps) => {
   const showBackgroundsSearch = backgroundsSearchEnabled && splitSizes[0] > 60;
   const showTilesetsSearch = tilesetsSearchEnabled && splitSizes[1] > 60;
 
-  const toggleBackgroundsSearchEnabled = useCallback(() => {
-    if (backgroundsSearchEnabled) {
-      setBackgroundsSearchTerm("");
-    }
-    setBackgroundsSearchEnabled(!backgroundsSearchEnabled);
-  }, [backgroundsSearchEnabled]);
-
-  const toggleTilesetsSearchEnabled = useCallback(() => {
-    if (tilesetsSearchEnabled) {
-      setTilesetsSearchTerm("");
-    }
-    setTilesetsSearchEnabled(!tilesetsSearchEnabled);
-  }, [tilesetsSearchEnabled]);
-
   return (
     <>
       <Pane style={{ height: splitSizes[0] }}>
@@ -249,6 +242,7 @@ export const ImageNavigator = ({ height, selectedId }: ImageNavigatorProps) => {
           selectedId={selectedId}
           items={nestedBackgroundItems}
           setSelectedId={setSelectedId}
+          cacheKey="imageNavigatorBackgrounds"
           height={splitSizes[0] - (showBackgroundsSearch ? 60 : 30)}
           onKeyDown={(e: KeyboardEvent, item) => {
             listenForRenameStart(e);
@@ -316,6 +310,7 @@ export const ImageNavigator = ({ height, selectedId }: ImageNavigatorProps) => {
           selectedId={selectedId}
           items={nestedTilesetItems}
           setSelectedId={setSelectedId}
+          cacheKey="imageNavigatorTilesets"
           height={splitSizes[1] - (showTilesetsSearch ? 60 : 30)}
           onKeyDown={(e: KeyboardEvent, item) => {
             listenForRenameStart(e);

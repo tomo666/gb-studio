@@ -119,17 +119,6 @@ export const SpriteModeSetting = Type.Union([
 
 export type SpriteModeSetting = Static<typeof SpriteModeSetting>;
 
-const MetadataResource = Type.Object({
-  _resourceType: Type.Literal("project"),
-  name: Type.String(),
-  author: Type.String(),
-  notes: Type.String(),
-  _version: Type.String(),
-  _release: Type.String(),
-});
-
-export type MetadataResource = Static<typeof MetadataResource>;
-
 export const ScriptEventArgs = Type.Record(Type.String(), Type.Unknown());
 
 export type ScriptEventArgs = Static<typeof ScriptEventArgs>;
@@ -812,13 +801,6 @@ export type ShowSceneScreenGridSetting = Static<
   typeof ShowSceneScreenGridSetting
 >;
 
-export const MusicDriverSetting = Type.Union([
-  Type.Literal("huge"),
-  Type.Literal("gbt"),
-]);
-
-export type MusicDriverSetting = Static<typeof MusicDriverSetting>;
-
 export const CartType = Type.Union([
   Type.Literal("mbc5"),
   Type.Literal("mbc3"),
@@ -954,7 +936,6 @@ export const SettingsResource = Type.Object({
   defaultFontId: Type.String(),
   defaultCharacterEncoding: Type.String(),
   defaultPlayerSprites: Type.Record(Type.String(), Type.String()),
-  musicDriver: MusicDriverSetting,
   cartType: CartType,
   batterylessEnabled: Type.Boolean(),
   favoriteEvents: Type.Array(Type.String()),

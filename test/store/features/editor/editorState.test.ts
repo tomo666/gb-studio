@@ -71,6 +71,12 @@ test("Should be able to set selected palette", () => {
   expect(newState.selectedPalette).toBe(2);
 });
 
+test("Should remember the palette editor tab", () => {
+  const action = actions.setPaletteEditorTab("hsb");
+  const newState = reducer(initialState, action);
+  expect(newState.paletteEditorTab).toBe("hsb");
+});
+
 test("Should leave selection mode when selecting a palette", () => {
   const state: EditorState = {
     ...initialState,
@@ -391,6 +397,36 @@ test("Should be able to edit search term", () => {
   const action = actions.editSearchTerm("Search Term");
   const newState = reducer(state, action);
   expect(newState.searchTerm).toBe("Search Term");
+});
+
+test("Should store navigator search settings", () => {
+  const enabledState = reducer(
+    initialState,
+    actions.toggleNavigatorSearch("palettes"),
+  );
+  const searchedState = reducer(
+    enabledState,
+    actions.setNavigatorSearchTerm({
+      key: "palettes",
+      searchTerm: "Warm",
+    }),
+  );
+
+  expect(enabledState.navigatorSearch.palettes).toBe("");
+  expect(searchedState.navigatorSearch.palettes).toBe("Warm");
+});
+
+test("Should clear navigator search term when disabling search", () => {
+  const state: EditorState = {
+    ...initialState,
+    navigatorSearch: {
+      ...initialState.navigatorSearch,
+      palettes: "Warm",
+    },
+  };
+  const newState = reducer(state, actions.toggleNavigatorSearch("palettes"));
+
+  expect(newState.navigatorSearch.palettes).toBeUndefined();
 });
 
 test("Should be able to set script tab", () => {
