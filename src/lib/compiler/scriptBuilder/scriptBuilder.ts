@@ -15,7 +15,6 @@ import {
   isPropertyField,
   isVariableField,
   isActorField,
-  isScriptValueField,
   isDataTableField,
 } from "shared/lib/scripts/scriptDefHelpers";
 import {
@@ -32,13 +31,8 @@ import type {
   SpriteModeSetting,
 } from "shared/lib/resources/types";
 import { mapUncommentedScript } from "shared/lib/scripts/walk";
+import { ConstScriptValue, ScriptValue } from "shared/lib/scriptValue/types";
 import {
-  ConstScriptValue,
-  isScriptValue,
-  ScriptValue,
-} from "shared/lib/scriptValue/types";
-import {
-  mapScriptValueLeafNodes,
   optimiseScriptValue,
   precompileScriptValue,
   addScriptValueConst,
@@ -77,6 +71,7 @@ import {
   assertUnreachable,
   dirToAngle,
   fadeSpeeds,
+  getVariableId,
   getPalette,
   scriptValueToPixels,
   scriptValueToSubpixels,
@@ -372,8 +367,8 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   actorGetPosition = (
-    variableX: string,
-    variableY: string,
+    variableX: ScriptBuilderVariable,
+    variableY: ScriptBuilderVariable,
     units: DistanceUnitType = "tiles",
   ) => {
     const actorRef = this._declareLocal("actor", 4);
@@ -395,7 +390,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   actorGetPositionX = (
-    variableX: string,
+    variableX: ScriptBuilderVariable,
     units: DistanceUnitType = "tiles",
   ) => {
     const actorRef = this._declareLocal("actor", 4);
@@ -413,7 +408,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   actorGetPositionY = (
-    variableY: string,
+    variableY: ScriptBuilderVariable,
     units: DistanceUnitType = "tiles",
   ) => {
     const actorRef = this._declareLocal("actor", 4);
@@ -430,14 +425,14 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  actorGetDirection = (variable: string) => {
+  actorGetDirection = (variable: ScriptBuilderVariable) => {
     const actorRef = this._declareLocal("actor", 4);
     this._addComment(`Store Direction In Variable`);
     this._actorGetDirectionToVariable(actorRef, variable);
     this._addNL();
   };
 
-  actorGetAnimFrame = (variable: string) => {
+  actorGetAnimFrame = (variable: ScriptBuilderVariable) => {
     const actorRef = this._declareLocal("actor", 4);
     this._addComment(`Store Frame In Variable`);
     this._actorGetAnimFrame(actorRef);
@@ -993,7 +988,7 @@ class ScriptBuilder extends ScriptBuilderBase {
     projectileIndex: number,
     x = 0,
     y = 0,
-    angleVariable: string,
+    angleVariable: ScriptBuilderVariable,
   ) => {
     const actorRef = this._declareLocal("actor", 4);
     this._addComment("Launch Projectile In Angle");
@@ -1379,7 +1374,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   textChoice = (
-    variable: string,
+    variable: ScriptBuilderVariable,
     args: { trueText: string; falseText: string },
   ) => {
     const variableAlias = this.getVariableAlias(variable);
@@ -1418,7 +1413,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   textMenu = (
-    variable: string,
+    variable: ScriptBuilderVariable,
     options: string[],
     layout = "menu",
     cancelOnLastOption = false,
@@ -1949,7 +1944,10 @@ class ScriptBuilder extends ScriptBuilderBase {
   // --------------------------------------------------------------------------
   // Threads
 
-  threadStart = (handleVariable: string, script: ScriptEvent[]) => {
+  threadStart = (
+    handleVariable: ScriptBuilderVariable,
+    script: ScriptEvent[],
+  ) => {
     this._addComment(`Thread Start`);
     const scriptRef = this._compileSubScript("thread", script);
     this._vmUnlock();
@@ -1957,7 +1955,7 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  threadTerminate = (handleVariable: string) => {
+  threadTerminate = (handleVariable: ScriptBuilderVariable) => {
     this._addComment(`Thread Stop`);
     this._threadTerminateWithVariableHandle(handleVariable);
     this._addNL();
@@ -1965,6 +1963,65 @@ class ScriptBuilder extends ScriptBuilderBase {
 
   // --------------------------------------------------------------------------
   // Call Script
+
+  _resolveArrayReferenceArgument = (
+    variable: string | ScriptValue | ScriptBuilderFunctionArg,
+    argumentId: string,
+  ): { alias: string; indirect: boolean } => {
+    let rootVariable: ScriptBuilderVariable;
+    if (typeof variable === "string" || this._isFunctionArg(variable)) {
+      rootVariable = variable;
+    } else if (this._isVariableReference(variable)) {
+      if (variable.index) {
+        throw new Error(
+          `Array reference argument "${argumentId}" must reference the root of an array`,
+        );
+      }
+      rootVariable = variable.value;
+    } else {
+      throw new Error(
+        `Array reference argument "${argumentId}" must be an array variable`,
+      );
+    }
+
+    const resolvedVariable = this._resolveVariableRef(rootVariable);
+    if (this._isFunctionArg(resolvedVariable)) {
+      if (!resolvedVariable.indirect || !resolvedVariable.array) {
+        throw new Error(
+          `Array reference argument "${argumentId}" must be an array variable`,
+        );
+      }
+      return {
+        alias: resolvedVariable.symbol,
+        indirect: true,
+      };
+    }
+
+    if (
+      typeof resolvedVariable !== "string" &&
+      typeof resolvedVariable !== "number"
+    ) {
+      throw new Error(
+        `Array reference argument "${argumentId}" must be an array variable`,
+      );
+    }
+
+    const variableId = getVariableId(
+      String(resolvedVariable),
+      this.options.entity,
+    );
+    const variableDefinition = this.options.variablesLookup[variableId];
+    if (variableDefinition?.type !== "array") {
+      throw new Error(
+        `Array reference argument "${argumentId}" must be an array variable`,
+      );
+    }
+
+    return {
+      alias: this.getVariableAlias(rootVariable),
+      indirect: false,
+    };
+  };
 
   callScript = (
     scriptId: string,
@@ -1996,6 +2053,10 @@ class ScriptBuilder extends ScriptBuilderBase {
       for (const variableArg of variableArgs) {
         if (variableArg) {
           const variableValue = input?.[`$variable[${variableArg.id}]$`] || "";
+
+          if (variableArg.passByReference === "array") {
+            continue;
+          }
 
           if (
             typeof variableValue !== "string" &&
@@ -2053,7 +2114,20 @@ class ScriptBuilder extends ScriptBuilderBase {
       for (const variableArg of clone(variableArgs).reverse()) {
         if (variableArg) {
           const variableValue = input?.[`$variable[${variableArg.id}]$`] || "";
-          if (variableArg.passByReference) {
+          if (variableArg.passByReference === "array") {
+            const arrayReference = this._resolveArrayReferenceArgument(
+              variableValue,
+              variableArg.id,
+            );
+            if (arrayReference.indirect) {
+              this._stackPush(arrayReference.alias);
+            } else {
+              this._stackPushReference(
+                arrayReference.alias,
+                `Variable ${variableArg.id}`,
+              );
+            }
+          } else if (variableArg.passByReference) {
             // Pass by Reference ----------
 
             if (typeof variableValue === "string") {
@@ -2061,8 +2135,8 @@ class ScriptBuilder extends ScriptBuilderBase {
               this._stackPushConst(variableAlias, `Variable ${variableArg.id}`);
             } else if (variableValue && variableValue.type === "variable") {
               // Arg is a union variable
-              const variableAlias = this.getVariableAlias(variableValue.value);
-              if (this._isIndirectVariable(variableValue.value)) {
+              const variableAlias = this.getVariableAlias(variableValue);
+              if (this._isIndirectVariable(variableValue)) {
                 this._stackPush(variableAlias);
               } else {
                 // Arg union value is variable id
@@ -2094,8 +2168,8 @@ class ScriptBuilder extends ScriptBuilderBase {
               );
             } else if (variableValue && variableValue.type === "variable") {
               // Arg is a union variable
-              const variableAlias = this.getVariableAlias(variableValue.value);
-              if (this._isIndirectVariable(variableValue.value)) {
+              const variableAlias = this.getVariableAlias(variableValue);
+              if (this._isIndirectVariable(variableValue)) {
                 // Arg union value is indirect variable id
                 this._stackPushInd(variableAlias);
               } else {
@@ -2172,6 +2246,7 @@ class ScriptBuilder extends ScriptBuilderBase {
       type: "actor" | "variable",
       indirect: boolean,
       value: string,
+      array = false,
     ) => {
       if (!argLookup[type].get(value)) {
         const newArg = `.SCRIPT_ARG_${
@@ -2180,6 +2255,7 @@ class ScriptBuilder extends ScriptBuilderBase {
         argLookup[type].set(value, {
           type: "argument",
           indirect,
+          array,
           symbol: newArg,
         });
         numArgs--;
@@ -2219,7 +2295,12 @@ class ScriptBuilder extends ScriptBuilderBase {
     if (variableArgs) {
       for (const variableArg of clone(variableArgs).reverse()) {
         if (variableArg) {
-          registerArg("variable", variableArg.passByReference, variableArg.id);
+          registerArg(
+            "variable",
+            variableArg.passByReference !== false,
+            variableArg.id,
+            variableArg.passByReference === "array",
+          );
         }
       }
     }
@@ -2301,43 +2382,6 @@ class ScriptBuilder extends ScriptBuilderBase {
           ) {
             e.args[arg] = getArg("actor", argValue); // input[`$variable[${argValue}]$`];
           }
-          // Update script value fields
-          if (
-            isScriptValueField(
-              e.command,
-              arg,
-              e.args,
-              this.options.scriptEventHandlers,
-            )
-          ) {
-            if (isScriptValue(argValue)) {
-              e.args[arg] = mapScriptValueLeafNodes(argValue, (val) => {
-                if (val.type === "variable") {
-                  if (isVariableCustomEvent(val.value)) {
-                    return {
-                      ...val,
-                      value: getArg("variable", val.value),
-                    };
-                  }
-                } else if (val.type === "property" && val.target !== "camera") {
-                  const scriptArg = getArg("actor", val.target);
-                  if (scriptArg && typeof scriptArg === "string") {
-                    return {
-                      ...val,
-                      value: scriptArg,
-                    };
-                  } else if (scriptArg && typeof scriptArg !== "string") {
-                    return {
-                      ...val,
-                      target: scriptArg.symbol,
-                      value: scriptArg,
-                    };
-                  }
-                }
-                return val;
-              });
-            }
-          }
           // Update data table fields
           if (
             isDataTableField(
@@ -2351,8 +2395,8 @@ class ScriptBuilder extends ScriptBuilderBase {
               e.args[arg] = {
                 ...argValue,
                 variables: argValue.variables.map((v) => {
-                  if (isVariableCustomEvent(v)) {
-                    return getArg("variable", v);
+                  if (isVariableCustomEvent(v.value)) {
+                    return { ...v, value: getArg("variable", v.value) };
                   }
                   return v;
                 }),
@@ -2580,13 +2624,19 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  variableSetToValue = (variable: string, value: number | string) => {
+  variableSetToValue = (
+    variable: ScriptBuilderVariable,
+    value: number | string,
+  ) => {
     this._addComment("Variable Set To Value");
     this._setVariableConst(variable, value);
     this._addNL();
   };
 
-  variableSetToScriptValue = (variable: string, value: ScriptValue) => {
+  variableSetToScriptValue = (
+    variable: ScriptBuilderVariable,
+    value: ScriptValue,
+  ) => {
     this._addComment("Variable Set To");
     const [rpnOps, fetchOps] = precompileScriptValue(
       optimiseScriptValue(value),
@@ -2594,7 +2644,10 @@ class ScriptBuilder extends ScriptBuilderBase {
     if (rpnOps.length === 1 && rpnOps[0].type === "number") {
       this._setVariableConst(variable, rpnOps[0].value);
     } else if (rpnOps.length === 1 && rpnOps[0].type === "variable") {
-      this._setVariableToVariable(variable, rpnOps[0].value);
+      this._setVariableToVariable(
+        variable,
+        this._scriptValueVariable(rpnOps[0].value, rpnOps[0].index),
+      );
     } else {
       const localsLookup = this._performFetchOperations(fetchOps);
       this._addComment(`-- Calculate value`);
@@ -2614,7 +2667,11 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  variableSetToRandom = (variable: string, min: number, range: number) => {
+  variableSetToRandom = (
+    variable: ScriptBuilderVariable,
+    min: number,
+    range: number,
+  ) => {
     this._addComment("Variable Set To Random");
     this._randVariable(variable, min, range);
     this._addNL();
@@ -2627,9 +2684,9 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   variablesOperation = (
-    setVariable: string,
+    setVariable: ScriptBuilderVariable,
     operation: ScriptBuilderRPNOperation,
-    otherVariable: string,
+    otherVariable: ScriptBuilderVariable,
     clamp: boolean,
   ) => {
     this._addComment(`Variables ${operation}`);
@@ -2650,7 +2707,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   variableValueOperation = (
-    setVariable: string,
+    setVariable: ScriptBuilderVariable,
     operation: ScriptBuilderRPNOperation,
     value: number,
     clamp: boolean,
@@ -2673,7 +2730,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   variablesScriptValueOperation = (
-    setVariable: string,
+    setVariable: ScriptBuilderVariable,
     operation: ScriptBuilderRPNOperation,
     value: ScriptValue,
   ) => {
@@ -2692,7 +2749,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   variableRandomOperation = (
-    variable: string,
+    variable: ScriptBuilderVariable,
     operation: ScriptBuilderRPNOperation,
     min: number,
     range: number,
@@ -2717,7 +2774,7 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  variableAddFlags = (variable: string, flags: number) => {
+  variableAddFlags = (variable: ScriptBuilderVariable, flags: number) => {
     this._addComment(`Variable Add Flags`);
     this._rpn() //
       .refVariable(variable)
@@ -2728,7 +2785,7 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  variableClearFlags = (variable: string, flags: number) => {
+  variableClearFlags = (variable: ScriptBuilderVariable, flags: number) => {
     this._addComment(`Variable Clear Flags`);
     this._rpn() //
       .refVariable(variable)
@@ -2741,15 +2798,23 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  variableEvaluateExpression = (variable: string, expression: string) => {
+  variableEvaluateExpression = (
+    variable: ScriptBuilderVariable,
+    expression: string,
+  ) => {
     this._addComment(
-      `Variable ${variable} = ${this._expressionToHumanReadable(expression)}`,
+      `Variable ${this._variableToHumanReadable(
+        variable,
+      )} = ${this._expressionToHumanReadable(expression)}`,
     );
     this._stackPushEvaluatedExpression(expression, variable);
     this._addNL();
   };
 
-  variableDataTableLookup = (indexVariable: string, table: ScriptDataTable) => {
+  variableDataTableLookup = (
+    indexVariable: ScriptBuilderVariable,
+    table: ScriptDataTable,
+  ) => {
     if (table.variables.length === 0 || table.rows.length === 0) {
       // No data provided, skip instruction
       return;
@@ -2840,10 +2905,14 @@ class ScriptBuilder extends ScriptBuilderBase {
         }
       } else if (rpnOps.length === 1 && rpnOps[0].type === "variable") {
         // Was single variable
+        const variable = this._scriptValueVariable(
+          rpnOps[0].value,
+          rpnOps[0].index,
+        );
         if (is16BitCType(cType)) {
-          this._setMemInt16ToVariable(key, rpnOps[0].value);
+          this._setMemInt16ToVariable(key, variable);
         } else {
-          this._setMemInt8ToVariable(key, rpnOps[0].value);
+          this._setMemInt8ToVariable(key, variable);
         }
       } else {
         // Was RPN instructions
@@ -2886,7 +2955,10 @@ class ScriptBuilder extends ScriptBuilderBase {
     }
   };
 
-  engineFieldStoreInVariable = (key: string, variable: string) => {
+  engineFieldStoreInVariable = (
+    key: string,
+    variable: ScriptBuilderVariable,
+  ) => {
     const { engineFields } = this.options;
     const engineField = engineFields[key];
     if (engineField !== undefined && engineField.key) {
@@ -3562,25 +3634,45 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addNL();
   };
 
-  dataPeek = (slot = 0, variableSource: string, variableDest: string) => {
+  dataPeek = (
+    slot = 0,
+    variableSource: ScriptBuilderVariable,
+    variableDest: ScriptBuilderVariable,
+  ) => {
     const peekValueRef = this._declareLocal("peek_value", 1, true);
-    const variableDestAlias = this.getVariableAlias(variableDest);
-    const variableSourceAlias = this.getVariableAlias(variableSource);
+    const variableSourceAddress = this._resolveVariableAddress(variableSource);
+    this._assertResolvedVariableDirect(variableSourceAddress);
+    const variableDestAddress = this._resolveVariableAddress(variableDest);
+    const peekDestAddress =
+      variableDestAddress.type === "direct"
+        ? variableDestAddress
+        : this._directVariableAddress(this._declareLocal("peek_dest", 1, true));
     const foundLabel = this.getNextLabel();
 
     this._addComment(
-      `Store ${variableSourceAlias} from save slot ${slot} into ${variableDestAlias}`,
+      `Store ${variableSourceAddress.address} from save slot ${slot} into ${
+        variableDestAddress.type === "direct"
+          ? variableDestAddress.address
+          : variableDestAddress.pointer
+      }`,
     );
     this._savePeek(
       peekValueRef,
-      variableDestAlias,
-      variableSourceAlias,
+      peekDestAddress,
+      variableSourceAddress,
       1,
       slot,
     );
     this._ifConst(".EQ", peekValueRef, 1, foundLabel, 0);
-    this._setVariableConst(variableDest, 0);
+    if (variableDestAddress.type === "direct") {
+      this._setConst(variableDestAddress.address, 0);
+    } else {
+      this._setConst(peekDestAddress.address, 0);
+    }
     this._label(foundLabel);
+    if (variableDestAddress.type === "indirect") {
+      this._setInd(variableDestAddress.pointer, peekDestAddress.address);
+    }
     this._addNL();
   };
 
@@ -3600,11 +3692,19 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   linkTransfer = (
-    sendVariable: string,
-    receiveVariable: string,
+    sendVariable: ScriptBuilderVariable,
+    receiveVariable: ScriptBuilderVariable,
     packetSize: number,
   ) => {
-    this._sioExchangeVariables(sendVariable, receiveVariable, packetSize);
+    if (packetSize > 1) {
+      this._assertVariableIsArrayOfMinimumSize(sendVariable, packetSize);
+      this._assertVariableIsArrayOfMinimumSize(receiveVariable, packetSize);
+    }
+    this._sioExchangeVariables(
+      this._resolveVariableAddress(sendVariable),
+      this._resolveVariableAddress(receiveVariable),
+      packetSize,
+    );
   };
 
   // --------------------------------------------------------------------------
@@ -3695,9 +3795,9 @@ class ScriptBuilder extends ScriptBuilderBase {
 
   // @to-deprecate Currently used by eventReplaceTileXYSequence
   ifVariableCompare = (
-    variableA: string,
+    variableA: ScriptBuilderVariable,
     operator: ScriptBuilderComparisonOperator,
-    variableB: string,
+    variableB: ScriptBuilderVariable,
     truePath: ScriptEvent[] | ScriptBuilderPathFunction = [],
     falsePath: ScriptEvent[] | ScriptBuilderPathFunction = [],
   ) => {
@@ -3715,7 +3815,7 @@ class ScriptBuilder extends ScriptBuilderBase {
 
   // @to-deprecate Currently used by eventReplaceTileXYSequence and eventLoopFor
   ifVariableCompareScriptValue = (
-    variable: string,
+    variable: ScriptBuilderVariable,
     operator: ScriptBuilderComparisonOperator,
     value: ScriptValue,
     truePath: ScriptEvent[] | ScriptBuilderPathFunction = [],
@@ -3796,12 +3896,16 @@ class ScriptBuilder extends ScriptBuilderBase {
     this._addComment(`If`);
 
     if (optimisedValue.type === "variable") {
+      const variable = this._scriptValueVariable(
+        optimisedValue.value,
+        optimisedValue.index,
+      );
       if (testIfTruthy) {
         this._addComment(`-- If Truthy`);
-        this._ifVariableConst(".NE", optimisedValue.value, 0, trueLabel, 0);
+        this._ifVariableConst(".NE", variable, 0, trueLabel, 0);
       } else {
         this._addComment(`-- If Falsy`);
-        this._ifVariableConst(".EQ", optimisedValue.value, 0, trueLabel, 0);
+        this._ifVariableConst(".EQ", variable, 0, trueLabel, 0);
       }
     } else {
       const [rpnOps, fetchOps] = precompileScriptValue(optimisedValue);
@@ -3830,7 +3934,7 @@ class ScriptBuilder extends ScriptBuilderBase {
 
   // @to-deprecate Currently used by eventIfVariableFlagsCompare (use if ifScriptValue)
   ifVariableBitwiseValue = (
-    variable: string,
+    variable: ScriptBuilderVariable,
     operator: ScriptBuilderRPNOperation,
     flags: number,
     truePath: ScriptEvent[] | ScriptBuilderPathFunction = [],
@@ -4054,7 +4158,13 @@ class ScriptBuilder extends ScriptBuilderBase {
     const trueLabel = this.getNextLabel();
     const endLabel = this.getNextLabel();
     this._addComment(`If Variable True`);
-    this._savePeek(savePeekRef, 0, 0, 0, slot);
+    this._savePeek(
+      savePeekRef,
+      this._directVariableAddress(0),
+      this._directVariableAddress(0),
+      0,
+      slot,
+    );
     this._ifConst(".EQ", savePeekRef, 1, trueLabel, 0);
     this._addNL();
     this._compilePath(falsePath);
@@ -4267,7 +4377,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   };
 
   caseVariableConstValue = (
-    variable: string,
+    variable: ScriptBuilderVariable,
     cases: {
       value: ConstScriptValue;
       branch: ScriptEvent[] | ScriptBuilderPathFunction;

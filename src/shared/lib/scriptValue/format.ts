@@ -22,7 +22,11 @@ export const scriptValueToString = (
   if (value.type === "number" || value.type === "numberSymbol") {
     return String(value.value);
   } else if (value.type === "variable") {
-    return options.variableNameForId(value.value);
+    const variable = options.variableNameForId(value.value);
+    if (value.index) {
+      return `${variable}[${scriptValueToString(value.index, options)}]`;
+    }
+    return variable;
   } else if (value.type === "constant") {
     return options.constantNameForId(value.value);
   } else if (value.type === "direction") {
@@ -33,7 +37,7 @@ export const scriptValueToString = (
     )}`;
   } else if (value.type === "expression") {
     return String(value.value || "0")
-      .replace(/\$([VLT]*[0-9]+)\$/g, (_, match) => {
+      .replace(/\$([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)\$/g, (_, match) => {
         return options.variableNameForId(match);
       })
       .replace(/@engine::([^@]+)@/g, (_, match) => {

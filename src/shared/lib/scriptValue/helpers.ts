@@ -11,13 +11,12 @@ import {
   ValueOperatorType,
   ValueUnaryOperatorType,
   isValueUnaryOperatorType,
-  RPNOperation,
-  RPNUnaryOperation,
   ScriptValueAtom,
   OptimisedScriptValue,
 } from "./types";
-import { OperatorSymbol } from "shared/lib/rpn/types";
+import { OperatorSymbol, RPNToken } from "shared/lib/rpn/types";
 import { subpxShiftForUnits } from "shared/lib/helpers/subpixels";
+import { normalizeVariableId } from "shared/lib/variables/variableIds";
 
 const boolToInt = (val: boolean) => (val ? 1 : 0);
 const zero = {
@@ -204,170 +203,187 @@ export const optimiseScriptValue = (
     };
   } else if (input.type === "expression") {
     return optimiseScriptValue(expressionToScriptValue(input.value));
+  } else if (input.type === "variable" && input.index) {
+    return {
+      ...input,
+      index: optimiseScriptValue(input.index),
+    };
   }
   return input;
+};
+
+const mapOperator = (
+  operator: OperatorSymbol,
+): ValueOperatorType | ValueUnaryOperatorType => {
+  const operatorMap: Record<
+    OperatorSymbol,
+    ValueOperatorType | ValueUnaryOperatorType
+  > = {
+    "/": "div",
+    "*": "mul",
+    "+": "add",
+    "-": "sub",
+    "%": "mod",
+    "!": "not",
+    "&": "bAND",
+    "|": "bOR",
+    "^": "bXOR",
+    "~": "bNOT",
+    "==": "eq",
+    "!=": "ne",
+    "<": "lt",
+    "<=": "lte",
+    ">": "gt",
+    ">=": "gte",
+    "&&": "and",
+    "||": "or",
+    "<<": "shl",
+    ">>": "shr",
+    neg: "neg",
+  };
+
+  const scriptValueOperator = operatorMap[operator];
+
+  /* istanbul ignore else: unreachable else branch */
+  if (scriptValueOperator) {
+    return scriptValueOperator;
+  } else {
+    assertUnreachable(scriptValueOperator);
+    return "eq";
+  }
+};
+
+export const rpnTokensToScriptValue = (rpnTokens: RPNToken[]): ScriptValue => {
+  const stack: ScriptValue[] = [];
+
+  for (const operation of rpnTokens) {
+    if (operation.type === "VAR") {
+      const variableId = normalizeVariableId(
+        operation.symbol.replace(/\$/g, ""),
+      );
+      stack.push({
+        type: "variable",
+        value: variableId,
+        ...(operation.index && {
+          index: rpnTokensToScriptValue(operation.index),
+        }),
+      });
+    } else if (operation.type === "VAL") {
+      stack.push({
+        type: "number",
+        value: operation.value,
+      });
+    } else if (operation.type === "CONST") {
+      stack.push({
+        type: "constant",
+        value: operation.symbol,
+      });
+    } else if (operation.type === "OP") {
+      const scriptValueOperator = mapOperator(operation.operator);
+      if (isValueUnaryOperatorType(scriptValueOperator)) {
+        const value = stack.pop();
+        if (value) {
+          stack.push({
+            type: scriptValueOperator,
+            value,
+          });
+        }
+      } else {
+        const valueB = stack.pop();
+        const valueA = stack.pop();
+        if (valueA && valueB) {
+          stack.push({
+            type: scriptValueOperator,
+            valueA,
+            valueB,
+          });
+        }
+      }
+    } else if (operation.type === "FUN") {
+      if (operation.function === "min") {
+        const valueB = stack.pop();
+        const valueA = stack.pop();
+        if (valueA && valueB) {
+          stack.push({
+            type: "min",
+            valueA,
+            valueB,
+          });
+        }
+      } else if (operation.function === "max") {
+        const valueB = stack.pop();
+        const valueA = stack.pop();
+        if (valueA && valueB) {
+          stack.push({
+            type: "max",
+            valueA,
+            valueB,
+          });
+        }
+      } else if (operation.function === "abs") {
+        const value = stack.pop();
+        if (value) {
+          stack.push({
+            type: "abs",
+            value,
+          });
+        }
+      } else if (operation.function === "rnd") {
+        const value = stack.pop();
+        if (value) {
+          stack.push({
+            type: "rnd",
+            value,
+          });
+        }
+      } else if (operation.function === "isqrt") {
+        const value = stack.pop();
+        if (value) {
+          stack.push({
+            type: "isqrt",
+            value,
+          });
+        }
+      } else if (operation.function === "atan2") {
+        const valueB = stack.pop();
+        const valueA = stack.pop();
+        if (valueA && valueB) {
+          stack.push({
+            type: "atan2",
+            valueA,
+            valueB,
+          });
+        }
+      } else if (operation.function === "neg") {
+        const value = stack.pop();
+        if (value) {
+          stack.push({
+            type: "sub",
+            valueA: { type: "number", value: 0 },
+            valueB: value,
+          });
+        }
+      } else {
+        /* istanbul ignore next: unreachable */
+        assertUnreachable(operation.function);
+      }
+    } else {
+      /* istanbul ignore next: unreachable */
+      assertUnreachable(operation);
+    }
+  }
+
+  if (stack.length !== 1) {
+    throw new Error("Invalid RPN expression");
+  }
+  return stack[0];
 };
 
 export const expressionToScriptValue = (expression: string): ScriptValue => {
   try {
     const tokens = tokenize(expression);
     const rpnTokens = shuntingYard(tokens);
-
-    const stack: ScriptValue[] = [];
-
-    function mapOperator(
-      operator: OperatorSymbol,
-    ): ValueOperatorType | ValueUnaryOperatorType {
-      const operatorMap: Record<
-        OperatorSymbol,
-        ValueOperatorType | ValueUnaryOperatorType
-      > = {
-        "/": "div",
-        "*": "mul",
-        "+": "add",
-        "-": "sub",
-        "%": "mod",
-        "!": "not",
-        "&": "bAND",
-        "|": "bOR",
-        "^": "bXOR",
-        "~": "bNOT",
-        "==": "eq",
-        "!=": "ne",
-        "<": "lt",
-        "<=": "lte",
-        ">": "gt",
-        ">=": "gte",
-        "&&": "and",
-        "||": "or",
-        "<<": "shl",
-        ">>": "shr",
-        neg: "neg",
-      };
-
-      const scriptValueOperator = operatorMap[operator];
-
-      /* istanbul ignore else: unreachable else branch */
-      if (scriptValueOperator) {
-        return scriptValueOperator;
-      } else {
-        assertUnreachable(scriptValueOperator);
-        return "eq";
-      }
-    }
-
-    for (const operation of rpnTokens) {
-      if (operation.type === "VAR") {
-        stack.push({
-          type: "variable",
-          value: operation.symbol.replace(/\$/g, "").replace(/^0/g, ""),
-        });
-      } else if (operation.type === "VAL") {
-        stack.push({
-          type: "number",
-          value: operation.value,
-        });
-      } else if (operation.type === "CONST") {
-        stack.push({
-          type: "constant",
-          value: operation.symbol,
-        });
-      } else if (operation.type === "OP") {
-        const scriptValueOperator = mapOperator(operation.operator);
-        if (isValueUnaryOperatorType(scriptValueOperator)) {
-          const value = stack.pop();
-          if (value) {
-            stack.push({
-              type: scriptValueOperator,
-              value,
-            });
-          }
-        } else {
-          const valueB = stack.pop();
-          const valueA = stack.pop();
-          if (valueA && valueB) {
-            stack.push({
-              type: scriptValueOperator,
-              valueA,
-              valueB,
-            });
-          }
-        }
-      } else if (operation.type === "FUN") {
-        if (operation.function === "min") {
-          const valueB = stack.pop();
-          const valueA = stack.pop();
-          if (valueA && valueB) {
-            stack.push({
-              type: "min",
-              valueA,
-              valueB,
-            });
-          }
-        } else if (operation.function === "max") {
-          const valueB = stack.pop();
-          const valueA = stack.pop();
-          if (valueA && valueB) {
-            stack.push({
-              type: "max",
-              valueA,
-              valueB,
-            });
-          }
-        } else if (operation.function === "abs") {
-          const value = stack.pop();
-          if (value) {
-            stack.push({
-              type: "abs",
-              value,
-            });
-          }
-        } else if (operation.function === "rnd") {
-          const value = stack.pop();
-          if (value) {
-            stack.push({
-              type: "rnd",
-              value,
-            });
-          }
-        } else if (operation.function === "isqrt") {
-          const value = stack.pop();
-          if (value) {
-            stack.push({
-              type: "isqrt",
-              value,
-            });
-          }
-        } else if (operation.function === "atan2") {
-          const valueB = stack.pop();
-          const valueA = stack.pop();
-          if (valueA && valueB) {
-            stack.push({
-              type: "atan2",
-              valueA,
-              valueB,
-            });
-          }
-        } else if (operation.function === "neg") {
-          const value = stack.pop();
-          if (value) {
-            stack.push({
-              type: "sub",
-              valueA: { type: "number", value: 0 },
-              valueB: value,
-            });
-          }
-        } else {
-          /* istanbul ignore next: unreachable */
-          assertUnreachable(operation.function);
-        }
-      } else {
-        /* istanbul ignore next: unreachable */
-        assertUnreachable(operation);
-      }
-    }
-
-    return stack.length === 1 ? stack[0] : zero;
+    return rpnTokensToScriptValue(rpnTokens);
   } catch {
     return zero;
   }
@@ -378,6 +394,9 @@ export const walkScriptValue = (
   fn: (val: ScriptValue) => void,
 ): void => {
   fn(input);
+  if (input.type === "variable" && input.index) {
+    walkScriptValue(input.index, fn);
+  }
   if ("valueA" in input && input.valueA) {
     walkScriptValue(input.valueA, fn);
   }
@@ -404,7 +423,9 @@ export const someInScriptValue = (
       return true;
     }
 
-    if ("valueA" in currentNode && "valueB" in currentNode) {
+    if (currentNode.type === "variable" && currentNode.index) {
+      stack.push(currentNode.index);
+    } else if ("valueA" in currentNode && "valueB" in currentNode) {
       stack.push(currentNode.valueB, currentNode.valueA);
     } else if ("value" in currentNode && isUnaryOperation(currentNode)) {
       stack.push(currentNode.value);
@@ -414,33 +435,28 @@ export const someInScriptValue = (
   return false;
 };
 
-export type MappedScriptValue<T> =
-  | T
-  | (Omit<RPNUnaryOperation, "value"> & { value: MappedScriptValue<T> })
-  | (Omit<RPNOperation, "valueA" | "valueB"> & {
-      valueA: MappedScriptValue<T>;
-      valueB: MappedScriptValue<T>;
-    });
-
-export const mapScriptValueLeafNodes = <T>(
+export const mapScriptValue = (
   input: ScriptValue,
-  fn: (val: ScriptValueAtom) => T,
-): MappedScriptValue<T> => {
+  fn: (val: ScriptValueAtom) => ScriptValueAtom,
+): ScriptValue => {
   if (isValueOperation(input)) {
-    const mappedA = input.valueA && mapScriptValueLeafNodes(input.valueA, fn);
-    const mappedB = input.valueB && mapScriptValueLeafNodes(input.valueB, fn);
     return {
       ...input,
-      valueA: mappedA,
-      valueB: mappedB,
+      valueA: mapScriptValue(input.valueA, fn),
+      valueB: mapScriptValue(input.valueB, fn),
     };
   }
   if (isUnaryOperation(input)) {
-    const mapped = input.value && mapScriptValueLeafNodes(input.value, fn);
     return {
       ...input,
-      value: mapped,
+      value: mapScriptValue(input.value, fn),
     };
+  }
+  if (input.type === "variable" && input.index) {
+    return fn({
+      ...input,
+      index: mapScriptValue(input.index, fn),
+    });
   }
   return fn(input);
 };

@@ -23,6 +23,7 @@ import type { PrecompiledMusicTrack } from "../compileMusic";
 import type { EngineFieldSchema } from "store/features/engine/engineState";
 import type { SettingsState } from "store/features/settings/settingsState";
 import type ScriptBuilderBase from "./scriptBuilderBase";
+import type { ScriptValue } from "shared/lib/scriptValue/types";
 
 export type ScriptOutput = string[];
 
@@ -54,13 +55,35 @@ export type ScriptBuilderStackVariable = string | number;
 export type ScriptBuilderFunctionArg = {
   type: "argument";
   indirect: boolean;
+  array?: boolean;
   symbol: string;
 };
 
 type ScriptBuilderSimpleVariable = string | number;
 
+export type ScriptBuilderVariableReference = {
+  type: "variable";
+  value: ScriptBuilderSimpleVariable | ScriptBuilderFunctionArg;
+  index?: ScriptValue;
+};
+
 export type ScriptBuilderVariable =
-  ScriptBuilderSimpleVariable | ScriptBuilderFunctionArg;
+  | ScriptBuilderSimpleVariable
+  | ScriptBuilderFunctionArg
+  | ScriptBuilderVariableReference;
+
+export type ScriptBuilderDirectVariableAddress = {
+  type: "direct";
+  address: ScriptBuilderStackVariable;
+};
+
+export type ScriptBuilderIndirectVariableAddress = {
+  type: "indirect";
+  pointer: ScriptBuilderStackVariable;
+};
+
+export type ScriptBuilderResolvedVariableAddress =
+  ScriptBuilderDirectVariableAddress | ScriptBuilderIndirectVariableAddress;
 
 export type CameraProperty =
   | "camera_x"
@@ -94,6 +117,7 @@ export interface ScriptBuilderOptions<
   variablesLookup: VariablesLookup;
   variableAliasLookup: Record<string, VariableMapData>;
   constantsLookup: Record<string, Constant>;
+  engineConstants: Record<string, number>;
   scenes: PrecompiledScene[];
   sprites: PrecompiledSprite[];
   backgrounds: PrecompiledBackground[];

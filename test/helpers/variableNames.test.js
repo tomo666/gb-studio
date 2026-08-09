@@ -1,14 +1,13 @@
 /* eslint-disable camelcase */
 import {
   globalVariableCode,
-  globalVariableName,
   tempVariableCode,
   tempVariableName,
   localVariableCode,
   localVariableName,
   customEventVariableCode,
   customEventVariableName,
-  getNextVariableId,
+  variableDisplayName,
 } from "../../src/shared/lib/variables/variableNames";
 
 test("Should get variable code for global", () => {
@@ -17,26 +16,10 @@ test("Should get variable code for global", () => {
   expect(globalVariableCode("250")).toBe("250");
 });
 
-test("Should get variable name for global when provided", () => {
-  expect(
-    globalVariableName("50", {
-      50: {
-        id: "50",
-        name: "My Variable Name",
-      },
-    }),
-  ).toBe("My Variable Name");
-});
-
-test("Should get default variable name for global when no custom name provided", () => {
-  expect(
-    globalVariableName("51", {
-      50: {
-        id: "50",
-        name: "My Variable Name",
-      },
-    }),
-  ).toBe("Variable 51");
+test("Should append array capacity to variable display names", () => {
+  expect(variableDisplayName("Health")).toBe("Health");
+  expect(variableDisplayName("Inventory", 5)).toBe("Inventory[5]");
+  expect(variableDisplayName("Items", null)).toBe("Items[]");
 });
 
 test("Should get variable code for temporary", () => {
@@ -105,21 +88,4 @@ test("Should get default variable name for custom event when no custom name prov
       },
     }),
   ).toBe("Variable F");
-});
-
-test("Should get next sequential variable ids for each variable type", () => {
-  expect(getNextVariableId("0")).toBe("1");
-  expect(getNextVariableId("L0")).toBe("L1");
-  expect(getNextVariableId("T0")).toBe("T1");
-  expect(getNextVariableId("V0")).toBe("V1");
-});
-
-test("Should wrap scoped variable ids back to 0 when reaching the limit", () => {
-  expect(getNextVariableId("L5")).toBe("0");
-  expect(getNextVariableId("T1")).toBe("0");
-  expect(getNextVariableId("V9")).toBe("0");
-});
-
-test("Should reset invalid variable ids back to 0", () => {
-  expect(getNextVariableId("LAST_VARIABLE")).toBe("0");
 });

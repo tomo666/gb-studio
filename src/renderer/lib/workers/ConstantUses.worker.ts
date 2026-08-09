@@ -14,17 +14,23 @@ import {
   TriggerPrefabNormalized,
 } from "shared/lib/entities/entitiesTypes";
 import { L10NLookup, setL10NData } from "shared/lib/lang/l10n";
-import tokenizer from "shared/lib/rpn/tokenizer";
 import {
   ScriptEventDefs,
   isScriptValueField,
+  isVariableField,
 } from "shared/lib/scripts/scriptDefHelpers";
 import {
   walkNormalizedCustomEventScripts,
   walkNormalizedScenesScripts,
 } from "shared/lib/scripts/walk";
-import { constantInScriptValue } from "shared/lib/scriptValue/helpers";
-import { isScriptValue } from "shared/lib/scriptValue/types";
+import {
+  constantInScriptValue,
+  expressionToScriptValue,
+} from "shared/lib/scriptValue/helpers";
+import {
+  isScriptValue,
+  isScriptValueVariable,
+} from "shared/lib/scriptValue/types";
 import { createWorkerRequestHandler } from "./createWorkerClient";
 
 export type ConstantUse = {
@@ -111,25 +117,32 @@ workerCtx.onmessage = createWorkerRequestHandler<
       return false;
     }
     const argValue = args[arg];
+    const isCustomEventVariableArg = arg.startsWith("$variable[");
     const field = scriptEventDefs[scriptEvent.command]?.fieldsLookup?.[arg];
-    if (!field) {
+    if (!field && !isCustomEventVariableArg) {
       return false;
     }
-    if (isScriptValueField(scriptEvent.command, arg, args, scriptEventDefs)) {
-      if (
-        isScriptValue(argValue) &&
-        constantInScriptValue(constantId, argValue)
-      ) {
+    if (
+      (isScriptValueField(scriptEvent.command, arg, args, scriptEventDefs) ||
+        isCustomEventVariableArg) &&
+      isScriptValue(argValue)
+    ) {
+      if (constantInScriptValue(constantId, argValue)) {
         return true;
       }
-    } else if (field.type === "matharea" && typeof argValue === "string") {
-      const expressionTokens = tokenizer(argValue);
+    }
+    if (
+      (isVariableField(scriptEvent.command, arg, args, scriptEventDefs) ||
+        isCustomEventVariableArg) &&
+      isScriptValueVariable(argValue) &&
+      argValue.index &&
+      constantInScriptValue(constantId, argValue.index)
+    ) {
+      return true;
+    }
+    if (field?.type === "matharea" && typeof argValue === "string") {
       if (
-        expressionTokens.some(
-          (token) =>
-            token.type === "CONST" &&
-            token.symbol.replace(/@/g, "") === constantId,
-        )
+        constantInScriptValue(constantId, expressionToScriptValue(argValue))
       ) {
         return true;
       }

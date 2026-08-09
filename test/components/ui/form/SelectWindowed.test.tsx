@@ -8,9 +8,10 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { Select } from "ui/form/Select";
+import { CreatableSelect, Select } from "ui/form/Select";
 import { SelectWindowed } from "ui/form/SelectWindowed";
 import ThemeProvider from "ui/theme/ThemeProvider";
+import { components as reactSelectComponents, OptionProps } from "react-select";
 
 const mockScrollToRow = jest.fn();
 
@@ -342,6 +343,40 @@ test("only enables windowing once the threshold is reached", () => {
   expect(screen.getByTestId("windowed-list")).toBeInTheDocument();
 });
 
+test.each(["regular", "creatable"] as const)(
+  "prevents React Select from owning focused-option scrolling for a %s windowed select",
+  (variant) => {
+    const optionInnerRefs: OptionProps<TestOption, false>["innerRef"][] = [];
+    const TrackingOption = (props: OptionProps<TestOption, false>) => {
+      optionInnerRefs.push(props.innerRef);
+      return <reactSelectComponents.Option {...props} />;
+    };
+    const selectProps = {
+      components: { Option: TrackingOption },
+      menuIsOpen: true,
+      menuPortalTarget: null,
+      options,
+      value: options[1],
+    };
+
+    render(
+      <ThemeProvider>
+        {variant === "regular" ? (
+          <Select {...selectProps} />
+        ) : (
+          <CreatableSelect {...selectProps} />
+        )}
+      </ThemeProvider>,
+    );
+
+    expect(optionInnerRefs).not.toHaveLength(0);
+    expect(optionInnerRefs[0]).toEqual(expect.any(Function));
+    expect(
+      optionInnerRefs.every((innerRef) => innerRef === optionInnerRefs[0]),
+    ).toBe(true);
+  },
+);
+
 test("allows the app Select to set its maximum menu height", () => {
   render(
     <ThemeProvider>
@@ -355,6 +390,27 @@ test("allows the app Select to set its maximum menu height", () => {
   );
 
   expect(screen.getByTestId("windowed-list")).toHaveStyle({ height: "70px" });
+});
+
+test("windows creatable options and centres the selected option", async () => {
+  render(
+    <ThemeProvider>
+      <CreatableSelect
+        menuIsOpen
+        menuPortalTarget={null}
+        options={options}
+        value={options[1]}
+      />
+    </ThemeProvider>,
+  );
+
+  expect(screen.getByTestId("windowed-list")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(mockScrollToRow).toHaveBeenCalledWith({
+      align: "center",
+      index: 1,
+    }),
+  );
 });
 
 test("renders only the longest plain label for intrinsic menu width sizing", () => {

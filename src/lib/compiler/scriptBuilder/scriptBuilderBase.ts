@@ -9,12 +9,18 @@ import {
   PrecompiledValueFetch,
   PrecompiledValueRPNOperation,
   ScriptValue,
+  isUnaryOperation,
+  isValueOperation,
 } from "shared/lib/scriptValue/types";
 import {
+  mapScriptValue,
   optimiseScriptValue,
   precompileScriptValue,
+  rpnTokensToScriptValue,
   sortFetchOperations,
 } from "shared/lib/scriptValue/helpers";
+import { scriptValueToString } from "shared/lib/scriptValue/format";
+import { normalizeVariableId } from "shared/lib/variables/variableIds";
 import { chunkTextOnWaitCodes } from "shared/lib/text/textCodes";
 import {
   ASMSFXPriority,
@@ -27,7 +33,9 @@ import {
   ScriptBuilderChoiceFlag,
   ScriptBuilderComparisonOperator,
   ScriptBuilderDataTable,
+  ScriptBuilderDirectVariableAddress,
   ScriptBuilderFunctionArg,
+  ScriptBuilderVariableReference,
   ScriptBuilderLocalSymbol,
   ScriptBuilderMoveType,
   ScriptBuilderOptions,
@@ -36,6 +44,7 @@ import {
   ScriptBuilderPaletteType,
   ScriptBuilderPathFunction,
   ScriptBuilderRPNOperation,
+  ScriptBuilderResolvedVariableAddress,
   ScriptBuilderStackVariable,
   ScriptBuilderUIColor,
   ScriptBuilderVariable,
@@ -68,7 +77,6 @@ import {
   toVariableNumber,
 } from "shared/lib/entities/entitiesHelpers";
 import {
-  globalVariableDefaultName,
   localVariableName,
   tempVariableName,
 } from "shared/lib/variables/variableNames";
@@ -125,6 +133,7 @@ abstract class ScriptBuilderBase {
       variablesLookup: options.variablesLookup || {},
       variableAliasLookup: options.variableAliasLookup || {},
       constantsLookup: options.constantsLookup || {},
+      engineConstants: options.engineConstants || {},
       engineFields: options.engineFields || {},
       engineFieldValues: options.engineFieldValues || [],
       scenes: options.scenes || [],
@@ -300,16 +309,27 @@ abstract class ScriptBuilderBase {
           rpn = rpn.int16(token.value);
         } else if (token.type === "VAR") {
           const ref = token.symbol.replace(/\$/g, "");
-          const variable = ref;
-          if (variable.match(/^V[0-9]$/)) {
-            const key = variable;
+          let variable: ScriptBuilderVariable = ref;
+          if (ref.match(/^V[0-9]$/)) {
+            const key = ref;
             const arg = this.options.argLookup.variable.get(key);
-            if (!arg) {
-              throw new Error("Cant find arg");
+            if (arg) {
+              variable = arg;
             }
-            rpn = rpn.refVariable(arg);
+          }
+          if (this._isMissingVariableReference(ref)) {
+            rpn = rpn.int16(0);
+          } else if (token.index) {
+            variable = {
+              type: "variable",
+              value: variable,
+              index: this._replaceMissingVariableReferences(
+                rpnTokensToScriptValue(token.index),
+              ),
+            };
+            rpn = rpn.refVariable(variable);
           } else {
-            rpn = rpn.refVariable(ref);
+            rpn = rpn.refVariable(variable);
           }
         } else if (token.type === "FUN") {
           const op = funToScriptOperator(token.function);
@@ -342,12 +362,40 @@ abstract class ScriptBuilderBase {
     return expression
       .replace(/\s+/g, "")
       .replace(/\n/g, "")
-      .replace(/(\$L[0-9]\$|\$T[0-1]\$|\$[0-9]+\$)/g, (symbol) => {
-        return this.getVariableAlias(symbol.replace(/\$/g, ""));
-      })
-      .replace(/@([a-z0-9-]{36})@/g, (symbol) => {
-        return this.getConstantSymbol(symbol.replace(/@/g, ""));
-      });
+      .replace(
+        /\$([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)\$/gi,
+        (symbol, variableId: string) =>
+          this._isMissingVariableReference(variableId)
+            ? symbol
+            : this.getVariableAlias(variableId),
+      )
+      .replace(
+        /@(engine::[a-z0-9$_-]+|[a-z0-9-]{36})@/gi,
+        (_symbol, constantId: string) => this.getConstantSymbol(constantId),
+      );
+  };
+
+  _variableToHumanReadable = (variable: ScriptBuilderVariable): string => {
+    if (this._isVariableReference(variable)) {
+      const variableName = this._variableToHumanReadable(variable.value);
+      if (variable.index) {
+        return `${variableName}[${scriptValueToString(variable.index, {
+          variableNameForId: (id) => this._variableToHumanReadable(id),
+          constantNameForId: (id) => this.getConstantSymbol(id),
+          actorNameForId: (id) => id,
+          propertyNameForId: (property) => property,
+          directionForValue: (direction) => direction,
+        })}]`;
+      }
+      return variableName;
+    }
+    if (
+      typeof variable === "string" &&
+      this._isMissingVariableReference(variable)
+    ) {
+      return `$${variable}$`;
+    }
+    return this.getVariableAlias(variable);
   };
 
   _getFontIndex = (fontId: string) => {
@@ -368,18 +416,34 @@ abstract class ScriptBuilderBase {
     return font.symbol.toUpperCase();
   };
 
-  resolveActorId(id: ScriptBuilderVariable): ResolvedActorId {
-    if (typeof id === "number") {
-      return { type: "number", value: id };
+  _resolveActorRef = <T extends ScriptBuilderVariable>(
+    actor: T,
+  ): T | ScriptBuilderFunctionArg => {
+    if (typeof actor === "string") {
+      return this.options.argLookup.actor.get(actor) ?? actor;
     }
-    if (typeof id === "string") {
-      if (id.startsWith(".")) {
-        return { type: "reference", symbol: id };
+    return actor;
+  };
+
+  resolveActorId(id: ScriptBuilderVariable): ResolvedActorId {
+    const resolvedId = this._resolveActorRef(id);
+    if (typeof resolvedId === "number") {
+      return { type: "number", value: resolvedId };
+    }
+    if (typeof resolvedId === "string") {
+      if (resolvedId.startsWith(".")) {
+        return { type: "reference", symbol: resolvedId };
       } else {
-        return { type: "number", value: this.getActorIndex(id) };
+        return { type: "number", value: this.getActorIndex(resolvedId) };
       }
     }
-    return { type: "reference", symbol: id.symbol };
+    if (this._isVariableReference(resolvedId)) {
+      return {
+        type: "reference",
+        symbol: this.getVariableAlias(resolvedId),
+      };
+    }
+    return { type: "reference", symbol: resolvedId.symbol };
   }
 
   _vmLock = () => {
@@ -428,6 +492,15 @@ abstract class ScriptBuilderBase {
     }
   };
 
+  _scriptValueVariable = (
+    value: string,
+    index?: ScriptValue,
+  ): ScriptBuilderVariable => ({
+    type: "variable",
+    value,
+    index,
+  });
+
   _stackPushReference = (
     addr: ScriptBuilderStackVariable,
     comment?: string,
@@ -444,7 +517,9 @@ abstract class ScriptBuilderBase {
     if (rpnOps.length === 1 && rpnOps[0].type === "number") {
       this._stackPushConst(rpnOps[0].value);
     } else if (rpnOps.length === 1 && rpnOps[0].type === "variable") {
-      this._stackPushVariable(rpnOps[0].value);
+      this._stackPushVariable(
+        this._scriptValueVariable(rpnOps[0].value, rpnOps[0].index),
+      );
     } else {
       const localsLookup = this._performFetchOperations(fetchOps);
       this._addComment(`-- Calculate value`);
@@ -493,7 +568,10 @@ abstract class ScriptBuilderBase {
     }
   };
 
-  _setToVariable = (addr: ScriptBuilderStackVariable, variable: string) => {
+  _setToVariable = (
+    addr: ScriptBuilderStackVariable,
+    variable: ScriptBuilderVariable,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     if (this._isIndirectVariable(variable)) {
       this._stackPushInd(variableAlias);
@@ -565,7 +643,10 @@ abstract class ScriptBuilderBase {
     this._addCmd("VM_SET_INT16", `_${cVariable}`, addr);
   };
 
-  _setMemInt8ToVariable = (cVariable: string, variable: string) => {
+  _setMemInt8ToVariable = (
+    cVariable: string,
+    variable: ScriptBuilderVariable,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     this._addDependency(cVariable);
     if (this._isIndirectVariable(variable)) {
@@ -577,7 +658,10 @@ abstract class ScriptBuilderBase {
     }
   };
 
-  _setMemUInt8ToVariable = (cVariable: string, variable: string) => {
+  _setMemUInt8ToVariable = (
+    cVariable: string,
+    variable: ScriptBuilderVariable,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     this._addDependency(cVariable);
     if (this._isIndirectVariable(variable)) {
@@ -589,7 +673,10 @@ abstract class ScriptBuilderBase {
     }
   };
 
-  _setMemInt16ToVariable = (cVariable: string, variable: string) => {
+  _setMemInt16ToVariable = (
+    cVariable: string,
+    variable: ScriptBuilderVariable,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     this._addDependency(cVariable);
     if (this._isIndirectVariable(variable)) {
@@ -620,12 +707,16 @@ abstract class ScriptBuilderBase {
       }
     } else if (rpnOps.length === 1 && rpnOps[0].type === "variable") {
       // Was single variable
+      const variable = this._scriptValueVariable(
+        rpnOps[0].value,
+        rpnOps[0].index,
+      );
       if (cType === "WORD" || cType === "UWORD") {
-        this._setMemInt16ToVariable(cVariable, rpnOps[0].value);
+        this._setMemInt16ToVariable(cVariable, variable);
       } else if (cType === "UBYTE") {
-        this._setMemUInt8ToVariable(cVariable, rpnOps[0].value);
+        this._setMemUInt8ToVariable(cVariable, variable);
       } else {
-        this._setMemInt8ToVariable(cVariable, rpnOps[0].value);
+        this._setMemInt8ToVariable(cVariable, variable);
       }
     } else {
       // Was RPN instructions
@@ -690,7 +781,10 @@ abstract class ScriptBuilderBase {
     );
   };
 
-  _setVariableMemInt8 = (variable: string, cVariable: string) => {
+  _setVariableMemInt8 = (
+    variable: ScriptBuilderVariable,
+    cVariable: string,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     if (this._isIndirectVariable(variable)) {
       const valueTmpRef = this._declareLocal("value_tmp", 1, true);
@@ -701,7 +795,10 @@ abstract class ScriptBuilderBase {
     }
   };
 
-  _setVariableMemInt16 = (variable: string, cVariable: string) => {
+  _setVariableMemInt16 = (
+    variable: ScriptBuilderVariable,
+    cVariable: string,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     if (this._isIndirectVariable(variable)) {
       const valueTmpRef = this._declareLocal("value_tmp", 1, true);
@@ -757,40 +854,89 @@ abstract class ScriptBuilderBase {
   };
 
   _sioExchange = (
-    sendVariable: string,
-    receiveVariable: string,
+    sendVariable: ScriptBuilderStackVariable,
+    receiveVariable: ScriptBuilderStackVariable,
     packetSize: number,
   ) => {
     this._addCmd("VM_SIO_EXCHANGE", sendVariable, receiveVariable, packetSize);
   };
 
   _sioExchangeVariables = (
-    variableA: string,
-    variableB: string,
+    variableA: ScriptBuilderResolvedVariableAddress,
+    variableB: ScriptBuilderResolvedVariableAddress,
     packetSize: number,
   ) => {
-    const variableAliasA = this.getVariableAlias(variableA);
-    const variableAliasB = this.getVariableAlias(variableB);
+    if (packetSize > 1) {
+      const offsetAddress = (
+        address: ScriptBuilderStackVariable,
+        offset: number,
+      ): ScriptBuilderStackVariable =>
+        offset === 0 ? address : `^/(${address} + ${offset})/`;
+      const incrementPointer = (pointer: ScriptBuilderStackVariable) => {
+        this._rpn()
+          .ref(pointer)
+          .int8(1)
+          .operator(".ADD")
+          .refSet(pointer)
+          .stop();
+      };
+
+      let sendAddress: ScriptBuilderStackVariable;
+      if (variableA.type === "direct") {
+        sendAddress = variableA.address;
+      } else {
+        sendAddress = this._declareLocal("sio_send", packetSize, true);
+        const sendPointer = this._declareLocal("sio_send_ptr", 1, true);
+        this._set(sendPointer, variableA.pointer);
+        for (let i = 0; i < packetSize; i++) {
+          this._stackPushInd(sendPointer);
+          this._set(offsetAddress(sendAddress, i), ".ARG0");
+          this._stackPop(1);
+          if (i < packetSize - 1) {
+            incrementPointer(sendPointer);
+          }
+        }
+      }
+
+      const receiveAddress =
+        variableB.type === "direct"
+          ? variableB.address
+          : this._declareLocal("sio_receive", packetSize, true);
+      this._sioExchange(sendAddress, receiveAddress, packetSize);
+
+      if (variableB.type === "indirect") {
+        const receivePointer = this._declareLocal("sio_receive_ptr", 1, true);
+        this._set(receivePointer, variableB.pointer);
+        for (let i = 0; i < packetSize; i++) {
+          this._setInd(receivePointer, offsetAddress(receiveAddress, i));
+          if (i < packetSize - 1) {
+            incrementPointer(receivePointer);
+          }
+        }
+      }
+      return;
+    }
 
     let pop = 0;
-    let dest = variableAliasB;
+    let dest: ScriptBuilderStackVariable =
+      variableB.type === "direct" ? variableB.address : ".ARG0";
 
-    if (this._isIndirectVariable(variableB)) {
+    if (variableB.type === "indirect") {
       pop++;
       this._stackPushConst(0);
-      dest = this._isIndirectVariable(variableA) ? ".ARG1" : ".ARG0";
+      dest = variableA.type === "indirect" ? ".ARG1" : ".ARG0";
     }
 
-    if (this._isIndirectVariable(variableA)) {
+    if (variableA.type === "indirect") {
       pop++;
-      this._stackPushInd(variableAliasA);
+      this._stackPushInd(variableA.pointer);
       this._sioExchange(".ARG0", dest, packetSize);
     } else {
-      this._sioExchange(variableAliasA, dest, packetSize);
+      this._sioExchange(variableA.address, dest, packetSize);
     }
 
-    if (this._isIndirectVariable(variableB)) {
-      this._setInd(variableAliasB, dest);
+    if (variableB.type === "indirect") {
+      this._setInd(variableB.pointer, dest);
     }
 
     if (pop > 0) {
@@ -859,7 +1005,11 @@ abstract class ScriptBuilderBase {
     this._addCmd("VM_RAND", addr, min, range);
   };
 
-  _randVariable = (variable: string, min: number, range: number) => {
+  _randVariable = (
+    variable: ScriptBuilderVariable,
+    min: number,
+    range: number,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     if (this._isIndirectVariable(variable)) {
       const valueTmpRef = this._declareLocal("value_tmp", 1, true);
@@ -873,6 +1023,17 @@ abstract class ScriptBuilderBase {
   _rpn = () => {
     const output: string[] = [];
     let rpnStackSize = 0;
+    const variableAliases = new Map<ScriptBuilderVariable, string>();
+
+    const variableAlias = (variable: ScriptBuilderVariable) => {
+      const cachedAlias = variableAliases.get(variable);
+      if (cachedAlias !== undefined) {
+        return cachedAlias;
+      }
+      const alias = this.getVariableAlias(variable);
+      variableAliases.set(variable, alias);
+      return alias;
+    };
 
     const rpnCmd = (
       cmd: string,
@@ -900,11 +1061,11 @@ abstract class ScriptBuilderBase {
         return rpn;
       },
       refVariable: (variable: ScriptBuilderVariable) => {
-        const variableAlias = this.getVariableAlias(variable);
+        const alias = variableAlias(variable);
         if (this._isIndirectVariable(variable)) {
-          return rpn.refInd(variableAlias);
+          return rpn.refInd(alias);
         } else {
-          return rpn.ref(variableAlias);
+          return rpn.ref(alias);
         }
       },
       refSet: (variable: ScriptBuilderStackVariable) => {
@@ -918,11 +1079,11 @@ abstract class ScriptBuilderBase {
         return rpn;
       },
       refSetVariable: (variable: ScriptBuilderVariable) => {
-        const variableAlias = this.getVariableAlias(variable);
+        const alias = variableAlias(variable);
         if (this._isIndirectVariable(variable)) {
-          return rpn.refSetInd(variableAlias);
+          return rpn.refSetInd(alias);
         } else {
-          return rpn.refSet(variableAlias);
+          return rpn.refSet(alias);
         }
       },
       refMem: (type: RPNMemType, address: string) => {
@@ -1015,7 +1176,9 @@ abstract class ScriptBuilderBase {
         property === "actorDirection" ||
         property === "actorFrame"
       ) {
-        const targetValue = fetchOp.value.target || "player";
+        const targetValue = this._resolveActorRef(
+          fetchOp.value.target || "player",
+        );
         const targetSymbol =
           typeof targetValue === "string" ? targetValue : targetValue.symbol;
         let localVar = "";
@@ -1103,6 +1266,30 @@ abstract class ScriptBuilderBase {
     return variable;
   };
 
+  _isMissingVariableReference = (variable: string): boolean => {
+    if (variable.match(/^V[0-9]$/)) {
+      return !this.options.argLookup.variable.get(variable);
+    }
+    if (isVariableLocal(variable) || isVariableTemp(variable)) {
+      return false;
+    }
+    if (!/^[a-z0-9-]{36}$/i.test(variable)) {
+      return false;
+    }
+    const variableId = getVariableId(
+      normalizeVariableId(variable),
+      this.options.entity,
+    );
+    return !this.options.variablesLookup[variableId];
+  };
+
+  _replaceMissingVariableReferences = (value: ScriptValue): ScriptValue =>
+    mapScriptValue(value, (node) =>
+      node.type === "variable" && this._isMissingVariableReference(node.value)
+        ? { type: "number", value: 0 }
+        : node,
+    );
+
   _performValueRPN = (
     rpn: RPNHandler,
     rpnOps: PrecompiledValueRPNOperation[],
@@ -1120,7 +1307,7 @@ abstract class ScriptBuilderBase {
           break;
         }
         case "variable": {
-          rpn.refVariable(this._resolveVariableRef(rpnOp.value));
+          rpn.refVariable(this._scriptValueVariable(rpnOp.value, rpnOp.index));
           break;
         }
         case "local": {
@@ -1206,7 +1393,7 @@ abstract class ScriptBuilderBase {
   };
 
   _switchVariable = (
-    variable: string,
+    variable: ScriptBuilderVariable,
     switchCases: [number | string, string][],
     popNum: number,
   ) => {
@@ -1221,7 +1408,7 @@ abstract class ScriptBuilderBase {
 
   _ifVariableConst = (
     operator: ScriptBuilderComparisonOperator,
-    variable: string,
+    variable: ScriptBuilderVariable,
     value: ScriptBuilderStackVariable,
     label: string,
     popNum: number,
@@ -1237,8 +1424,8 @@ abstract class ScriptBuilderBase {
 
   _ifVariableCmpVariable = (
     operator: ScriptBuilderComparisonOperator,
-    variableA: string,
-    variableB: string,
+    variableA: ScriptBuilderVariable,
+    variableB: ScriptBuilderVariable,
     label: string,
     popNum: number,
   ) => {
@@ -1386,7 +1573,10 @@ abstract class ScriptBuilderBase {
     this._addCmd("VM_ACTOR_GET_ANGLE", addr, dest);
   };
 
-  _actorGetDirectionToVariable = (addr: string, variable: string) => {
+  _actorGetDirectionToVariable = (
+    addr: string,
+    variable: ScriptBuilderVariable,
+  ) => {
     const variableAlias = this.getVariableAlias(variable);
     if (this._isIndirectVariable(variable)) {
       const dirDestVarRef = this._declareLocal("dir_dest_var", 1, true);
@@ -1578,6 +1768,15 @@ abstract class ScriptBuilderBase {
     let text = "";
     const indirectVars: { arg: string; local: string }[] = [];
     const usedVariableAliases: string[] = [];
+    let missingVariableAlias = "";
+    const addMissingVariableAlias = () => {
+      if (!missingVariableAlias) {
+        const localRef = this._declareLocal("missing_variable", 1, true);
+        this._setConst(localRef, 0);
+        missingVariableAlias = this._rawOffsetStackAddr(localRef);
+      }
+      usedVariableAliases.push(missingVariableAlias);
+    };
 
     textTokens.forEach((token) => {
       if (token.type === "text") {
@@ -1595,8 +1794,12 @@ abstract class ScriptBuilderBase {
         token.type === "speedVariable" ||
         token.type === "fontVariable"
       ) {
-        const variable = this._resolveVariableRef(token.variableId);
-        if (this._isFunctionArg(variable)) {
+        const variable = this._isMissingVariableReference(token.variableId)
+          ? undefined
+          : this._resolveVariableRef(token.variableId);
+        if (!variable) {
+          addMissingVariableAlias();
+        } else if (this._isFunctionArg(variable)) {
           if (this._isIndirectVariable(variable)) {
             const localRef = this._declareLocal(
               `text_arg${indirectVars.length}`,
@@ -1613,7 +1816,7 @@ abstract class ScriptBuilderBase {
           }
         } else {
           usedVariableAliases.push(
-            this.getVariableAlias(variable.replace(/^0/g, "")),
+            this.getVariableAlias(normalizeVariableId(variable)),
           );
         }
         if (token.type === "variable" && token.fixedLength !== undefined) {
@@ -1677,6 +1880,15 @@ abstract class ScriptBuilderBase {
     let text = "";
     const indirectVars: { arg: string; local: string }[] = [];
     const usedVariableAliases: string[] = [];
+    let missingVariableAlias = "";
+    const addMissingVariableAlias = () => {
+      if (!missingVariableAlias) {
+        const localRef = this._declareLocal("missing_variable", 1, true);
+        this._setConst(localRef, 0);
+        missingVariableAlias = this._rawOffsetStackAddr(localRef);
+      }
+      usedVariableAliases.push(missingVariableAlias);
+    };
 
     textTokens.forEach((token) => {
       if (token.type === "text") {
@@ -1695,13 +1907,14 @@ abstract class ScriptBuilderBase {
         token.type === "fontVariable"
       ) {
         const variable = token.variableId;
-        if (variable.match(/^V[0-9]$/)) {
+        if (this._isMissingVariableReference(variable)) {
+          addMissingVariableAlias();
+        } else if (variable.match(/^V[0-9]$/)) {
           const key = variable;
           const arg = this.options.argLookup.variable.get(key);
           if (!arg) {
-            throw new Error("Cant find arg");
-          }
-          if (this._isIndirectVariable(arg)) {
+            addMissingVariableAlias();
+          } else if (this._isIndirectVariable(arg)) {
             const localRef = this._declareLocal(
               `text_arg${indirectVars.length}`,
               1,
@@ -1717,7 +1930,7 @@ abstract class ScriptBuilderBase {
           }
         } else {
           usedVariableAliases.push(
-            this.getVariableAlias(variable.replace(/^0/g, "")),
+            this.getVariableAlias(normalizeVariableId(variable)),
           );
         }
         if (token.type === "variable" && token.fixedLength !== undefined) {
@@ -1983,12 +2196,19 @@ abstract class ScriptBuilderBase {
 
   _savePeek = (
     successDest: ScriptBuilderStackVariable,
-    dest: ScriptBuilderStackVariable,
-    source: ScriptBuilderStackVariable,
+    dest: ScriptBuilderDirectVariableAddress,
+    source: ScriptBuilderDirectVariableAddress,
     count: number,
     slot: number,
   ) => {
-    this._addCmd("VM_SAVE_PEEK", successDest, dest, source, count, slot);
+    this._addCmd(
+      "VM_SAVE_PEEK",
+      successDest,
+      dest.address,
+      source.address,
+      count,
+      slot,
+    );
   };
 
   _saveClear = (slot: number) => {
@@ -2280,9 +2500,107 @@ extern void __mute_mask_${symbol};
     );
   };
 
-  _isIndirectVariable = (x: ScriptBuilderVariable): boolean => {
-    return this._isFunctionArg(x) && x.indirect;
+  _isVariableReference = (x: unknown): x is ScriptBuilderVariableReference => {
+    return isObject(x) && x.type === "variable";
   };
+
+  _isIndirectVariable = (x: ScriptBuilderVariable): boolean => {
+    const resolved = this._isVariableReference(x)
+      ? x
+      : this._resolveVariableRef(x);
+    if (this._isVariableReference(resolved)) {
+      const baseVariable = this._resolveVariableRef(resolved.value);
+      if (this._isFunctionArg(baseVariable)) {
+        return baseVariable.indirect;
+      }
+      const variableId = getVariableId(
+        String(baseVariable),
+        this.options.entity,
+      );
+      const variableDefinition = this.options.variablesLookup[variableId];
+      return (
+        variableDefinition?.type === "array" &&
+        resolved.index !== undefined &&
+        this._getVariableIndexValue(resolved.index) === undefined
+      );
+    }
+    return this._isFunctionArg(resolved) && resolved.indirect;
+  };
+
+  _resolveVariableAddress = (
+    variable: ScriptBuilderVariable,
+  ): ScriptBuilderResolvedVariableAddress => {
+    const address = this.getVariableAlias(variable);
+    if (this._isIndirectVariable(variable)) {
+      return {
+        type: "indirect",
+        pointer: address,
+      };
+    }
+    return {
+      type: "direct",
+      address,
+    };
+  };
+
+  _assertVariableIsArrayOfMinimumSize = (
+    variable: ScriptBuilderVariable,
+    minimumSize: number,
+  ) => {
+    let rootVariable: ScriptBuilderVariable;
+    if (this._isVariableReference(variable)) {
+      if (variable.index !== undefined) {
+        throw new Error("Variable must reference the root of an array");
+      }
+      rootVariable = variable.value;
+    } else {
+      rootVariable = variable;
+    }
+
+    const resolvedVariable = this._resolveVariableRef(rootVariable);
+    if (this._isFunctionArg(resolvedVariable)) {
+      if (!resolvedVariable.indirect || !resolvedVariable.array) {
+        throw new Error("Variable must be an array");
+      }
+      return;
+    }
+
+    if (
+      typeof resolvedVariable !== "string" &&
+      typeof resolvedVariable !== "number"
+    ) {
+      throw new Error("Variable must be an array");
+    }
+
+    const variableId = getVariableId(
+      String(resolvedVariable),
+      this.options.entity,
+    );
+    const variableDefinition = this.options.variablesLookup[variableId];
+    if (variableDefinition?.type !== "array") {
+      throw new Error("Variable must be an array");
+    }
+    if (variableDefinition.size < minimumSize) {
+      throw new Error(
+        `Array "${variableDefinition.name || variableId}" with size ${variableDefinition.size} is too small for required size ${minimumSize}`,
+      );
+    }
+  };
+
+  _assertResolvedVariableDirect: (
+    variable: ScriptBuilderResolvedVariableAddress,
+  ) => asserts variable is ScriptBuilderDirectVariableAddress = (variable) => {
+    if (variable.type !== "direct") {
+      throw new Error("Variable must resolve to a direct address");
+    }
+  };
+
+  _directVariableAddress = (
+    address: ScriptBuilderStackVariable,
+  ): ScriptBuilderDirectVariableAddress => ({
+    type: "direct",
+    address,
+  });
 
   _declareLocal = (
     symbol: string,
@@ -2339,6 +2657,9 @@ extern void __mute_mask_${symbol};
     symbol: ScriptBuilderStackVariable,
     offset = 0,
   ): string => {
+    if (typeof symbol === "string") {
+      this._markLocalUse(symbol);
+    }
     if (
       typeof symbol === "number" ||
       (symbol.indexOf(".SCRIPT_ARG_") !== 0 && symbol.indexOf(".LOCAL_") !== 0)
@@ -2357,6 +2678,9 @@ extern void __mute_mask_${symbol};
     symbol: ScriptBuilderStackVariable,
     offset = 0,
   ): string => {
+    if (typeof symbol === "string") {
+      this._markLocalUse(symbol);
+    }
     if (
       typeof symbol === "number" ||
       (symbol.indexOf(".SCRIPT_ARG_") !== 0 && symbol.indexOf(".LOCAL_") !== 0)
@@ -2505,7 +2829,97 @@ extern void __mute_mask_${symbol};
     }
   };
 
+  _getVariableIndexValue = (index: ScriptValue): number | undefined => {
+    const replaceConstants = (value: ScriptValue): ScriptValue => {
+      if (value.type === "constant") {
+        return {
+          type: "number",
+          value: this.getConstantValue(value.value),
+        };
+      }
+      if (isValueOperation(value)) {
+        return {
+          ...value,
+          valueA: replaceConstants(value.valueA),
+          valueB: replaceConstants(value.valueB),
+        };
+      }
+      if (isUnaryOperation(value)) {
+        return {
+          ...value,
+          value: replaceConstants(value.value),
+        };
+      }
+      return value;
+    };
+    const optimisedIndex = optimiseScriptValue(replaceConstants(index));
+    if (optimisedIndex.type === "number") {
+      return optimisedIndex.value;
+    }
+    return undefined;
+  };
+
+  _performScriptValueRPN = (rpn: RPNHandler, value: ScriptValue) => {
+    const [rpnOps, fetchOps] = precompileScriptValue(value);
+    const localsLookup = this._performFetchOperations(fetchOps);
+    this._performValueRPN(rpn, rpnOps, localsLookup);
+  };
+
   getVariableAlias = (variable: ScriptBuilderVariable = ""): string => {
+    if (this._isVariableReference(variable)) {
+      if (!variable.index) {
+        return this.getVariableAlias(variable.value);
+      }
+      const staticIndex = this._getVariableIndexValue(variable.index);
+      const resolvedVariable = this._resolveVariableRef(variable.value);
+      if (this._isFunctionArg(resolvedVariable)) {
+        if (!resolvedVariable.array) {
+          return resolvedVariable.symbol;
+        }
+        if (staticIndex !== undefined && staticIndex < 0) {
+          throw new Error(`Array index ${staticIndex} cannot be negative`);
+        }
+        if (staticIndex === 0) {
+          return resolvedVariable.symbol;
+        }
+        const pointer = this._declareLocal("array_ptr", 1, true);
+        const rpn = this._rpn().ref(resolvedVariable.symbol);
+        if (staticIndex !== undefined) {
+          rpn.int16(staticIndex);
+        } else {
+          this._performScriptValueRPN(rpn, variable.index);
+        }
+        rpn.operator(".ADD").refSet(pointer).stop();
+        return pointer;
+      } else {
+        const variableId = getVariableId(
+          String(resolvedVariable),
+          this.options.entity,
+        );
+        const variableDefinition = this.options.variablesLookup[variableId];
+        if (variableDefinition?.type !== "array") {
+          return this.getVariableAlias(variable.value);
+        }
+        if (
+          staticIndex !== undefined &&
+          (staticIndex < 0 || staticIndex >= variableDefinition.size)
+        ) {
+          throw new Error(
+            `Array index ${staticIndex} is out of bounds for variable "${variableDefinition.name || variableId}" with size ${variableDefinition.size}`,
+          );
+        }
+      }
+      const variableAlias = this.getVariableAlias(variable.value);
+      if (staticIndex !== undefined) {
+        return `^/(${variableAlias} + ${staticIndex})/`;
+      }
+      const pointer = this._declareLocal("array_ptr", 1, true);
+      const rpn = this._rpn().int16(variableAlias);
+      this._performScriptValueRPN(rpn, variable.index);
+      rpn.operator(".ADD").refSet(pointer).stop();
+      return pointer;
+    }
+
     if (this._isFunctionArg(variable)) {
       return variable.symbol;
     }
@@ -2552,6 +2966,10 @@ extern void __mute_mask_${symbol};
         entityType: "scene",
         entityId: "",
         sceneId: "",
+        size:
+          namedVariable.type === "array"
+            ? Math.max(1, Math.floor(namedVariable.size))
+            : 1,
       };
       return symbol;
     }
@@ -2578,8 +2996,11 @@ extern void __mute_mask_${symbol};
       const num = toVariableNumber(variable);
       name = tempVariableName(num);
     } else {
+      if (!isLocal && !/^\d+$/.test(variable)) {
+        throw new Error("Cannot find referenced variable");
+      }
       const num = toVariableNumber(variable || "0");
-      name = namedVariable?.name || globalVariableDefaultName(num);
+      name = namedVariable?.name || `Variable ${num}`;
     }
 
     const alias = "VAR_" + toASMVar(name);
@@ -2617,6 +3038,22 @@ extern void __mute_mask_${symbol};
       return "0";
     }
     return constant.symbol.toLocaleUpperCase();
+  };
+
+  getConstantValue = (id: string): number => {
+    if (id.startsWith("engine::")) {
+      const engineConstantId = id.replace(/^engine::/, "");
+      const value = this.options.engineConstants[engineConstantId];
+      if (value === undefined) {
+        throw new Error(`Cannot find engine constant "${engineConstantId}"`);
+      }
+      return value;
+    }
+    const constant = this.options.constantsLookup[id];
+    if (!constant) {
+      throw new Error(`Cannot find constant "${id}"`);
+    }
+    return constant.value;
   };
 
   _getAvailableSymbol = (name: string, register = true) => {

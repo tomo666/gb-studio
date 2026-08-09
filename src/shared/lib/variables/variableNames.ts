@@ -55,52 +55,19 @@ export const tempVariableCode = (variable: string) => {
   return `T${variable}`;
 };
 
-/******************************************************************************
- * Global Variables
- */
-
-export const globalVariableName = (
-  variable: string,
-  variablesLookup: VariablesLookup,
-) => {
-  return variablesLookup[variable]?.name || globalVariableDefaultName(variable);
-};
-
-export const globalVariableDefaultName = (variable: string) => {
-  return `Variable ${variable}`;
-};
-
 export const globalVariableCode = (variable: string) => {
   return variable.padStart(2, "0");
 };
 
-/******************************************************************************
- * Next Variable ID
- */
-
-export const getNextVariableId = (variable: string): string => {
-  const localMatch = variable.match(/^L([0-5])$/);
-  if (localMatch) {
-    const nextNumber = Number(localMatch[1]) + 1;
-    return nextNumber > 5 ? "0" : `L${nextNumber}`;
+export const variableDisplayName = (
+  name: string,
+  arraySize?: number | null,
+): string => {
+  if (arraySize === null) {
+    return `${name}[]`;
   }
-
-  const argsMatch = variable.match(/^V([0-9])$/);
-  if (argsMatch) {
-    const nextNumber = Number(argsMatch[1]) + 1;
-    return nextNumber > 9 ? "0" : `V${nextNumber}`;
+  if (arraySize !== undefined) {
+    return `${name}[${arraySize}]`;
   }
-
-  const tempMatch = variable.match(/^T([0-1])$/);
-  if (tempMatch) {
-    const nextNumber = Number(tempMatch[1]) + 1;
-    return nextNumber > 1 ? "0" : `T${nextNumber}`;
-  }
-
-  const numberMatch = variable.match(/^\d+$/);
-  if (numberMatch) {
-    return String(Number(variable) + 1);
-  }
-
-  return "0";
+  return name;
 };

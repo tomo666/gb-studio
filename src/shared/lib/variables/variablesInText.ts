@@ -1,6 +1,9 @@
 import { lexText, Token as TextToken } from "shared/lib/compiler/lexText";
-import { Token as ExpressionToken } from "shared/lib/rpn/types";
-import tokenizer from "shared/lib/rpn/tokenizer";
+import { normalizeVariableId } from "shared/lib/variables/variableIds";
+import {
+  expressionToScriptValue,
+  variableInScriptValue,
+} from "shared/lib/scriptValue/helpers";
 
 /**
  * Extracts a variable ID from a dialogue token by removing any leading zeros.
@@ -8,15 +11,7 @@ import tokenizer from "shared/lib/rpn/tokenizer";
  * @returns {string | undefined} - The variable ID without leading zeros, or undefined if the token is not of type 'variable'.
  */
 export const dialogueTokenToVariableId = (token: TextToken) =>
-  token.type === "variable" ? token.variableId.replace(/^0/, "") : undefined;
-
-/**
- * Extracts a variable ID from an expression token by removing dollar signs and any leading zeros.
- * @param {ExpressionToken} token - The token to process, expected to be of type 'VAR'.
- * @returns {string | undefined} - The variable ID without '$' symbols or leading zeros, or undefined if the token is not of type 'VAR'.
- */
-export const expressionTokenToVariableId = (token: ExpressionToken) =>
-  token.type === "VAR" && token.symbol.replace(/\$/g, "").replace(/^0/g, "");
+  token.type === "variable" ? normalizeVariableId(token.variableId) : undefined;
 
 /**
  * Checks if a given variable ID exists in a dialogue text input.
@@ -44,8 +39,5 @@ export const variableInExpressionText = (
   variableId: string,
   input: string,
 ): boolean => {
-  const expressionTokens = tokenizer(input);
-  const isMatch = (token: ExpressionToken) =>
-    expressionTokenToVariableId(token) === variableId;
-  return expressionTokens.some(isMatch);
+  return variableInScriptValue(variableId, expressionToScriptValue(input));
 };

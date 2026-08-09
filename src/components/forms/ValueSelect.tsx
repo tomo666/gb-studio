@@ -2,6 +2,12 @@ import DirectionPicker from "components/forms/DirectionPicker";
 import { PropertySelect } from "components/forms/PropertySelect";
 import { VariableSelect } from "components/forms/VariableSelect";
 import {
+  IndexedVariableInputGroup,
+  VariableIndexBracket,
+  VariableIndexInputGroup,
+  VariableInputGroup,
+} from "components/forms/VariableIndexInput";
+import {
   isInfix,
   isUnaryOperation,
   isValueAtom,
@@ -64,7 +70,11 @@ import { ClipboardTypeScriptValue } from "store/features/clipboard/clipboardType
 import { useAppDispatch, useAppSelector } from "store/hooks";
 import clipboardActions from "store/features/clipboard/clipboardActions";
 import { copy, paste } from "store/features/clipboard/clipboardHelpers";
-import { constantSelectors } from "store/features/entities/entitiesSelectors";
+import {
+  constantSelectors,
+  customEventSelectors,
+  variableSelectors,
+} from "store/features/entities/entitiesSelectors";
 import { ConstantSelect } from "./ConstantSelect";
 import { SingleValue } from "react-select";
 import EngineFieldSelect from "components/forms/EngineFieldSelect";
@@ -283,6 +293,7 @@ const booleanOperatorMenuItems: ValueFunctionMenuItem[] = [
 
 interface ValueWrapperProps {
   $isOver: boolean;
+  $isIndexedVariable?: boolean;
 }
 
 const OperatorWrapper = styled.div`
@@ -311,7 +322,7 @@ const ValueWrapper = styled.div<ValueWrapperProps>`
   display: flex;
   flex-grow: 1;
   align-items: center;
-  min-width: 98px;
+  min-width: ${(props) => (props.$isIndexedVariable ? "min-content" : "98px")};
   flex-basis: 130px;
   ${(props) => (props.$isOver ? dropTargetStyle : "")}
 `;
@@ -419,6 +430,12 @@ const ValueSelect = ({
   const editorType = useAppSelector((state) => state.editor.type);
   const defaultConstant = useAppSelector(
     (state) => constantSelectors.selectAll(state)[0],
+  );
+  const variablesLookup = useAppSelector((state) =>
+    variableSelectors.selectEntities(state),
+  );
+  const customEvent = useAppSelector((state) =>
+    customEventSelectors.selectById(state, entityId),
   );
   const isValueFn = isValueOperation(value);
   const dragRef = useRef<HTMLDivElement>(null);
@@ -975,9 +992,9 @@ const ValueSelect = ({
                     ? value.value
                     : "",
                 )}
-                min={innerValue ? undefined : min}
-                max={innerValue ? undefined : max}
-                step={innerValue ? undefined : step}
+                min={min}
+                max={max}
+                step={step}
                 placeholder={innerValue ? "0" : String(placeholder ?? "0")}
                 onChange={(e) => {
                   onChange({
@@ -1143,23 +1160,67 @@ const ValueSelect = ({
         </ValueWrapper>
       );
     } else if (value.type === "variable") {
+      const selectedVariable = variablesLookup[value.value];
+      const isIndexableVariable =
+        selectedVariable?.type === "array" ||
+        customEvent?.variables[value.value]?.passByReference === "array";
       return (
-        <ValueWrapper ref={previewRef} $isOver={isOver}>
-          <InputGroup ref={dropRef}>
-            <InputGroupPrepend>{dropdownButton}</InputGroupPrepend>
-            <VariableSelect
-              name={name}
-              entityId={entityId}
-              value={value.value}
-              allowRename
-              onChange={(newValue) => {
-                onChange({
-                  type: "variable",
-                  value: newValue,
-                });
-              }}
-            />
-          </InputGroup>
+        <ValueWrapper
+          ref={previewRef}
+          $isOver={isOver}
+          $isIndexedVariable={isIndexableVariable}
+        >
+          <IndexedVariableInputGroup ref={dropRef}>
+            <VariableInputGroup>
+              <InputGroupPrepend>{dropdownButton}</InputGroupPrepend>
+              <VariableSelect
+                name={name}
+                entityId={entityId}
+                value={value.value}
+                allowRename
+                onChange={(newValue) => {
+                  const newVariable = variablesLookup[newValue];
+                  const isIndexable =
+                    newVariable?.type === "array" ||
+                    customEvent?.variables[newValue]?.passByReference ===
+                      "array";
+                  onChange({
+                    type: "variable",
+                    value: newValue,
+                    ...(isIndexable
+                      ? {
+                          index: value.index ?? {
+                            type: "number" as const,
+                            value: 0,
+                          },
+                        }
+                      : {}),
+                  });
+                }}
+              />
+            </VariableInputGroup>
+            {isIndexableVariable && (
+              <VariableIndexInputGroup>
+                <VariableIndexBracket $type="open" />
+                <ValueSelect
+                  name={`${name}_index`}
+                  entityId={entityId}
+                  value={value.index}
+                  min={0}
+                  max={
+                    selectedVariable?.type === "array"
+                      ? selectedVariable.size - 1
+                      : undefined
+                  }
+                  onChange={(index) => {
+                    onChange({ ...value, index });
+                  }}
+                  innerValue
+                />
+                <VariableIndexBracket $type="close" />
+              </VariableIndexInputGroup>
+            )}
+          </IndexedVariableInputGroup>
         </ValueWrapper>
       );
     } else if (value.type === "constant") {
@@ -1372,6 +1433,8 @@ const ValueSelect = ({
     placeholder,
     step,
     value,
+    customEvent,
+    variablesLookup,
   ]);
 
   if (innerValue) {

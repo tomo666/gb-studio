@@ -143,6 +143,7 @@ import { msToHumanTime } from "shared/lib/helpers/time";
 import confirmDeletePreset from "lib/electron/dialog/confirmDeletePreset";
 import confirmApplyPreset from "lib/electron/dialog/confirmApplyPreset";
 import confirmDeleteConstant from "lib/electron/dialog/confirmDeleteConstant";
+import confirmDeleteVariable from "lib/electron/dialog/confirmDeleteVariable";
 import {
   addPluginToProject,
   addUserRepo,
@@ -186,6 +187,8 @@ import confirmConvertModReplaceDialog from "lib/electron/dialog/confirmConvertMo
 import { ScriptDataTable } from "shared/lib/scriptDataTable/types";
 import {
   csvToScriptDataTable,
+  DataTableCSVVariable,
+  ScriptDataTableImport,
   scriptDataTableToCSV,
 } from "shared/lib/scriptDataTable/csv";
 import {
@@ -1131,6 +1134,13 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
+  "dialog:confirm-delete-variable",
+  async (_event, name: string, usesNames: string[]) => {
+    return confirmDeleteVariable(name, usesNames);
+  },
+);
+
+ipcMain.handle(
   "dialog:confirm-tracker-unsaved",
   async (_event, name: string) => {
     return confirmUnsavedChangesTrackerDialog(name);
@@ -1402,10 +1412,10 @@ ipcMain.handle("debugger:pause-on-var", (_event, enabled: boolean) => {
 
 ipcMain.handle(
   "debugger:set-global",
-  (_event, symbol: string, value: number) => {
+  (_event, symbol: string, value: number, index: number) => {
     sendToGameWindow("debugger:data", {
       action: "set-global",
-      data: { symbol, value },
+      data: { symbol, value, index },
     });
   },
 );
@@ -1924,13 +1934,18 @@ ipcMain.handle(
 
 ipcMain.handle(
   "data-table:export-csv",
-  async (_event, table: ScriptDataTable, constants: Constant[]) => {
+  async (
+    _event,
+    table: ScriptDataTable,
+    constants: Constant[],
+    variables: DataTableCSVVariable[],
+  ) => {
     const savePath = dialog.showSaveDialogSync({
       defaultPath: `${table.label || "data"}.csv`,
       filters: [{ name: "CSV", extensions: ["csv"] }],
     });
     if (!savePath) return;
-    const data = scriptDataTableToCSV(table, constants);
+    const data = scriptDataTableToCSV(table, constants, variables);
     await writeFile(savePath, data);
   },
 );
@@ -1940,7 +1955,8 @@ ipcMain.handle(
   async (
     _event,
     constants: Constant[],
-  ): Promise<ScriptDataTable | undefined> => {
+    variables: DataTableCSVVariable[],
+  ): Promise<ScriptDataTableImport | undefined> => {
     const files = dialog.showOpenDialogSync({
       properties: ["openFile"],
       filters: [{ name: "CSV", extensions: ["csv"] }],
@@ -1949,7 +1965,7 @@ ipcMain.handle(
       return undefined;
     }
     const data = await readFile(files[0], "utf8");
-    return csvToScriptDataTable(data, constants);
+    return csvToScriptDataTable(data, constants, variables);
   },
 );
 

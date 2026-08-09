@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   actorPrefabSelectors,
   actorSelectors,
   customEventSelectors,
   sceneSelectors,
   scriptEventSelectors,
+  selectGlobalVariablesAll,
   triggerPrefabSelectors,
   triggerSelectors,
   variableSelectors,
@@ -14,7 +15,9 @@ import { EditableText } from "ui/form/EditableText";
 import {
   FormContainer,
   FormDivider,
+  FormField,
   FormHeader,
+  FormRow,
 } from "ui/form/layout/FormLayout";
 import { MenuItem } from "ui/menu/Menu";
 import entitiesActions from "store/features/entities/entitiesActions";
@@ -28,31 +31,50 @@ import styled from "styled-components";
 import { SplitPaneHeader } from "ui/splitpane/SplitPaneHeader";
 import { SymbolEditorWrapper } from "components/forms/symbols/SymbolEditorWrapper";
 import { VariableReference } from "components/forms/ReferencesSelect";
-import type { VariableUse, VariableUseResult } from "./VariableUses.worker";
-import {
-  globalVariableCode,
-  globalVariableDefaultName,
-} from "shared/lib/variables/variableNames";
+import type { VariableUse } from "renderer/lib/workers/VariableUses.worker";
+import { globalVariableCode } from "shared/lib/variables/variableNames";
 import l10n, { getL10NData } from "shared/lib/lang/l10n";
 import { selectScriptEventDefs } from "store/features/scriptEventDefs/scriptEventDefsState";
 import { useAppDispatch, useAppSelector } from "store/hooks";
 import { CodeIcon } from "ui/icons/Icons";
-
-const worker = new Worker(new URL("./VariableUses.worker.ts", import.meta.url));
+import { findSelectOption, Option, Select } from "ui/form/Select";
+import { SingleValue } from "react-select";
+import { NumberInput } from "ui/form/NumberInput";
+import { VariableType } from "shared/lib/resources/types";
+import { findVariableUses } from "renderer/lib/workers/variableUses";
+import { isWorkerRequestAbortError } from "renderer/lib/workers/createWorkerClient";
+import { defaultLocalisedVariableName } from "shared/lib/entities/entitiesHelpers";
 
 interface VariableInspectorProps {
   id: string;
 }
-interface UsesWrapperProps {
-  $showSymbols: boolean;
-}
 
-const UsesWrapper = styled.div<UsesWrapperProps>`
-  position: absolute;
-  top: ${(props) => (props.$showSymbols ? `71px` : `38px`)};
-  left: 0;
-  bottom: 0;
-  right: 0;
+const VariableSidebar = styled(Sidebar)`
+  display: flex;
+  flex-direction: column;
+
+  & > :first-child {
+    flex-shrink: 0;
+  }
+`;
+
+const VariableSidebarColumn = styled(SidebarColumn)`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+
+  & > :first-child {
+    flex-shrink: 0;
+  }
+`;
+
+const UsesWrapper = styled.div`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 `;
 
 const UseMessage = styled.div`
@@ -65,6 +87,17 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
   const { observe, height } = useDimensions();
   const variable = useAppSelector((state) =>
     variableSelectors.selectById(state, id),
+  );
+  const [name, setName] = useState(variable?.name ?? "");
+  const pendingRenameRef = useRef<
+    | {
+        variableId: string;
+        name: string;
+      }
+    | undefined
+  >(undefined);
+  const variableIndex = useAppSelector((state) =>
+    selectGlobalVariablesAll(state).findIndex((variable) => variable.id === id),
   );
   const [variableUses, setVariableUses] = useState<VariableUse[]>([]);
   const scenes = useAppSelector((state) => sceneSelectors.selectAll(state));
@@ -94,38 +127,71 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
 
   const dispatch = useAppDispatch();
 
-  const onWorkerComplete = useCallback(
-    (e: MessageEvent<VariableUseResult>) => {
-      if (e.data.id === id) {
-        setFetching(false);
-        setVariableUses(e.data.uses);
+  const commitPendingRename = useCallback(
+    (variableId: string) => {
+      const pendingRename = pendingRenameRef.current;
+      if (!pendingRename || pendingRename.variableId !== variableId) {
+        return;
       }
+
+      pendingRenameRef.current = undefined;
+      dispatch(
+        entitiesActions.renameVariable({
+          variableId,
+          name: pendingRename.name,
+        }),
+      );
     },
-    [id],
+    [dispatch],
   );
 
   useEffect(() => {
-    worker.addEventListener("message", onWorkerComplete);
-    return () => {
-      worker.removeEventListener("message", onWorkerComplete);
-    };
-  }, [onWorkerComplete]);
+    return () => commitPendingRename(id);
+  }, [commitPendingRename, id]);
 
   useEffect(() => {
-    setFetching(true);
-    worker.postMessage({
-      id,
-      variableId: id,
-      scenes,
-      actorsLookup,
-      triggersLookup,
-      actorPrefabsLookup,
-      triggerPrefabsLookup,
-      scriptEventsLookup,
-      scriptEventDefs,
-      customEventsLookup,
-      l10NData: getL10NData(),
-    });
+    if (variable) {
+      setName(variable.name);
+    }
+  }, [variable]);
+
+  const variableType = variable?.type ?? "number";
+  const variableTypeOptions: Option[] = [
+    { value: "number", label: l10n("FIELD_NUMBER") },
+    { value: "array", label: l10n("FIELD_ARRAY") },
+  ];
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const loadUses = async () => {
+      setFetching(true);
+      try {
+        const uses = await findVariableUses(
+          {
+            variableId: id,
+            scenes,
+            actorsLookup,
+            triggersLookup,
+            actorPrefabsLookup,
+            triggerPrefabsLookup,
+            scriptEventsLookup,
+            scriptEventDefs,
+            customEventsLookup,
+            l10NData: getL10NData(),
+          },
+          { signal: abortController.signal },
+        );
+        setVariableUses(uses);
+        setFetching(false);
+      } catch (error) {
+        if (!isWorkerRequestAbortError(error)) {
+          console.error(error);
+          setFetching(false);
+        }
+      }
+    };
+    void loadUses();
+    return () => abortController.abort();
   }, [
     scenes,
     actorsLookup,
@@ -140,12 +206,15 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
 
   const onRename = (e: React.ChangeEvent<HTMLInputElement>) => {
     const editValue = e.currentTarget.value;
-    dispatch(
-      entitiesActions.renameVariable({
-        variableId: id,
-        name: editValue,
-      }),
-    );
+    setName(editValue);
+    pendingRenameRef.current = {
+      variableId: id,
+      name: editValue,
+    };
+  };
+
+  const onRenameFinished = () => {
+    commitPendingRename(id);
   };
 
   const onCopyVar = () => {
@@ -154,6 +223,28 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
 
   const onCopyChar = () => {
     dispatch(clipboardActions.copyText(`#${globalVariableCode(id)}#`));
+  };
+
+  const onChangeVariableType = (newValue: SingleValue<Option>): void => {
+    if (newValue) {
+      dispatch(
+        entitiesActions.setVariableType({
+          variableId: id,
+          type: newValue.value as VariableType,
+        }),
+      );
+    }
+  };
+
+  const onChangeVariableSize = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ): void => {
+    dispatch(
+      entitiesActions.setVariableSize({
+        variableId: id,
+        size: Number(e.currentTarget.value),
+      }),
+    );
   };
 
   const setSelectedId = (id: string, item: VariableUse) => {
@@ -180,13 +271,14 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
   };
 
   return (
-    <Sidebar onClick={selectSidebar}>
+    <VariableSidebar onClick={selectSidebar}>
       <FormHeader>
         <EditableText
           name="name"
-          placeholder={globalVariableDefaultName(id)}
-          value={variable?.name || ""}
+          placeholder={defaultLocalisedVariableName(variableIndex)}
+          value={name}
           onChange={onRename}
+          onBlur={onRenameFinished}
         />
         <DropdownButton
           size="small"
@@ -207,7 +299,7 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
         </DropdownButton>
       </FormHeader>
 
-      <SidebarColumn>
+      <VariableSidebarColumn>
         <FormContainer>
           {showSymbols && (
             <>
@@ -217,9 +309,30 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
               <FormDivider />
             </>
           )}
+          <FormRow>
+            <FormField name="variableType" label={l10n("FIELD_TYPE")}>
+              <Select
+                name="variableType"
+                value={findSelectOption(variableTypeOptions, variableType)}
+                options={variableTypeOptions}
+                onChange={onChangeVariableType}
+              />
+            </FormField>
+            {variableType === "array" && (
+              <FormField name="variableSize" label={l10n("FIELD_SIZE")}>
+                <NumberInput
+                  id="variableSize"
+                  value={variable?.type === "array" ? variable.size : 1}
+                  min={1}
+                  step={1}
+                  onChange={onChangeVariableSize}
+                />
+              </FormField>
+            )}
+          </FormRow>
         </FormContainer>
-        <UsesWrapper ref={observe} $showSymbols={showSymbols}>
-          <SplitPaneHeader collapsed={false}>
+        <UsesWrapper ref={observe}>
+          <SplitPaneHeader collapsed={false} borderTop>
             {l10n("SIDEBAR_VARIABLE_USES")}
           </SplitPaneHeader>
           {fetching ? (
@@ -260,7 +373,7 @@ export const VariableInspector = ({ id }: VariableInspectorProps) => {
             </>
           )}
         </UsesWrapper>
-      </SidebarColumn>
-    </Sidebar>
+      </VariableSidebarColumn>
+    </VariableSidebar>
   );
 };

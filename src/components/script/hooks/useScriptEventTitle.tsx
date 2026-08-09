@@ -24,6 +24,7 @@ import { selectScriptEventDefs } from "store/features/scriptEventDefs/scriptEven
 import API from "renderer/lib/api";
 import { replaceAutoLabelLocalValues } from "shared/lib/scripts/autoLabel";
 import { ScriptEditorContext } from "components/script/context/ScriptEditorContext";
+import { normalizeVariableId } from "shared/lib/variables/variableIds";
 
 const customEventActorsLookup = keyBy(
   Array.from(Array(10).keys()).map((i) => ({
@@ -32,6 +33,16 @@ const customEventActorsLookup = keyBy(
   })),
   "id",
 );
+
+export const variableNameForScriptEventTitle = (
+  value: unknown,
+  namedVariablesLookup: Record<string, NamedVariable>,
+) => {
+  const id = normalizeVariableId(String(value));
+  return `$${
+    namedVariablesLookup[id]?.name.replace(/ /g, "") ?? String(value)
+  }`;
+};
 
 export const useScriptEventTitle = (
   command: string,
@@ -55,8 +66,8 @@ export const useScriptEventTitle = (
   >({});
   const { entityType, sceneId, entityId } = context;
 
-  const variablesLookup = useAppSelector((state) =>
-    variableSelectors.selectEntities(state),
+  const allVariables = useAppSelector((state) =>
+    variableSelectors.selectAll(state),
   );
   const customEvent = useAppSelector((state) =>
     customEventSelectors.selectById(state, entityId),
@@ -97,12 +108,12 @@ export const useScriptEventTitle = (
   useEffect(() => {
     const variables = namedVariablesByContext(
       context,
-      variablesLookup,
+      allVariables,
       customEvent,
     );
     const namedLookup = keyBy(variables, "id");
     setNamedVariablesLookup(namedLookup);
-  }, [entityId, variablesLookup, context, customEvent]);
+  }, [allVariables, entityId, context, customEvent]);
 
   useEffect(() => {
     async function fetchAutoLabel() {
@@ -145,10 +156,7 @@ export const useScriptEventTitle = (
         };
 
         const variableNameForId = (value: unknown) => {
-          const id = String(value).replace(/^0*(.+)/, "$1");
-          return `$${
-            namedVariablesLookup[id]?.name.replace(/ /g, "") ?? String(value)
-          }`;
+          return variableNameForScriptEventTitle(value, namedVariablesLookup);
         };
         const constantNameForId = (value: unknown) => {
           const constant = constantsLookup[value as string];

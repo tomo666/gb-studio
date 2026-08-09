@@ -28,9 +28,10 @@ import {
 } from "shared/lib/text/textCodes";
 import { TextWaitTimeSelect } from "components/forms/TextWaitTimeSelect";
 import { FontAsset } from "shared/lib/resources/types";
+import { normalizeVariableId } from "shared/lib/variables/variableIds";
 
-const varRegex = /\$([VLT0-9][0-9]*)\$/g;
-const charRegex = /#([VLT0-9][0-9]*)#/g;
+const varRegex = /\$([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)\$/g;
+const charRegex = /#([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)#/g;
 const speedRegex = /!(S[0-5]+)!/g;
 const gotoRegex = /(\\00[34]\\[0-7][0-7][0-7]\\[0-7][0-7][0-7])/g;
 const waitRegex = /(\\006\\[0-7][0-7][0-7]|!W:[0-9.]+[fs]!)/g;
@@ -186,12 +187,12 @@ const searchVariables =
       .filter(
         (v) =>
           v.code.indexOf(upperSearch) > -1 ||
-          v.name.toUpperCase().indexOf(upperSearch) > -1,
+          v.displayName.toUpperCase().indexOf(upperSearch) > -1,
       )
       .slice(0, 5)
       .map((v) => ({
         id: v.code,
-        display: `${wrapper}${v.name}`,
+        display: `${wrapper}${v.displayName}`,
       }));
   };
 
@@ -361,7 +362,7 @@ export const DialogueTextarea: FC<DialogueTextareaProps> = ({
   );
 
   const variablesLookup = useMemo(() => {
-    return keyBy(variables, "code");
+    return keyBy(variables, "id");
   }, [variables]);
 
   const fontItems: ExtendedSuggestionDataItem[] = useMemo(() => {
@@ -660,16 +661,18 @@ export const DialogueTextarea: FC<DialogueTextareaProps> = ({
       >
         <CustomMention
           className="Mentions__TokenVar"
-          trigger={/(\$([\p{L}0-9]+))$/u}
+          trigger={/(\$([\p{L}0-9_-]+))$/u}
           markup="$__id__$"
           data={searchVariables(variables, "$")}
-          regex={/\$([VLT0-9][0-9]*)\$/}
-          displayTransform={(variable: string) =>
-            "$" + (variablesLookup[variable]?.name || variable + "$")
-          }
+          regex={/\$([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)\$/}
+          displayTransform={(variable: string) => {
+            const namedVariable =
+              variablesLookup[normalizeVariableId(variable)];
+            return namedVariable ? `$${namedVariable.name}` : "0";
+          }}
           hoverTransform={(variable) =>
             `${l10n("FIELD_VARIABLE")}: ${
-              variablesLookup[variable]?.name || variable
+              variablesLookup[normalizeVariableId(variable)]?.name || "0"
             }`
           }
           onClick={(e, id, index) => {
@@ -681,7 +684,7 @@ export const DialogueTextarea: FC<DialogueTextareaProps> = ({
             const rect2 = e.currentTarget.getBoundingClientRect();
             setEditMode({
               type: "var",
-              id: id.replace(/^0/, ""),
+              id: normalizeVariableId(id),
               index,
               x: rect2.left - rect.left,
               y: rect2.top - rect.top,
@@ -694,13 +697,15 @@ export const DialogueTextarea: FC<DialogueTextareaProps> = ({
           trigger={/(#([\p{L}0-9]+))$/u}
           markup="#__id__#"
           data={searchVariables(variables, "#")}
-          regex={/#([VLT0-9][0-9]*)#/}
-          displayTransform={(variable: string) =>
-            "#" + (variablesLookup[variable]?.name || variable + "#")
-          }
+          regex={/#([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)#/}
+          displayTransform={(variable: string) => {
+            const namedVariable =
+              variablesLookup[normalizeVariableId(variable)];
+            return namedVariable ? `#${namedVariable.name}` : "0";
+          }}
           hoverTransform={(variable) =>
             `${l10n("FIELD_CHARACTER")}: ${
-              variablesLookup[variable]?.name || variable
+              variablesLookup[normalizeVariableId(variable)]?.name || "0"
             }`
           }
           onClick={(e, id, index) => {
@@ -712,7 +717,7 @@ export const DialogueTextarea: FC<DialogueTextareaProps> = ({
             const rect2 = e.currentTarget.getBoundingClientRect();
             setEditMode({
               type: "char",
-              id: id.replace(/^0/, ""),
+              id: normalizeVariableId(id),
               index,
               x: rect2.left - rect.left,
               y: rect2.top - rect.top,

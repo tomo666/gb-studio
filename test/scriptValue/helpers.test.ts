@@ -1,12 +1,15 @@
 import {
   PrecompiledValueFetch,
   ScriptValue,
+  ScriptValueAtom,
 } from "../../src/shared/lib/scriptValue/types";
 import {
   addScriptValueConst,
   addScriptValueToScriptValue,
+  constantInScriptValue,
   expressionToScriptValue,
   extractScriptValueVariables,
+  mapScriptValue,
   multiplyScriptValueConst,
   optimiseScriptValue,
   precompileScriptValue,
@@ -965,6 +968,122 @@ test("should convert expression ($00$ + 8) to script value", () => {
   });
 });
 
+test("should convert statically indexed variables in expressions", () => {
+  expect(
+    expressionToScriptValue("$11111111-1111-1111-1111-111111111111$[3]"),
+  ).toEqual({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "number",
+      value: 3,
+    },
+  });
+});
+
+test("should preserve UUID variable IDs beginning with zero", () => {
+  expect(
+    expressionToScriptValue(
+      "$01111111-1111-1111-1111-111111111111$[$02222222-2222-2222-2222-222222222222$]",
+    ),
+  ).toEqual({
+    type: "variable",
+    value: "01111111-1111-1111-1111-111111111111",
+    index: {
+      type: "variable",
+      value: "02222222-2222-2222-2222-222222222222",
+    },
+  });
+});
+
+test("should convert variable indexed variables in expressions", () => {
+  expect(
+    expressionToScriptValue(
+      "$11111111-1111-1111-1111-111111111111$[$22222222-2222-2222-2222-222222222222$]",
+    ),
+  ).toEqual({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "variable",
+      value: "22222222-2222-2222-2222-222222222222",
+    },
+  });
+});
+
+test("should convert constant indexed variables in expressions", () => {
+  expect(
+    expressionToScriptValue(
+      "$11111111-1111-1111-1111-111111111111$[@33333333-3333-3333-3333-333333333333@]",
+    ),
+  ).toEqual({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "constant",
+      value: "33333333-3333-3333-3333-333333333333",
+    },
+  });
+});
+
+test("should convert array index expressions", () => {
+  expect(
+    expressionToScriptValue(
+      "$11111111-1111-1111-1111-111111111111$[$22222222-2222-2222-2222-222222222222$ + 1]",
+    ),
+  ).toEqual({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "add",
+      valueA: {
+        type: "variable",
+        value: "22222222-2222-2222-2222-222222222222",
+      },
+      valueB: { type: "number", value: 1 },
+    },
+  });
+});
+
+test("should convert nested indexed variables in array index expressions", () => {
+  expect(
+    expressionToScriptValue(
+      "$11111111-1111-1111-1111-111111111111$[$22222222-2222-2222-2222-222222222222$[$33333333-3333-3333-3333-333333333333$] + $44444444-4444-4444-4444-444444444444$]",
+    ),
+  ).toEqual({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "add",
+      valueA: {
+        type: "variable",
+        value: "22222222-2222-2222-2222-222222222222",
+        index: {
+          type: "variable",
+          value: "33333333-3333-3333-3333-333333333333",
+        },
+      },
+      valueB: {
+        type: "variable",
+        value: "44444444-4444-4444-4444-444444444444",
+      },
+    },
+  });
+});
+
+test("should find constants used as variable indices", () => {
+  expect(
+    constantInScriptValue("33333333-3333-3333-3333-333333333333", {
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: {
+        type: "constant",
+        value: "33333333-3333-3333-3333-333333333333",
+      },
+    }),
+  ).toBe(true);
+});
+
 test("should convert expression ($L0$ + 8) to script value", () => {
   const input = "$L0$ + 8";
   expect(expressionToScriptValue(input)).toEqual({
@@ -1339,6 +1458,76 @@ test("should sort fetch operations so that properties on same target/prop are gr
       },
     },
   ]);
+});
+
+describe("mapScriptValue", () => {
+  test("maps variable references used as array indices", () => {
+    const input: ScriptValue = {
+      type: "variable",
+      value: "array",
+      index: {
+        type: "variable",
+        value: "index",
+      },
+    };
+
+    const result = mapScriptValue(input, (value): ScriptValueAtom =>
+      value.type === "variable" && value.value === "index"
+        ? { ...value, value: "mappedIndex" }
+        : value,
+    );
+
+    expect(result).toEqual({
+      type: "variable",
+      value: "array",
+      index: {
+        type: "variable",
+        value: "mappedIndex",
+      },
+    });
+  });
+
+  test("maps actor properties used inside array index expressions", () => {
+    const input: ScriptValue = {
+      type: "variable",
+      value: "array",
+      index: {
+        type: "add",
+        valueA: {
+          type: "property",
+          target: "sourceActor",
+          property: "xpos",
+        },
+        valueB: {
+          type: "number",
+          value: 1,
+        },
+      },
+    };
+
+    const result = mapScriptValue(input, (value): ScriptValueAtom =>
+      value.type === "property" && value.target === "sourceActor"
+        ? { ...value, target: "mappedActor" }
+        : value,
+    );
+
+    expect(result).toEqual({
+      type: "variable",
+      value: "array",
+      index: {
+        type: "add",
+        valueA: {
+          type: "property",
+          target: "mappedActor",
+          property: "xpos",
+        },
+        valueB: {
+          type: "number",
+          value: 1,
+        },
+      },
+    });
+  });
 });
 
 describe("walkScriptValue", () => {

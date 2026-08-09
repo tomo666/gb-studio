@@ -104,6 +104,41 @@ export type RPNOperation = {
   valueB: ScriptValue;
 };
 
+export type ScriptValueVariable = {
+  type: "variable";
+  value: string;
+  index?: ScriptValue;
+};
+
+export const isScriptValueVariable = (
+  value: unknown,
+): value is ScriptValueVariable => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const variable = value as ScriptValueVariable;
+  return (
+    variable.type === "variable" &&
+    typeof variable.value === "string" &&
+    (variable.index === undefined || isScriptValue(variable.index))
+  );
+};
+
+export type ScriptVariableElement = {
+  type: "variable";
+  value: string;
+  index?: {
+    type: "number";
+    value: number;
+  };
+};
+
+export const isScriptVariableElement = (
+  value: unknown,
+): value is ScriptVariableElement =>
+  isScriptValueVariable(value) &&
+  (value.index === undefined || value.index.type === "number");
+
 export type ScriptValueAtom =
   | {
       type: "number";
@@ -113,10 +148,7 @@ export type ScriptValueAtom =
       type: "numberSymbol";
       value: string;
     }
-  | {
-      type: "variable";
-      value: string;
-    }
+  | ScriptValueVariable
   | {
       type: "constant";
       value: string;
@@ -225,7 +257,7 @@ export const isScriptValue = (value: unknown): value is ScriptValue => {
   }
   // Is Variable
   if (scriptValue.type === "variable") {
-    return typeof scriptValue.value === "string";
+    return isScriptValueVariable(scriptValue);
   }
   // Is Constant
   if (scriptValue.type === "constant") {
@@ -373,6 +405,7 @@ export type PrecompiledValueRPNOperation =
   | {
       type: "variable";
       value: string;
+      index?: ScriptValue;
     }
   | {
       type: "direction";

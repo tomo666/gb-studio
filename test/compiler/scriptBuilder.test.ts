@@ -2,12 +2,16 @@ import { precompileScriptValue } from "shared/lib/scriptValue/helpers";
 import { PrecompiledScene } from "../../src/lib/compiler/generateGBVMData";
 import ScriptBuilder from "../../src/lib/compiler/scriptBuilder/scriptBuilder";
 import ScriptBuilderBase from "../../src/lib/compiler/scriptBuilder/scriptBuilderBase";
-import { ScriptBuilderOptions } from "../../src/lib/compiler/scriptBuilder/types";
+import {
+  ScriptBuilderOptions,
+  ScriptBuilderVariable,
+} from "../../src/lib/compiler/scriptBuilder/types";
 import {
   dummyActorNormalized,
   dummyEngineFieldSchema,
   dummyPrecompiledBackground,
   dummyPrecompiledSpriteSheet,
+  dummyTilesetResource,
   getDummyCompiledFont,
 } from "../dummydata";
 import { getTestScriptHandlers } from "../getTestScriptHandlers";
@@ -923,6 +927,1948 @@ test("Should get default alias for variable with empty name", () => {
     },
   } as unknown as ScriptBuilderOptions);
   expect(sb.getVariableAlias("13")).toEqual("VAR_VARIABLE_13");
+});
+
+test("Should reject a missing UUID variable without exposing its id", () => {
+  const output: string[] = [];
+  const sb = new ScriptBuilder(output, {
+    variablesLookup: {},
+  } as unknown as ScriptBuilderOptions);
+  expect(() =>
+    sb.getVariableAlias("abcdef01-2345-6789-abcd-ef0123456789"),
+  ).toThrow("Cannot find referenced variable");
+});
+
+test("Should make UUID variables in expressions human readable", async () => {
+  const scalarId = "11111111-1111-1111-1111-111111111111";
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [scalarId]: {
+          id: scalarId,
+          name: "Score",
+          symbol: "var_score",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  expect(sb._expressionToHumanReadable(`$${scalarId}$ + 1`)).toBe(
+    "VAR_SCORE+1",
+  );
+});
+
+test("Should make statically and dynamically indexed arrays human readable", async () => {
+  const arrayId = "11111111-1111-1111-1111-111111111111";
+  const indexId = "22222222-2222-2222-2222-222222222222";
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [arrayId]: {
+          id: arrayId,
+          name: "Values",
+          symbol: "var_values",
+          type: "array",
+          size: 4,
+        },
+        [indexId]: {
+          id: indexId,
+          name: "Index",
+          symbol: "var_index",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  expect(
+    sb._expressionToHumanReadable(
+      `$${arrayId}$[2] + $${arrayId}$[$${indexId}$ + 1]`,
+    ),
+  ).toBe("VAR_VALUES[2]+VAR_VALUES[VAR_INDEX+1]");
+});
+
+test("Should make expression destinations and engine constants human readable", async () => {
+  const destination = {
+    type: "argument" as const,
+    indirect: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_3_VARIABLE",
+  };
+  const { sb, output } = await createTestScriptBuilder();
+
+  sb.variableEvaluateExpression(destination, "@engine::ADVENTURE_BLANK_STATE@");
+
+  expect(output[0]).toBe(
+    "        ; Variable .SCRIPT_ARG_INDIRECT_3_VARIABLE = ADVENTURE_BLANK_STATE",
+  );
+});
+
+describe("ScriptBuilderVariable values", () => {
+  const arrayId = "11111111-1111-1111-1111-111111111111";
+  const indexId = "22222222-2222-2222-2222-222222222222";
+  const directArg = {
+    type: "argument" as const,
+    indirect: false,
+    symbol: ".SCRIPT_ARG_0_VARIABLE",
+  };
+  const indirectArg = {
+    type: "argument" as const,
+    indirect: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_1_VARIABLE",
+  };
+  const arrayArg = {
+    type: "argument" as const,
+    indirect: true,
+    array: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_2_VARIABLE",
+  };
+
+  const cases: {
+    name: string;
+    variable: ScriptBuilderVariable;
+    address: string;
+    indirect: boolean;
+    expectedSetup?: string[];
+  }[] = [
+    {
+      name: "string variable ID",
+      variable: "0",
+      address: "VAR_VARIABLE_0",
+      indirect: false,
+    },
+    {
+      name: "numeric variable ID",
+      variable: 0,
+      address: "VAR_VARIABLE_0",
+      indirect: false,
+    },
+    {
+      name: "direct function argument",
+      variable: directArg,
+      address: directArg.symbol,
+      indirect: false,
+    },
+    {
+      name: "indirect function argument",
+      variable: indirectArg,
+      address: indirectArg.symbol,
+      indirect: true,
+    },
+    {
+      name: "wrapped scalar variable",
+      variable: { type: "variable", value: "0" },
+      address: "VAR_VARIABLE_0",
+      indirect: false,
+    },
+    {
+      name: "statically indexed array variable",
+      variable: {
+        type: "variable",
+        value: arrayId,
+        index: { type: "number", value: 2 },
+      },
+      address: "^/(VAR_ARRAY + 2)/",
+      indirect: false,
+    },
+    {
+      name: "runtime-indexed array variable",
+      variable: {
+        type: "variable",
+        value: arrayId,
+        index: { type: "variable", value: indexId },
+      },
+      address: ".LOCAL_TMP0_ARRAY_PTR",
+      indirect: true,
+      expectedSetup: [
+        ".R_INT16    VAR_ARRAY",
+        ".R_REF      VAR_INDEX",
+        ".R_OPERATOR .ADD",
+        ".R_REF_SET  .LOCAL_TMP0_ARRAY_PTR",
+      ],
+    },
+    {
+      name: "indexed array function argument",
+      variable: {
+        type: "variable",
+        value: arrayArg,
+        index: { type: "number", value: 2 },
+      },
+      address: ".LOCAL_TMP0_ARRAY_PTR",
+      indirect: true,
+      expectedSetup: [
+        ".R_REF      .SCRIPT_ARG_INDIRECT_2_VARIABLE",
+        ".R_INT16    2",
+        ".R_OPERATOR .ADD",
+        ".R_REF_SET  .LOCAL_TMP0_ARRAY_PTR",
+      ],
+    },
+  ];
+
+  const createVariableTestBuilder = () =>
+    createTestScriptBuilder(
+      {},
+      {
+        variablesLookup: {
+          [arrayId]: {
+            id: arrayId,
+            name: "Array",
+            symbol: "var_array",
+            type: "array",
+            size: 4,
+          },
+          [indexId]: {
+            id: indexId,
+            name: "Index",
+            symbol: "var_index",
+            type: "number",
+          },
+        },
+        engineFields: {
+          testField: {
+            ...dummyEngineFieldSchema,
+            key: "testField",
+            cType: "BYTE",
+          },
+          testField16: {
+            ...dummyEngineFieldSchema,
+            key: "testField16",
+            cType: "WORD",
+          },
+        },
+        tilesets: [
+          {
+            ...dummyTilesetResource,
+            data: new Uint8Array(),
+          },
+        ],
+      },
+    );
+
+  const resolvedAddressForOutput = (output: string[], address: string) => {
+    if (!address.includes("ARRAY_PTR")) {
+      return address;
+    }
+    const pointer = output
+      .join("\n")
+      .match(/\.R_REF_SET\s+(\.LOCAL_TMP\d+_ARRAY_PTR)/)?.[1];
+    expect(pointer).toBeDefined();
+    return pointer as string;
+  };
+
+  const expectVariableSetup = (
+    script: string,
+    expectedSetup: string[],
+    address: string,
+    resolvedAddress: string,
+  ) => {
+    for (const fragment of expectedSetup) {
+      expect(script).toContain(fragment.replace(address, resolvedAddress));
+    }
+  };
+
+  test.each(cases)(
+    "writes to a $name",
+    async ({ variable, address, indirect, expectedSetup = [] }) => {
+      const { sb, output } = await createVariableTestBuilder();
+
+      sb.variableSetToValue(variable, 7);
+
+      const script = output.join("\n");
+      const resolvedAddress = resolvedAddressForOutput(output, address);
+      expectVariableSetup(script, expectedSetup, address, resolvedAddress);
+      if (indirect) {
+        expect(script).toContain(`VM_SET_INDIRECT         ${resolvedAddress},`);
+      } else {
+        expect(script).toContain(
+          `VM_SET_CONST            ${resolvedAddress}, 7`,
+        );
+        expect(script).not.toContain("VM_SET_INDIRECT");
+      }
+    },
+  );
+
+  test.each(cases)(
+    "reads and writes a $name",
+    async ({ variable, address, indirect, expectedSetup = [] }) => {
+      const { sb, output } = await createVariableTestBuilder();
+
+      sb.variablesOperation(variable, ".ADD", "1", false);
+
+      const script = output.join("\n");
+      const resolvedAddress = resolvedAddressForOutput(output, address);
+      expectVariableSetup(script, expectedSetup, address, resolvedAddress);
+      if (indirect) {
+        expect(script).toContain(`.R_REF_IND  ${resolvedAddress}`);
+        expect(script).toContain(`.R_REF_SET_IND ${resolvedAddress}`);
+      } else {
+        expect(script).toContain(`.R_REF      ${resolvedAddress}`);
+        expect(script).toContain(`.R_REF_SET  ${resolvedAddress}`);
+        expect(script).not.toContain(".R_REF_IND");
+        expect(script).not.toContain(".R_REF_SET_IND");
+      }
+    },
+  );
+
+  test.each(cases)(
+    "stores an actor direction in a $name",
+    async ({ variable, address, indirect, expectedSetup = [] }) => {
+      const { sb, output } = await createVariableTestBuilder();
+
+      sb.actorGetDirection(variable);
+
+      const script = output.join("\n");
+      const resolvedAddress = resolvedAddressForOutput(output, address);
+      expectVariableSetup(script, expectedSetup, address, resolvedAddress);
+      if (indirect) {
+        expect(
+          output.some(
+            (line) =>
+              line.includes("VM_ACTOR_GET_DIR") &&
+              line.includes("DIR_DEST_VAR"),
+          ),
+        ).toBe(true);
+        expect(script).toContain(`VM_SET_INDIRECT         ${resolvedAddress},`);
+      } else {
+        expect(script).toContain(
+          `VM_ACTOR_GET_DIR        .LOCAL_ACTOR, ${resolvedAddress}`,
+        );
+        expect(script).not.toContain("VM_SET_INDIRECT");
+      }
+    },
+  );
+
+  const runtimeIndexedVariable = (): ScriptBuilderVariable => ({
+    type: "variable",
+    value: arrayId,
+    index: { type: "variable", value: indexId },
+  });
+
+  const indirectRead = /\.R_REF_IND\s+\.LOCAL_TMP\d+_ARRAY_PTR/;
+  const indirectRpnWrite = /\.R_REF_SET_IND\s+\.LOCAL_TMP\d+_ARRAY_PTR/;
+  const indirectWrite = /VM_SET_INDIRECT\s+\.LOCAL_TMP\d+_ARRAY_PTR,/;
+  const indirectPush = /VM_PUSH_VALUE_IND\s+\.LOCAL_TMP\d+_ARRAY_PTR/;
+
+  const activeMethodCases: {
+    name: string;
+    invoke: (sb: ScriptBuilder, variable: ScriptBuilderVariable) => void;
+    expected: RegExp;
+  }[] = [
+    {
+      name: "actorGetPosition",
+      invoke: (sb, variable) => sb.actorGetPosition(variable, variable),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "actorGetPositionX",
+      invoke: (sb, variable) => sb.actorGetPositionX(variable),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "actorGetPositionY",
+      invoke: (sb, variable) => sb.actorGetPositionY(variable),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "actorGetAnimFrame",
+      invoke: (sb, variable) => sb.actorGetAnimFrame(variable),
+      expected: indirectWrite,
+    },
+    {
+      name: "launchProjectileInAngleVariable",
+      invoke: (sb, variable) =>
+        sb.launchProjectileInAngleVariable(0, 0, 0, variable),
+      expected: indirectRead,
+    },
+    {
+      name: "textChoice",
+      invoke: (sb, variable) =>
+        sb.textChoice(variable, { trueText: "Yes", falseText: "No" }),
+      expected: indirectWrite,
+    },
+    {
+      name: "textMenu",
+      invoke: (sb, variable) => sb.textMenu(variable, ["One", "Two"]),
+      expected: indirectWrite,
+    },
+    {
+      name: "threadStart",
+      invoke: (sb, variable) => sb.threadStart(variable, []),
+      expected: indirectWrite,
+    },
+    {
+      name: "threadTerminate",
+      invoke: (sb, variable) => sb.threadTerminate(variable),
+      expected: indirectPush,
+    },
+    {
+      name: "variableSetToRandom",
+      invoke: (sb, variable) => sb.variableSetToRandom(variable, 0, 10),
+      expected: indirectWrite,
+    },
+    {
+      name: "variableValueOperation",
+      invoke: (sb, variable) =>
+        sb.variableValueOperation(variable, ".ADD", 1, false),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variablesOperation source variable",
+      invoke: (sb, variable) =>
+        sb.variablesOperation("0", ".ADD", variable, false),
+      expected: indirectRead,
+    },
+    {
+      name: "variablesScriptValueOperation",
+      invoke: (sb, variable) =>
+        sb.variablesScriptValueOperation(variable, ".ADD", {
+          type: "number",
+          value: 1,
+        }),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variableRandomOperation",
+      invoke: (sb, variable) =>
+        sb.variableRandomOperation(variable, ".ADD", 0, 10, false),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variableAddFlags",
+      invoke: (sb, variable) => sb.variableAddFlags(variable, 1),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variableClearFlags",
+      invoke: (sb, variable) => sb.variableClearFlags(variable, 1),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variableEvaluateExpression",
+      invoke: (sb, variable) => sb.variableEvaluateExpression(variable, "1"),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variableDataTableLookup",
+      invoke: (sb, variable) =>
+        sb.variableDataTableLookup(variable, {
+          label: "Test Data",
+          variables: [{ type: "variable", value: "0" }],
+          rows: [{ values: [{ type: "number", value: 1 }] }],
+        }),
+      expected: indirectRead,
+    },
+    {
+      name: "engineFieldStoreInVariable",
+      invoke: (sb, variable) =>
+        sb.engineFieldStoreInVariable("testField", variable),
+      expected: indirectWrite,
+    },
+    {
+      name: "engineFieldStoreInVariable with a 16-bit field",
+      invoke: (sb, variable) =>
+        sb.engineFieldStoreInVariable("testField16", variable),
+      expected: indirectWrite,
+    },
+    {
+      name: "ifVariableCompare",
+      invoke: (sb, variable) => sb.ifVariableCompare(variable, ".EQ", "0"),
+      expected: indirectPush,
+    },
+    {
+      name: "ifVariableCompareScriptValue",
+      invoke: (sb, variable) =>
+        sb.ifVariableCompareScriptValue(variable, ".EQ", {
+          type: "number",
+          value: 1,
+        }),
+      expected: indirectPush,
+    },
+    {
+      name: "ifVariableCompare second variable",
+      invoke: (sb, variable) => sb.ifVariableCompare("0", ".EQ", variable),
+      expected: indirectPush,
+    },
+    {
+      name: "ifVariableBitwiseValue",
+      invoke: (sb, variable) =>
+        sb.ifVariableBitwiseValue(variable, ".B_AND", 1),
+      expected: indirectRead,
+    },
+    {
+      name: "caseVariableConstValue",
+      invoke: (sb, variable) =>
+        sb.caseVariableConstValue(variable, [
+          { value: { type: "number", value: 1 }, branch: [] },
+        ]),
+      expected: indirectPush,
+    },
+  ];
+
+  test.each(activeMethodCases)(
+    "$name supports runtime-indexed variables",
+    async ({ invoke, expected }) => {
+      const { sb, output } = await createVariableTestBuilder();
+
+      invoke(sb, runtimeIndexedVariable());
+
+      const script = output.join("\n");
+      expect(script).toContain(".R_INT16    VAR_ARRAY");
+      expect(script).toContain(".R_REF      VAR_INDEX");
+      expect(script).toMatch(/\.R_REF_SET\s+\.LOCAL_TMP\d+_ARRAY_PTR/);
+      expect(script).toMatch(expected);
+    },
+  );
+
+  const deprecatedMethodCases: {
+    name: string;
+    invoke: (api: DeprecatedAPI, variable: ScriptBuilderVariable) => void;
+    expected: RegExp;
+  }[] = [
+    {
+      name: "variableSetToProperty",
+      invoke: (api, variable) =>
+        api.variableSetToProperty(variable, "player:xpos"),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variableSetToUnionValue",
+      invoke: (api, variable) =>
+        api.variableSetToUnionValue(variable, { type: "number", value: 1 }),
+      expected: indirectWrite,
+    },
+    {
+      name: "actorMoveToVariables",
+      invoke: (api, variable) =>
+        api.actorMoveToVariables(variable, variable, true),
+      expected: indirectRead,
+    },
+    {
+      name: "actorSetPositionToVariables",
+      invoke: (api, variable) =>
+        api.actorSetPositionToVariables(variable, variable),
+      expected: indirectRead,
+    },
+    {
+      name: "actorSetDirectionToVariable",
+      invoke: (api, variable) => api.actorSetDirectionToVariable(variable),
+      expected: indirectPush,
+    },
+    {
+      name: "actorSetFrameToVariable",
+      invoke: (api, variable) => api.actorSetFrameToVariable(variable),
+      expected: indirectPush,
+    },
+    {
+      name: "cameraMoveToVariables",
+      invoke: (api, variable) => api.cameraMoveToVariables(variable, variable),
+      expected: indirectRead,
+    },
+    {
+      name: "cameraShakeVariables",
+      invoke: (api, variable) =>
+        api.cameraShakeVariables(true, true, 10, variable),
+      expected: indirectRead,
+    },
+    {
+      name: "variableSetToTrue",
+      invoke: (api, variable) => api.variableSetToTrue(variable),
+      expected: indirectWrite,
+    },
+    {
+      name: "variableSetToFalse",
+      invoke: (api, variable) => api.variableSetToFalse(variable),
+      expected: indirectWrite,
+    },
+    {
+      name: "variablesAdd",
+      invoke: (api, variable) => api.variablesAdd(variable, variable, false),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variablesSub",
+      invoke: (api, variable) => api.variablesSub(variable, variable, false),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variablesMul",
+      invoke: (api, variable) => api.variablesMul(variable, variable),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variablesDiv",
+      invoke: (api, variable) => api.variablesDiv(variable, variable),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variablesMod",
+      invoke: (api, variable) => api.variablesMod(variable, variable),
+      expected: indirectRpnWrite,
+    },
+    {
+      name: "variableFromUnion",
+      invoke: (api, variable) =>
+        api.variableFromUnion({ type: "number", value: 1 }, variable),
+      expected: indirectWrite,
+    },
+    {
+      name: "engineFieldSetToVariable",
+      invoke: (api, variable) =>
+        api.engineFieldSetToVariable("testField", variable),
+      expected: indirectPush,
+    },
+    {
+      name: "replaceTileXYVariable",
+      invoke: (api, variable) =>
+        api.replaceTileXYVariable(0, 0, "tileset1", variable, "8px"),
+      expected: indirectPush,
+    },
+    {
+      name: "ifVariableTrue",
+      invoke: (api, variable) => api.ifVariableTrue(variable),
+      expected: indirectPush,
+    },
+    {
+      name: "ifVariableValue",
+      invoke: (api, variable) => api.ifVariableValue(variable, ".EQ", 1),
+      expected: indirectPush,
+    },
+    {
+      name: "ifActorDistanceVariableFromActor",
+      invoke: (api, variable) =>
+        api.ifActorDistanceVariableFromActor(variable, ".LT", "player"),
+      expected: indirectRead,
+    },
+    {
+      name: "caseVariableValue",
+      invoke: (api, variable) => api.caseVariableValue(variable, { 1: [] }),
+      expected: indirectPush,
+    },
+  ];
+
+  test.each(deprecatedMethodCases)(
+    "deprecated $name supports runtime-indexed variables",
+    async ({ invoke, expected }) => {
+      const { sb, output } = await createVariableTestBuilder();
+
+      invoke(sb as unknown as DeprecatedAPI, runtimeIndexedVariable());
+
+      const script = output.join("\n");
+      expect(script).toContain(".R_INT16    VAR_ARRAY");
+      expect(script).toContain(".R_REF      VAR_INDEX");
+      expect(script).toMatch(/\.R_REF_SET\s+\.LOCAL_TMP\d+_ARRAY_PTR/);
+      expect(script).toMatch(expected);
+    },
+  );
+});
+
+test("Should increment an array variable with a static index", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+    },
+  );
+
+  sb.variableInc({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: { type: "number", value: 2 },
+  });
+
+  expect(output).toEqual([
+    "        ; Variable Increment By 1",
+    "        VM_RPN",
+    "            .R_REF      ^/(VAR_ARRAY + 2)/",
+    "            .R_INT8     1",
+    "            .R_OPERATOR .ADD",
+    "            .R_REF_SET  ^/(VAR_ARRAY + 2)/",
+    "            .R_STOP",
+    "",
+  ]);
+});
+
+test("Should reject data peek from a dynamically indexed array element", async () => {
+  const arrayId = "11111111-1111-1111-1111-111111111111";
+  const sourceIndexId = "22222222-2222-2222-2222-222222222222";
+  const destinationIndexId = "33333333-3333-3333-3333-333333333333";
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [arrayId]: {
+          id: arrayId,
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+        [sourceIndexId]: {
+          id: sourceIndexId,
+          name: "Source Index",
+          symbol: "var_source_index",
+          type: "number",
+        },
+        [destinationIndexId]: {
+          id: destinationIndexId,
+          name: "Destination Index",
+          symbol: "var_destination_index",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  expect(() =>
+    sb.dataPeek(
+      0,
+      {
+        type: "variable",
+        value: arrayId,
+        index: { type: "variable", value: sourceIndexId },
+      },
+      {
+        type: "variable",
+        value: arrayId,
+        index: { type: "variable", value: destinationIndexId },
+      },
+    ),
+  ).toThrow("Variable must resolve to a direct address");
+});
+
+test("Should data peek into a dynamically indexed array element", async () => {
+  const arrayId = "11111111-1111-1111-1111-111111111111";
+  const destinationIndexId = "33333333-3333-3333-3333-333333333333";
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [arrayId]: {
+          id: arrayId,
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+        [destinationIndexId]: {
+          id: destinationIndexId,
+          name: "Destination Index",
+          symbol: "var_destination_index",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  sb.dataPeek(
+    0,
+    {
+      type: "variable",
+      value: arrayId,
+      index: { type: "number", value: 3 },
+    },
+    {
+      type: "variable",
+      value: arrayId,
+      index: { type: "variable", value: destinationIndexId },
+    },
+  );
+
+  expect(
+    output.some(
+      (line) =>
+        line.includes("VM_SAVE_PEEK") &&
+        line.includes("PEEK_DEST") &&
+        line.includes("^/(VAR_ARRAY + 3)/"),
+    ),
+  ).toBe(true);
+  expect(
+    output.some(
+      (line) =>
+        line.includes("VM_SET_INDIRECT") &&
+        line.includes("ARRAY_PTR") &&
+        line.includes("PEEK_DEST"),
+    ),
+  ).toBe(true);
+});
+
+test("Should link transfer single-word indirect variables", async () => {
+  const { sb, output } = await createTestScriptBuilder();
+  const sendVariable = {
+    type: "argument" as const,
+    indirect: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+  };
+  const receiveVariable = {
+    type: "argument" as const,
+    indirect: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_1_VARIABLE",
+  };
+
+  sb.linkTransfer(sendVariable, receiveVariable, 1);
+
+  expect(
+    output.some(
+      (line) =>
+        line.includes("VM_SIO_EXCHANGE") && line.includes(".ARG0, .ARG1, 1"),
+    ),
+  ).toBe(true);
+  expect(
+    output.some(
+      (line) =>
+        line.includes("VM_SET_INDIRECT") &&
+        line.includes(receiveVariable.symbol),
+    ),
+  ).toBe(true);
+});
+
+test("Should reject multiword link transfer with non-array variables", async () => {
+  const { sb } = await createTestScriptBuilder();
+  const sendVariable = {
+    type: "argument" as const,
+    indirect: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+  };
+  const receiveVariable = {
+    type: "argument" as const,
+    indirect: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_1_VARIABLE",
+  };
+
+  expect(() => sb.linkTransfer(sendVariable, receiveVariable, 2)).toThrow(
+    "Variable must be an array",
+  );
+});
+
+test("Should link transfer between sufficiently sized arrays", async () => {
+  const sendVariableId = "11111111-1111-1111-1111-111111111111";
+  const receiveVariableId = "22222222-2222-2222-2222-222222222222";
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [sendVariableId]: {
+          id: sendVariableId,
+          name: "Send Array",
+          symbol: "var_send_array",
+          type: "array",
+          size: 3,
+        },
+        [receiveVariableId]: {
+          id: receiveVariableId,
+          name: "Receive Array",
+          symbol: "var_receive_array",
+          type: "array",
+          size: 2,
+        },
+      },
+    },
+  );
+
+  sb.linkTransfer(
+    { type: "variable", value: sendVariableId },
+    { type: "variable", value: receiveVariableId },
+    2,
+  );
+
+  expect(output).toContain(
+    "        VM_SIO_EXCHANGE         VAR_SEND_ARRAY, VAR_RECEIVE_ARRAY, 2",
+  );
+});
+
+test("Should reject link transfers larger than a global array", async () => {
+  const sendVariableId = "11111111-1111-1111-1111-111111111111";
+  const receiveVariableId = "22222222-2222-2222-2222-222222222222";
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [sendVariableId]: {
+          id: sendVariableId,
+          name: "Send Array",
+          symbol: "var_send_array",
+          type: "array",
+          size: 2,
+        },
+        [receiveVariableId]: {
+          id: receiveVariableId,
+          name: "Receive Array",
+          symbol: "var_receive_array",
+          type: "array",
+          size: 3,
+        },
+      },
+    },
+  );
+
+  expect(() =>
+    sb.linkTransfer(
+      { type: "variable", value: sendVariableId },
+      { type: "variable", value: receiveVariableId },
+      3,
+    ),
+  ).toThrow('Array "Send Array" with size 2 is too small for required size 3');
+});
+
+test("Should link transfer multiword custom event array parameters", async () => {
+  const { sb, output } = await createTestScriptBuilder();
+  const sendVariable = {
+    type: "argument" as const,
+    indirect: true,
+    array: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+  };
+  const receiveVariable = {
+    type: "argument" as const,
+    indirect: true,
+    array: true,
+    symbol: ".SCRIPT_ARG_INDIRECT_1_VARIABLE",
+  };
+
+  sb.linkTransfer(sendVariable, receiveVariable, 2);
+
+  expect(
+    output.some(
+      (line) =>
+        line.includes("VM_SIO_EXCHANGE") &&
+        line.includes("SIO_SEND") &&
+        line.includes("SIO_RECEIVE") &&
+        line.includes("2"),
+    ),
+  ).toBe(true);
+  expect(
+    output.filter((line) => line.includes("VM_PUSH_VALUE_IND")),
+  ).toHaveLength(2);
+  expect(
+    output.filter((line) => line.includes("VM_SET_INDIRECT")),
+  ).toHaveLength(2);
+});
+
+test("Should reject indexed arrays for multiword link transfers", async () => {
+  const arrayId = "11111111-1111-1111-1111-111111111111";
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [arrayId]: {
+          id: arrayId,
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+    },
+  );
+
+  expect(() =>
+    sb.linkTransfer(
+      {
+        type: "variable",
+        value: arrayId,
+        index: { type: "number", value: 1 },
+      },
+      { type: "variable", value: arrayId },
+      2,
+    ),
+  ).toThrow("Variable must reference the root of an array");
+});
+
+test("Should resolve a scalar variable object without an index", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Number",
+          symbol: "var_number",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  expect(
+    sb.getVariableAlias({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+    }),
+  ).toBe("VAR_NUMBER");
+});
+
+test("Should pass an array root to an array-reference script argument", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+      customEvents: [
+        {
+          id: "script1",
+          name: "Array Script",
+          description: "",
+          variables: {
+            V0: {
+              id: "V0",
+              name: "Array",
+              passByReference: "array",
+            },
+          },
+          actors: {},
+          symbol: "script_1",
+          script: [],
+        },
+      ],
+    },
+  );
+
+  sb.callScript("script1", {
+    "$variable[V0]$": {
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+    },
+  });
+
+  expect(output).toContain(
+    "        VM_PUSH_REFERENCE       VAR_ARRAY ; Variable V0",
+  );
+});
+
+test("Should reject an indexed element passed to an array-reference script argument", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+      customEvents: [
+        {
+          id: "script1",
+          name: "Array Script",
+          description: "",
+          variables: {
+            V0: {
+              id: "V0",
+              name: "Array",
+              passByReference: "array",
+            },
+          },
+          actors: {},
+          symbol: "script_1",
+          script: [],
+        },
+      ],
+    },
+  );
+
+  expect(() =>
+    sb.callScript("script1", {
+      "$variable[V0]$": {
+        type: "variable",
+        value: "11111111-1111-1111-1111-111111111111",
+        index: { type: "number", value: 2 },
+      },
+    }),
+  ).toThrow(
+    'Array reference argument "V0" must reference the root of an array',
+  );
+});
+
+test("Should reject a scalar passed to an array-reference script argument", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Scalar",
+          symbol: "var_scalar",
+          type: "number",
+        },
+      },
+      customEvents: [
+        {
+          id: "script1",
+          name: "Array Script",
+          description: "",
+          variables: {
+            V0: {
+              id: "V0",
+              name: "Array",
+              passByReference: "array",
+            },
+          },
+          actors: {},
+          symbol: "script_1",
+          script: [],
+        },
+      ],
+    },
+  );
+
+  expect(() =>
+    sb.callScript("script1", {
+      "$variable[V0]$": {
+        type: "variable",
+        value: "11111111-1111-1111-1111-111111111111",
+      },
+    }),
+  ).toThrow('Array reference argument "V0" must be an array variable');
+});
+
+test("Should pass an array-reference argument root to another script", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      argLookup: {
+        variable: new Map([
+          [
+            "V1",
+            {
+              type: "argument",
+              indirect: true,
+              array: true,
+              symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+            },
+          ],
+        ]),
+        actor: new Map(),
+      },
+      customEvents: [
+        {
+          id: "script1",
+          name: "Array Script",
+          description: "",
+          variables: {
+            V0: {
+              id: "V0",
+              name: "Array",
+              passByReference: "array",
+            },
+          },
+          actors: {},
+          symbol: "script_1",
+          script: [],
+        },
+      ],
+    },
+  );
+
+  sb.callScript("script1", {
+    "$variable[V0]$": {
+      type: "variable",
+      value: "V1",
+    },
+  });
+
+  expect(output).toContain(
+    "        VM_PUSH_VALUE           .SCRIPT_ARG_INDIRECT_0_VARIABLE",
+  );
+});
+
+test("Should increment an array variable with a constant index", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+      constantsLookup: {
+        "33333333-3333-3333-3333-333333333333": {
+          id: "33333333-3333-3333-3333-333333333333",
+          name: "Index",
+          symbol: "index",
+          value: 2,
+        },
+      },
+    },
+  );
+
+  sb.variableInc({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "constant",
+      value: "33333333-3333-3333-3333-333333333333",
+    },
+  });
+
+  expect(output).toEqual([
+    "        ; Variable Increment By 1",
+    "        VM_RPN",
+    "            .R_REF      ^/(VAR_ARRAY + 2)/",
+    "            .R_INT8     1",
+    "            .R_OPERATOR .ADD",
+    "            .R_REF_SET  ^/(VAR_ARRAY + 2)/",
+    "            .R_STOP",
+    "",
+  ]);
+});
+
+test("Should increment an array variable with a variable index", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+        "22222222-2222-2222-2222-222222222222": {
+          id: "22222222-2222-2222-2222-222222222222",
+          name: "Index",
+          symbol: "var_index",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  sb.variableInc({
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "variable",
+      value: "22222222-2222-2222-2222-222222222222",
+    },
+  });
+
+  expect(output.join("\n")).toContain(".R_INT16    VAR_ARRAY");
+  expect(output.join("\n")).toContain(".R_REF      VAR_INDEX");
+  expect(output.join("\n")).toContain(".R_REF_IND");
+  expect(output.join("\n")).toContain(".R_REF_SET_IND");
+  expect(
+    output.filter((line) => line.includes(".R_INT16    VAR_ARRAY")),
+  ).toHaveLength(1);
+  expect(output.join("\n")).toContain(".R_REF_SET_IND .LOCAL_TMP0_ARRAY_PTR");
+  expect(output.join("\n")).not.toContain(".LOCAL_TMP1_ARRAY_PTR");
+});
+
+test("Should evaluate expressions containing array offsets", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+        "22222222-2222-2222-2222-222222222222": {
+          id: "22222222-2222-2222-2222-222222222222",
+          name: "Index",
+          symbol: "var_index",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  sb.variableEvaluateExpression(
+    "0",
+    "$11111111-1111-1111-1111-111111111111$[1] + $11111111-1111-1111-1111-111111111111$[$22222222-2222-2222-2222-222222222222$]",
+  );
+
+  expect(output.join("\n")).toContain(".R_REF      ^/(VAR_ARRAY + 1)/");
+  expect(output.join("\n")).toContain(".R_REF      VAR_INDEX");
+  expect(output.join("\n")).toContain(".R_REF_IND");
+});
+
+test("Should replace missing variables in expressions with zero", async () => {
+  const { sb, output } = await createTestScriptBuilder();
+  const missingVariableId = "abcdef01-2345-6789-abcd-ef0123456789";
+
+  sb.variableEvaluateExpression("0", `$${missingVariableId}$ + 1`);
+
+  expect(output.join("\n")).toContain(".R_INT16    0");
+});
+
+test("Should evaluate expressions containing engine constant array offsets", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+      engineConstants: {
+        ARRAY_INDEX: 3,
+      },
+    },
+  );
+
+  sb.variableEvaluateExpression(
+    "0",
+    "$11111111-1111-1111-1111-111111111111$[@engine::ARRAY_INDEX@]",
+  );
+
+  expect(output.join("\n")).toContain(".R_REF      ^/(VAR_ARRAY + 3)/");
+  expect(output.join("\n")).not.toContain("ARRAY_PTR");
+});
+
+test("Should read an indexed array variable from a ScriptValue", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+    },
+  );
+
+  sb.variableSetToScriptValue("0", {
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: { type: "number", value: 3 },
+  });
+
+  expect(output).toContain(
+    "        VM_SET                  VAR_VARIABLE_0, ^/(VAR_ARRAY + 3)/",
+  );
+});
+
+test("Should read an array using an index expression", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+        "22222222-2222-2222-2222-222222222222": {
+          id: "22222222-2222-2222-2222-222222222222",
+          name: "Index",
+          symbol: "var_index",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  sb.variableSetToScriptValue("0", {
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "add",
+      valueA: {
+        type: "variable",
+        value: "22222222-2222-2222-2222-222222222222",
+      },
+      valueB: { type: "number", value: 1 },
+    },
+  });
+
+  expect(output.join("\n")).toContain(".R_INT16    VAR_ARRAY");
+  expect(output.join("\n")).toContain(".R_REF      VAR_INDEX");
+  expect(output.join("\n").match(/\.R_OPERATOR \.ADD/g)).toHaveLength(2);
+  expect(output.join("\n")).toContain("VM_PUSH_VALUE_IND");
+});
+
+test("Should read an array using a nested indexed variable expression", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 8,
+        },
+        "22222222-2222-2222-2222-222222222222": {
+          id: "22222222-2222-2222-2222-222222222222",
+          name: "Other",
+          symbol: "var_other",
+          type: "array",
+          size: 8,
+        },
+        "33333333-3333-3333-3333-333333333333": {
+          id: "33333333-3333-3333-3333-333333333333",
+          name: "Index",
+          symbol: "var_index",
+          type: "number",
+        },
+        "44444444-4444-4444-4444-444444444444": {
+          id: "44444444-4444-4444-4444-444444444444",
+          name: "Offset",
+          symbol: "var_offset",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  sb.variableSetToScriptValue("0", {
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: {
+      type: "add",
+      valueA: {
+        type: "variable",
+        value: "22222222-2222-2222-2222-222222222222",
+        index: {
+          type: "variable",
+          value: "33333333-3333-3333-3333-333333333333",
+        },
+      },
+      valueB: {
+        type: "variable",
+        value: "44444444-4444-4444-4444-444444444444",
+      },
+    },
+  });
+
+  expect(output.join("\n")).toContain(".R_INT16    VAR_OTHER");
+  expect(output.join("\n")).toContain(".R_INT16    VAR_ARRAY");
+  expect(output.join("\n")).toContain(".R_REF      VAR_INDEX");
+  expect(output.join("\n")).toContain(".R_REF      VAR_OFFSET");
+  expect(output.join("\n")).toContain(".R_REF_IND");
+  expect(output.join("\n")).toContain("VM_PUSH_VALUE_IND");
+});
+
+test("Should fold a static array index expression", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+    },
+  );
+
+  expect(
+    sb.getVariableAlias({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: {
+        type: "add",
+        valueA: { type: "number", value: 1 },
+        valueB: { type: "number", value: 2 },
+      },
+    }),
+  ).toBe("^/(VAR_ARRAY + 3)/");
+});
+
+test("Should reject an out of bounds constant index expression", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+      constantsLookup: {
+        "22222222-2222-2222-2222-222222222222": {
+          id: "22222222-2222-2222-2222-222222222222",
+          name: "Index",
+          symbol: "index",
+          value: 3,
+        },
+      },
+    },
+  );
+
+  expect(() =>
+    sb.getVariableAlias({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: {
+        type: "add",
+        valueA: {
+          type: "constant",
+          value: "22222222-2222-2222-2222-222222222222",
+        },
+        valueB: { type: "number", value: 1 },
+      },
+    }),
+  ).toThrow('Array index 4 is out of bounds for variable "Array" with size 4');
+});
+
+test("Should set a camera property from an indexed ScriptValue", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+    },
+  );
+
+  sb.cameraSetPropertyToScriptValue("camera_offset_x", {
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: { type: "number", value: 3 },
+  });
+
+  expect(output.join("\n")).toContain(
+    "VM_SET_INT8             _camera_offset_x, ^/(VAR_ARRAY + 3)/",
+  );
+});
+
+test("Should set an engine field from an indexed ScriptValue", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+      engineFields: {
+        myfield: {
+          ...dummyEngineFieldSchema,
+          key: "myfield",
+          cType: "BYTE",
+        },
+      },
+    },
+  );
+
+  sb.engineFieldSetToScriptValue("myfield", {
+    type: "variable",
+    value: "11111111-1111-1111-1111-111111111111",
+    index: { type: "number", value: 3 },
+  });
+
+  expect(output.join("\n")).toContain(
+    "VM_SET_INT8             _myfield, ^/(VAR_ARRAY + 3)/",
+  );
+});
+
+test("Should replace indexed references to number variables with variable symbol, ignoring index", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Number",
+          symbol: "var_number",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  expect(
+    sb.getVariableAlias({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: { type: "number", value: 0 },
+    }),
+  ).toEqual("VAR_NUMBER");
+
+  const dynamicallyIndexedVariable = {
+    type: "variable" as const,
+    value: "11111111-1111-1111-1111-111111111111",
+    index: { type: "variable" as const, value: "L0" },
+  };
+  expect(sb.getVariableAlias(dynamicallyIndexedVariable)).toBe("VAR_NUMBER");
+  expect(sb._isIndirectVariable(dynamicallyIndexedVariable)).toBe(false);
+});
+
+test.each([-1, 4])(
+  "Should reject static array index %s outside the declared size",
+  async (index) => {
+    const { sb } = await createTestScriptBuilder(
+      {},
+      {
+        variablesLookup: {
+          "11111111-1111-1111-1111-111111111111": {
+            id: "11111111-1111-1111-1111-111111111111",
+            name: "Array",
+            symbol: "var_array",
+            type: "array",
+            size: 4,
+          },
+        },
+      },
+    );
+
+    expect(() =>
+      sb.getVariableAlias({
+        type: "variable",
+        value: "11111111-1111-1111-1111-111111111111",
+        index: { type: "number", value: index },
+      }),
+    ).toThrow(
+      `Array index ${index} is out of bounds for variable "Array" with size 4`,
+    );
+  },
+);
+
+test("Should reject constant array indices outside the declared size", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+      constantsLookup: {
+        "33333333-3333-3333-3333-333333333333": {
+          id: "33333333-3333-3333-3333-333333333333",
+          name: "Index",
+          symbol: "index",
+          value: 4,
+        },
+      },
+    },
+  );
+
+  expect(() =>
+    sb.getVariableAlias({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: {
+        type: "constant",
+        value: "33333333-3333-3333-3333-333333333333",
+      },
+    }),
+  ).toThrow('Array index 4 is out of bounds for variable "Array" with size 4');
+});
+
+test("Should read an indexed array through a by-reference script argument", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      argLookup: {
+        variable: new Map([
+          [
+            "V0",
+            {
+              type: "argument",
+              indirect: true,
+              array: true,
+              symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+            },
+          ],
+          [
+            "V1",
+            {
+              type: "argument",
+              indirect: true,
+              array: false,
+              symbol: ".SCRIPT_ARG_INDIRECT_1_VARIABLE",
+            },
+          ],
+        ]),
+        actor: new Map(),
+      },
+    },
+  );
+
+  sb.variableSetToScriptValue("V1", {
+    type: "variable",
+    value: "V0",
+    index: { type: "number", value: 3 },
+  });
+
+  const script = output.join("\n");
+  expect(script).toContain(".R_REF      .SCRIPT_ARG_INDIRECT_0_VARIABLE");
+  expect(script).toContain(".R_INT16    3");
+  expect(script).toContain(".R_REF_SET  .LOCAL_TMP0_ARRAY_PTR");
+  expect(script).toContain("VM_PUSH_VALUE_IND       .LOCAL_TMP0_ARRAY_PTR");
+  expect(script).toContain("VM_SET_INDIRECT");
+  expect(script).toContain(".SCRIPT_ARG_INDIRECT_1_VARIABLE - 1");
+  expect(script).not.toContain("^/(.SCRIPT_ARG_INDIRECT_0_VARIABLE + 3)/");
+});
+
+test("Should read a constant index through an array-reference script argument", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      argLookup: {
+        variable: new Map([
+          [
+            "V0",
+            {
+              type: "argument",
+              indirect: true,
+              array: true,
+              symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+            },
+          ],
+          [
+            "V1",
+            {
+              type: "argument",
+              indirect: true,
+              array: false,
+              symbol: ".SCRIPT_ARG_INDIRECT_1_VARIABLE",
+            },
+          ],
+        ]),
+        actor: new Map(),
+      },
+      constantsLookup: {
+        "33333333-3333-3333-3333-333333333333": {
+          id: "33333333-3333-3333-3333-333333333333",
+          name: "Index",
+          symbol: "index",
+          value: 3,
+        },
+      },
+    },
+  );
+
+  sb.variableSetToScriptValue("V1", {
+    type: "variable",
+    value: "V0",
+    index: {
+      type: "constant",
+      value: "33333333-3333-3333-3333-333333333333",
+    },
+  });
+
+  const script = output.join("\n");
+  expect(script).toContain(".R_REF      .SCRIPT_ARG_INDIRECT_0_VARIABLE");
+  expect(script).toContain(".R_INT16    3");
+  expect(script).not.toContain("VAR_INDEX");
+});
+
+test("Should write an indexed array through a by-reference script argument", async () => {
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      argLookup: {
+        variable: new Map([
+          [
+            "V0",
+            {
+              type: "argument",
+              indirect: true,
+              array: true,
+              symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+            },
+          ],
+        ]),
+        actor: new Map(),
+      },
+    },
+  );
+
+  sb.variableSetToScriptValue(
+    {
+      type: "variable",
+      value: "V0",
+      index: { type: "number", value: 3 },
+    },
+    { type: "number", value: 99 },
+  );
+
+  const script = output.join("\n");
+  expect(script).toContain(".R_REF      .SCRIPT_ARG_INDIRECT_0_VARIABLE");
+  expect(script).toContain(".R_INT16    3");
+  expect(script).toContain(
+    "VM_SET_INDIRECT         .LOCAL_TMP0_ARRAY_PTR, .LOCAL_TMP1_VALUE_TMP",
+  );
+});
+
+test("Should ignore indexes on a script argument passed by value", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      argLookup: {
+        variable: new Map([
+          [
+            "V0",
+            {
+              type: "argument",
+              indirect: false,
+              symbol: ".SCRIPT_ARG_0_VARIABLE",
+            },
+          ],
+        ]),
+        actor: new Map(),
+      },
+    },
+  );
+
+  const variable = {
+    type: "variable" as const,
+    value: "V0",
+    index: { type: "variable" as const, value: "L0" },
+  };
+  expect(sb.getVariableAlias(variable)).toBe(".SCRIPT_ARG_0_VARIABLE");
+  expect(sb._isIndirectVariable(variable)).toBe(false);
+});
+
+test("Should ignore indexes on a scalar script argument passed by reference", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      argLookup: {
+        variable: new Map([
+          [
+            "V0",
+            {
+              type: "argument",
+              indirect: true,
+              array: false,
+              symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+            },
+          ],
+        ]),
+        actor: new Map(),
+      },
+    },
+  );
+
+  const variable = {
+    type: "variable" as const,
+    value: "V0",
+    index: { type: "variable" as const, value: "L0" },
+  };
+  expect(sb.getVariableAlias(variable)).toBe(".SCRIPT_ARG_INDIRECT_0_VARIABLE");
+  expect(sb._isIndirectVariable(variable)).toBe(true);
+});
+
+test("Should treat a missing array-reference index as zero", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      argLookup: {
+        variable: new Map([
+          [
+            "V0",
+            {
+              type: "argument",
+              indirect: true,
+              array: true,
+              symbol: ".SCRIPT_ARG_INDIRECT_0_VARIABLE",
+            },
+          ],
+        ]),
+        actor: new Map(),
+      },
+    },
+  );
+
+  const variable = { type: "variable" as const, value: "V0" };
+  expect(sb.getVariableAlias(variable)).toBe(".SCRIPT_ARG_INDIRECT_0_VARIABLE");
+  expect(sb._isIndirectVariable(variable)).toBe(true);
+});
+
+test("Should not reuse the array pointer local while setting an indexed variable", async () => {
+  const { sb } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        "11111111-1111-1111-1111-111111111111": {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+        "22222222-2222-2222-2222-222222222222": {
+          id: "22222222-2222-2222-2222-222222222222",
+          name: "Index",
+          symbol: "var_index",
+          type: "number",
+        },
+      },
+    },
+  );
+
+  sb.variableSetToScriptValue(
+    {
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: {
+        type: "variable",
+        value: "22222222-2222-2222-2222-222222222222",
+      },
+    },
+    { type: "number", value: 3 },
+  );
+  sb._packLocals();
+
+  const script = sb.toScriptString("MY_SCRIPT", false);
+  expect(script).toContain(".LOCAL_TMP0_ARRAY_PTR = -1");
+  expect(script).toContain(".LOCAL_TMP1_VALUE_TMP = -2");
+  expect(script).toContain("VM_RESERVE              2");
+  expect(script).toContain(
+    "VM_SET_INDIRECT         .LOCAL_TMP0_ARRAY_PTR, .LOCAL_TMP1_VALUE_TMP",
+  );
 });
 
 test("Should do truthy conditional test", () => {
@@ -3097,7 +5043,10 @@ test("Should compile variable data table lookups into data table output", async 
   const { sb } = await createTestScriptBuilder();
 
   sb.variableDataTableLookup("0", {
-    variables: ["1", "2"],
+    variables: [
+      { type: "variable", value: "1" },
+      { type: "variable", value: "2" },
+    ],
     rows: [
       {
         label: "Alpha",
@@ -3125,7 +5074,39 @@ test("Should compile variable data table lookups into data table output", async 
   expect(script).toContain("VAR_VARIABLE_2");
 });
 
+test("Should compile data table lookups into fixed array elements", async () => {
+  const arrayId = "11111111-1111-1111-1111-111111111111";
+  const { sb, output } = await createTestScriptBuilder(
+    {},
+    {
+      variablesLookup: {
+        [arrayId]: {
+          id: arrayId,
+          name: "Array",
+          symbol: "var_array",
+          type: "array",
+          size: 4,
+        },
+      },
+    },
+  );
+
+  sb.variableDataTableLookup("0", {
+    variables: [
+      {
+        type: "variable",
+        value: arrayId,
+        index: { type: "number", value: 2 },
+      },
+    ],
+    rows: [{ values: [{ type: "number", value: 10 }] }],
+  });
+
+  expect(output.join("\n")).toContain("^/(VAR_ARRAY + 2)/");
+});
+
 test("Should remap custom event variable arguments used in data table columns", async () => {
+  const arrayId = "11111111-1111-1111-1111-111111111111";
   const output: string[] = [];
   const additionalScripts: Record<
     string,
@@ -3155,6 +5136,11 @@ test("Should remap custom event variable arguments used in data table columns", 
             name: "Variable A",
             passByReference: false,
           },
+          V1: {
+            id: "V1",
+            name: "Array Variable",
+            passByReference: "array",
+          },
         },
         actors: {},
         symbol: "script_1",
@@ -3164,13 +5150,22 @@ test("Should remap custom event variable arguments used in data table columns", 
             args: {
               indexVariable: "0",
               data: {
-                variables: ["V0", "1"],
+                variables: [
+                  { type: "variable", value: "V0" },
+                  {
+                    type: "variable",
+                    value: "V1",
+                    index: { type: "number", value: 2 },
+                  },
+                  { type: "variable", value: "1" },
+                ],
                 rows: [
                   {
                     label: "Row 1",
                     values: [
                       { type: "number", value: 5 },
                       { type: "number", value: 6 },
+                      { type: "number", value: 7 },
                     ],
                   },
                 ],
@@ -3181,10 +5176,20 @@ test("Should remap custom event variable arguments used in data table columns", 
         ],
       },
     ],
+    variablesLookup: {
+      [arrayId]: {
+        id: arrayId,
+        name: "Array",
+        symbol: "var_array",
+        type: "array",
+        size: 4,
+      },
+    },
   } as unknown as ScriptBuilderOptions);
 
   sb.callScript("script1", {
     "$variable[V0]$": "2",
+    "$variable[V1]$": arrayId,
   });
 
   expect(output).toContain("        VM_PUSH_VALUE           VAR_VARIABLE_2");
@@ -3193,6 +5198,14 @@ test("Should remap custom event variable arguments used in data table columns", 
   );
   expect(additionalScripts["script_1"]?.compiledScript).toContain(
     ".SCRIPT_ARG_0_VARIABLE",
+  );
+  expect(additionalScripts["script_1"]?.compiledScript).toContain(
+    [
+      "            .R_REF      .SCRIPT_ARG_INDIRECT_1_VARIABLE",
+      "            .R_INT16    2",
+      "            .R_OPERATOR .ADD",
+      "            .R_REF_SET  .LOCAL_TMP1_ARRAY_PTR",
+    ].join("\n"),
   );
 });
 
@@ -4184,6 +6197,7 @@ describe("ScriptValue to RPN", () => {
             id: "0",
             name: "My Var",
             symbol: "var_myvar",
+            type: "number",
           },
         },
       },
@@ -4212,6 +6226,7 @@ describe("ScriptValue to RPN", () => {
             id: "0",
             name: "My Var",
             symbol: "var_myvar",
+            type: "number",
           },
         },
       },
@@ -4407,6 +6422,7 @@ describe("ScriptValue to RPN", () => {
             id: "0",
             name: "Health",
             symbol: "var_variable_0",
+            type: "number",
           },
         },
       },
@@ -4672,6 +6688,25 @@ _MY_SCRIPT::
     );
   });
 
+  test("Should replace missing dialogue variables with zero", async () => {
+    const dummyCompiledFont = await getDummyCompiledFont();
+    const { sb } = await createTestScriptBuilder(
+      {},
+      {
+        fonts: [dummyCompiledFont],
+      },
+    );
+    const missingVariableId = "abcdef01-2345-6789-abcd-ef0123456789";
+
+    sb.textDialogue(`Missing $${missingVariableId}$`);
+
+    const script = sb.toScriptString("MY_SCRIPT", false);
+    expect(script).toContain("VM_SET_CONST");
+    expect(script).toContain("MISSING_VARIABLE, 0");
+    expect(script).toContain('.asciz "Missing %d"');
+    expect(script).not.toContain(missingVariableId);
+  });
+
   test("Should be able to open dialogue boxes with direct args", async () => {
     const dummyCompiledFont = await getDummyCompiledFont();
     const { sb } = await createTestScriptBuilder(
@@ -4870,6 +6905,7 @@ describe("getVariableAlias", () => {
             id: "0",
             name: "My Var",
             symbol: "var_myvar",
+            type: "number",
           },
         },
       },
@@ -5103,6 +7139,106 @@ _script1::
 `);
   });
 
+  test("Should compile indexed access for an array reference arg", async () => {
+    const { sb } = await createTestScriptBuilder(
+      {},
+      {
+        customEvents: [
+          {
+            id: "script1",
+            name: "Test Script",
+            description: "",
+            variables: {
+              V0: {
+                id: "V0",
+                name: "Array",
+                passByReference: "array",
+              },
+              V1: {
+                id: "V1",
+                name: "Output",
+                passByReference: true,
+              },
+            },
+            actors: {},
+            symbol: "script1",
+            script: [
+              {
+                command: "EVENT_SET_VALUE",
+                args: {
+                  variable: "V1",
+                  value: {
+                    type: "expression",
+                    value: "$V0$[3]",
+                  },
+                },
+                id: "event1",
+              },
+            ],
+          },
+        ],
+      },
+    );
+
+    sb.compileCustomEventScript("script1");
+    const script = sb.options.additionalScripts["script1"]?.compiledScript;
+    expect(script).toContain(".R_REF      .SCRIPT_ARG_INDIRECT_0_VARIABLE");
+    expect(script).toContain(".R_INT16    3");
+    expect(script).toContain(".R_REF_SET  .LOCAL_TMP0_ARRAY_PTR");
+    expect(script).toContain(
+      "VM_SET_INDIRECT         ^/(.SCRIPT_ARG_INDIRECT_1_VARIABLE - 1)/, .ARG0",
+    );
+  });
+
+  test("Should compile a missing array-reference index as index zero", async () => {
+    const { sb } = await createTestScriptBuilder(
+      {},
+      {
+        customEvents: [
+          {
+            id: "script1",
+            name: "Test Script",
+            description: "",
+            variables: {
+              V0: {
+                id: "V0",
+                name: "Array",
+                passByReference: "array",
+              },
+              V1: {
+                id: "V1",
+                name: "Output",
+                passByReference: true,
+              },
+            },
+            actors: {},
+            symbol: "script1",
+            script: [
+              {
+                command: "EVENT_SET_VALUE",
+                args: {
+                  variable: "V1",
+                  value: {
+                    type: "variable",
+                    value: "V0",
+                  },
+                },
+                id: "event1",
+              },
+            ],
+          },
+        ],
+      },
+    );
+
+    sb.compileCustomEventScript("script1");
+    const script = sb.options.additionalScripts["script1"]?.compiledScript;
+    expect(script).toContain(
+      "VM_PUSH_VALUE_IND       .SCRIPT_ARG_INDIRECT_0_VARIABLE",
+    );
+    expect(script).not.toContain("ARRAY_PTR");
+  });
+
   test("Should compile a custom event script with actor arg", async () => {
     const { sb } = await createTestScriptBuilder(
       {},
@@ -5245,6 +7381,71 @@ _script1::
         VM_RESERVE              -4
         VM_RET_FAR_N            2
 `);
+  });
+
+  test("Should resolve an actor arg used inside an array index", async () => {
+    const { sb } = await createTestScriptBuilder(
+      {},
+      {
+        variablesLookup: {
+          "11111111-1111-1111-1111-111111111111": {
+            id: "11111111-1111-1111-1111-111111111111",
+            name: "Results",
+            symbol: "var_results",
+            type: "array",
+            size: 20,
+          },
+        },
+        customEvents: [
+          {
+            id: "script1",
+            name: "Test Script",
+            description: "",
+            variables: {},
+            actors: {
+              "0": {
+                id: "0",
+                name: "Target",
+              },
+            },
+            symbol: "script1",
+            script: [
+              {
+                command: "EVENT_SET_VALUE",
+                args: {
+                  variable: {
+                    type: "variable",
+                    value: "11111111-1111-1111-1111-111111111111",
+                    index: {
+                      type: "property",
+                      target: "0",
+                      property: "xpos",
+                    },
+                  },
+                  value: {
+                    type: "number",
+                    value: 99,
+                  },
+                },
+                id: "event1",
+              },
+            ],
+          },
+        ],
+      },
+    );
+
+    sb.compileCustomEventScript("script1");
+    const script = sb.options.additionalScripts["script1"]?.compiledScript;
+
+    expect(script).toContain("-- Fetch .SCRIPT_ARG_0_ACTOR actorPosition");
+    expect(script).toContain(
+      "VM_SET_CONST            .LOCAL_TMP2_VALUE_TMP, 99",
+    );
+    expect(script).toContain(
+      "VM_SET_INDIRECT         .LOCAL_TMP0_ARRAY_PTR, .LOCAL_TMP2_VALUE_TMP",
+    );
+    expect(script).not.toContain("-- Fetch 0 actorPosition");
   });
 
   test("Should compile a custom event script with camera property in script value", async () => {

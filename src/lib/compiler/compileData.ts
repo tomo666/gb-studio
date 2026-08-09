@@ -77,6 +77,7 @@ import {
   compileGlobalProjectiles,
   emptySpriteSheetHeader,
   emptySpriteSheet,
+  globalVariableOffsets,
 } from "./generateGBVMData";
 import compileSGBImage, { sgbImageHeader } from "./sgb";
 import { compileScriptEngineInit } from "./compileBootstrap";
@@ -136,6 +137,7 @@ import { EngineSchema } from "lib/project/loadEngineSchema";
 import { createLinkToResource } from "shared/lib/helpers/resourceLinks";
 import difference from "lodash/difference";
 import { toProjectileHash } from "./scriptBuilder/helpers";
+import { variableName } from "shared/lib/entities/entitiesHelpers";
 
 type CompiledTilemapData = {
   symbol: string;
@@ -162,6 +164,8 @@ export type VariableMapData = {
   entityType: EntityType;
   entityId: string;
   sceneId: string;
+  size?: number;
+  offset?: number;
 };
 
 const indexById = <T extends { id: string }>(arr: T[]) => keyBy(arr, "id");
@@ -1475,7 +1479,18 @@ const compile = async (
   // Can maybe move some of the compilation into workers to prevent this
   await new Promise((resolve) => setTimeout(resolve, 20));
 
-  const variablesLookup = keyBy(projectData.variables.variables, "id");
+  const projectVariables = projectData.variables.variables;
+  const variablesLookup = keyBy(projectVariables, "id");
+  const globalVariables = projectVariables.filter(
+    (variable) => !variable.id.includes("__L"),
+  );
+  const variableIndexLookup = globalVariables.reduce(
+    (memo, variable, index) => {
+      memo[variable.id] = index;
+      return memo;
+    },
+    {} as Record<string, number>,
+  );
   const variableAliasLookup = precompiled.usedVariables.reduce(
     (memo, variable) => {
       // Include variables referenced from GBVM
@@ -1489,6 +1504,10 @@ const compile = async (
           entityType: "scene",
           entityId: "",
           sceneId: "",
+          size:
+            variable.type === "array"
+              ? Math.max(1, Math.floor(variable.size))
+              : 1,
         };
       }
       return memo;
@@ -1598,6 +1617,7 @@ const compile = async (
           variablesLookup,
           variableAliasLookup,
           constantsLookup,
+          engineConstants: engineSchema.consts,
           entityType,
           entityIndex,
           entityScriptKey: scriptKey,
@@ -2064,7 +2084,20 @@ const compile = async (
     precompiled.usedFonts,
   );
 
-  const variableMap = keyBy(Object.values(variableAliasLookup), "symbol");
+  const variableMap = keyBy(
+    globalVariableOffsets(variableAliasLookup).variables.map((variable) => {
+      const projectVariable = variablesLookup[variable.id];
+      const variableIndex = variableIndexLookup[variable.id];
+      if (!projectVariable || variableIndex === undefined) {
+        return variable;
+      }
+      return {
+        ...variable,
+        name: variableName(projectVariable, variableIndex),
+      };
+    }),
+    "symbol",
+  );
 
   output[`data_bootstrap.h`] =
     `#ifndef DATA_PTRS_H\n#define DATA_PTRS_H\n\n` +

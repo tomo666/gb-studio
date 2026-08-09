@@ -1,6 +1,6 @@
 import React, { memo, useContext, useMemo, useState } from "react";
 import {
-  Select as DefaultSelect,
+  CreatableSelect,
   Option,
   OptGroup,
   SelectCommonProps,
@@ -25,6 +25,11 @@ import { UnitsSelectButtonInputOverlay } from "./UnitsSelectButtonInputOverlay";
 import { UnitType } from "shared/lib/entities/entitiesTypes";
 import { useAppDispatch, useAppSelector } from "store/hooks";
 import { SingleValue } from "react-select";
+import type { VariableType } from "shared/lib/resources/types";
+
+type VariableOption = Option & {
+  variableName: string;
+};
 
 interface VariableSelectProps extends SelectCommonProps {
   id?: string;
@@ -36,6 +41,7 @@ interface VariableSelectProps extends SelectCommonProps {
   units?: UnitType;
   unitsAllowed?: UnitType[];
   onChangeUnits?: (newUnits: UnitType) => void;
+  allowedVariableTypes?: VariableType[];
 }
 
 export const VariableSelectWrapper = styled.div`
@@ -44,19 +50,21 @@ export const VariableSelectWrapper = styled.div`
   min-width: 78px;
 `;
 
-const Select: typeof DefaultSelect = styled(DefaultSelect)`
+export const VariableCreatableSelect: typeof CreatableSelect = styled(
+  CreatableSelect,
+)`
   .CustomSelect__control {
   }
 `;
 
-const VariableRenameInput = styled(IMEInput)`
+export const VariableRenameInput = styled(IMEInput)`
   &&&& {
     padding-right: 32px;
     height: 28px;
   }
 `;
 
-const VariableRenameButton = styled.button`
+export const VariableRenameButton = styled.button`
   position: absolute;
   top: 3px;
   right: 20px;
@@ -97,7 +105,7 @@ const VariableRenameButton = styled.button`
   }
 `;
 
-const VariableRenameCompleteButton = styled.button`
+export const VariableRenameCompleteButton = styled.button`
   position: absolute;
   top: 3px;
   right: 3px;
@@ -136,6 +144,7 @@ const VariableSelectComponent = ({
   units,
   unitsAllowed,
   onChangeUnits,
+  allowedVariableTypes,
   ...selectProps
 }: VariableSelectProps) => {
   const context = useContext(ScriptEditorContext);
@@ -144,6 +153,9 @@ const VariableSelectComponent = ({
   const [renameId, setRenameId] = useState("");
   const variablesLookup = useAppSelector((state) =>
     variableSelectors.selectEntities(state),
+  );
+  const allVariables = useAppSelector((state) =>
+    variableSelectors.selectAll(state),
   );
   const customEvent = useAppSelector((state) =>
     customEventSelectors.selectById(state, entityId),
@@ -155,34 +167,53 @@ const VariableSelectComponent = ({
   const canRename =
     allowRename && !valueIsTemp && context.entityType !== "customEvent";
 
+  const variables = useMemo(
+    () =>
+      namedVariablesByContext(context, allVariables, customEvent).filter(
+        (variable) => {
+          if (!allowedVariableTypes) {
+            return true;
+          }
+          const variableType =
+            variablesLookup[variable.id]?.type ??
+            (customEvent?.variables[variable.id]?.passByReference === "array"
+              ? "array"
+              : "number");
+          return allowedVariableTypes.includes(variableType);
+        },
+      ),
+    [allVariables, variablesLookup, context, customEvent, allowedVariableTypes],
+  );
+
   const options = useMemo<OptGroup[]>(() => {
-    const variables = namedVariablesByContext(
-      context,
-      variablesLookup,
-      customEvent,
-    );
     const groupedVariables = groupVariables(variables);
     return groupedVariables.map((g) => {
       const options = g.variables.map((v) => ({
         value: v.id,
-        label: `${v.name}`,
+        label: v.displayName,
+        variableName: v.name,
       }));
       return {
         label: g.name,
         options,
       };
     });
-  }, [variablesLookup, context, customEvent]);
+  }, [variables]);
+
+  const currentVariable = useMemo(
+    () => variables.find((variable) => variable.id === value),
+    [value, variables],
+  );
 
   const currentValue = useMemo(() => {
     return findSelectOption(options, value);
   }, [options, value]);
 
-  const currentLabel = currentValue ? `$${currentValue.label}` : "";
+  const currentLabel = currentVariable ? `$${currentVariable.name}` : "";
 
   const onRenameStart = () => {
     if (currentValue) {
-      setEditValue(currentValue.label);
+      setEditValue(currentVariable?.name ?? currentValue.label);
       setRenameId(currentValue.value);
       setRenameVisible(true);
     }
@@ -229,15 +260,24 @@ const VariableSelectComponent = ({
   const onJumpToVariable = (
     e: React.MouseEvent<HTMLDivElement, MouseEvent>,
   ) => {
-    if (e.altKey) {
-      if (
-        value &&
-        context.entityType !== "customEvent" &&
-        Number.isInteger(Number(value))
-      ) {
-        dispatch(editorActions.selectVariable({ variableId: value }));
-      }
+    if (e.altKey && value && variablesLookup[value]) {
+      dispatch(editorActions.selectVariable({ variableId: value }));
     }
+  };
+
+  const onCreateVariable = (inputValue: string) => {
+    const name = inputValue.trim();
+    if (!name) {
+      return;
+    }
+
+    const type =
+      allowedVariableTypes?.length === 1 && allowedVariableTypes[0] === "array"
+        ? "array"
+        : "number";
+    const action = entitiesActions.addVariable({ name, type });
+    dispatch(action);
+    onChange(action.payload.variableId);
   };
 
   return (
@@ -253,7 +293,7 @@ const VariableSelectComponent = ({
           autoFocus
         />
       ) : (
-        <Select
+        <VariableCreatableSelect
           value={currentValue}
           options={options}
           onChange={(newValue: SingleValue<Option>) => {
@@ -261,8 +301,11 @@ const VariableSelectComponent = ({
               onChange(newValue.value);
             }
           }}
+          onCreateOption={onCreateVariable}
           formatOptionLabel={(option, { context }) =>
-            context === "value" ? `$${option.label}` : option.label
+            context === "value"
+              ? `$${(option as VariableOption).variableName ?? option.label}`
+              : option.label
           }
           {...selectProps}
         />

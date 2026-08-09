@@ -62,6 +62,10 @@ import type { ThemeInterface } from "ui/theme/ThemeInterface";
 import type { TemplatePlugin } from "lib/templates/templateManager";
 import { EngineSchema } from "lib/project/loadEngineSchema";
 import { HexPalette } from "shared/lib/tiles/autoColor";
+import type {
+  DataTableCSVVariable,
+  ScriptDataTableImport,
+} from "shared/lib/scriptDataTable/csv";
 import { ScriptDataTable } from "shared/lib/scriptDataTable/types";
 import type { WebTemplateInfo } from "shared/lib/webTemplates/types";
 import {
@@ -249,6 +253,11 @@ const APISetup = {
       usesNames: string[],
     ): Promise<number | false> =>
       ipcRenderer.invoke("dialog:confirm-delete-constant", name, usesNames),
+    confirmDeleteVariable: (
+      name: string,
+      usesNames: string[],
+    ): Promise<number | false> =>
+      ipcRenderer.invoke("dialog:confirm-delete-variable", name, usesNames),
     confirmUnsavedChangesTrackerDialog: (name: string): Promise<number> =>
       ipcRenderer.invoke("dialog:confirm-tracker-unsaved", name),
     migrateWarning: (path: string) =>
@@ -376,10 +385,17 @@ const APISetup = {
       ipcRenderer.invoke("script:update-fn", cmd, fieldKey, value),
   },
   dataTable: {
-    exportCSV: (table: ScriptDataTable, constants: Constant[]): Promise<void> =>
-      ipcRenderer.invoke("data-table:export-csv", table, constants),
-    importCSV: (constants: Constant[]): Promise<ScriptDataTable | undefined> =>
-      ipcRenderer.invoke("data-table:import-csv", constants),
+    exportCSV: (
+      table: ScriptDataTable,
+      constants: Constant[],
+      variables: DataTableCSVVariable[],
+    ): Promise<void> =>
+      ipcRenderer.invoke("data-table:export-csv", table, constants, variables),
+    importCSV: (
+      constants: Constant[],
+      variables: DataTableCSVVariable[],
+    ): Promise<ScriptDataTableImport | undefined> =>
+      ipcRenderer.invoke("data-table:import-csv", constants, variables),
   },
   music: {
     openMusic: (sfx?: string) => ipcRenderer.invoke("music:open", sfx),
@@ -452,8 +468,8 @@ const APISetup = {
       ipcRenderer.invoke("debugger:pause-on-script", enabled),
     setPauseOnWatchVariableChanged: (enabled: boolean) =>
       ipcRenderer.invoke("debugger:pause-on-var", enabled),
-    setGlobal: (symbol: string, value: number) =>
-      ipcRenderer.invoke("debugger:set-global", symbol, value),
+    setGlobal: (symbol: string, value: number, index = 0) =>
+      ipcRenderer.invoke("debugger:set-global", symbol, value, index),
     step: () => ipcRenderer.invoke("debugger:step"),
     stepFrame: () => ipcRenderer.invoke("debugger:step-frame"),
     setBreakpoints: (breakpoints: string[]) =>

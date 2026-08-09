@@ -1,6 +1,8 @@
 import {
   ConstScriptValue,
   isConstScriptValue,
+  isScriptVariableElement,
+  ScriptVariableElement,
 } from "shared/lib/scriptValue/types";
 
 export type ScriptDataTableRow = {
@@ -10,7 +12,7 @@ export type ScriptDataTableRow = {
 
 export type ScriptDataTable = {
   label?: string;
-  variables: string[];
+  variables: ScriptVariableElement[];
   rows: ScriptDataTableRow[];
 };
 
@@ -39,7 +41,7 @@ export const isScriptDataTable = (obj: unknown): obj is ScriptDataTable => {
     "variables" in obj &&
     Array.isArray((obj as { variables: unknown }).variables) &&
     (obj as { variables: unknown[] }).variables.every(
-      (v: unknown) => typeof v === "string",
+      isScriptVariableElement,
     ) &&
     "rows" in obj &&
     Array.isArray((obj as { rows: unknown }).rows) &&

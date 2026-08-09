@@ -1,7 +1,6 @@
 import {
   actorName,
   customEventName,
-  isUnionValue,
   sceneName,
   triggerName,
 } from "shared/lib/entities/entitiesHelpers";
@@ -15,21 +14,13 @@ import {
   TriggerPrefabNormalized,
 } from "shared/lib/entities/entitiesTypes";
 import { L10NLookup, setL10NData } from "shared/lib/lang/l10n";
-import {
-  ScriptEventDefs,
-  isScriptValueField,
-  isVariableField,
-} from "shared/lib/scripts/scriptDefHelpers";
+import { ScriptEventDefs } from "shared/lib/scripts/scriptDefHelpers";
 import {
   walkNormalizedCustomEventScripts,
   walkNormalizedScenesScripts,
 } from "shared/lib/scripts/walk";
-import { variableInScriptValue } from "shared/lib/scriptValue/helpers";
-import { isScriptValue } from "shared/lib/scriptValue/types";
-import {
-  variableInDialogueText,
-  variableInExpressionText,
-} from "shared/lib/variables/variablesInText";
+import { extractVariableIdsFromScriptEvent } from "shared/lib/variables/extractVariableReferences";
+import { createWorkerRequestHandler } from "./createWorkerClient";
 
 export type VariableUse = {
   id: string;
@@ -65,86 +56,51 @@ export type VariableUse = {
     }
 );
 
-export interface VariableUseResult {
-  id: string;
-  uses: VariableUse[];
+export interface VariableUsesInput {
+  variableId: string;
+  scenes: SceneNormalized[];
+  scriptEventsLookup: Record<string, ScriptEventNormalized>;
+  actorsLookup: Record<string, ActorNormalized>;
+  triggersLookup: Record<string, TriggerNormalized>;
+  scriptEventDefs: ScriptEventDefs;
+  actorPrefabsLookup: Record<string, ActorPrefabNormalized>;
+  triggerPrefabsLookup: Record<string, TriggerPrefabNormalized>;
+  customEventsLookup: Record<string, ScriptNormalized>;
+  l10NData: L10NLookup;
 }
 
 // eslint-disable-next-line no-restricted-globals
 const workerCtx: Worker = self as unknown as Worker;
 
-workerCtx.onmessage = async (evt) => {
-  const id = evt.data.id;
-  const variableId: string = evt.data.variableId;
-  const scenes: SceneNormalized[] = evt.data.scenes;
+workerCtx.onmessage = createWorkerRequestHandler<
+  VariableUsesInput,
+  VariableUse[]
+>(workerCtx, (input) => {
+  const variableId = input.variableId;
+  const scenes = input.scenes;
   const scriptEventsLookup: Record<string, ScriptEventNormalized> =
-    evt.data.scriptEventsLookup;
-  const actorsLookup: Record<string, ActorNormalized> = evt.data.actorsLookup;
+    input.scriptEventsLookup;
+  const actorsLookup: Record<string, ActorNormalized> = input.actorsLookup;
   const triggersLookup: Record<string, TriggerNormalized> =
-    evt.data.triggersLookup;
-  const scriptEventDefs: ScriptEventDefs = evt.data.scriptEventDefs;
+    input.triggersLookup;
+  const scriptEventDefs = input.scriptEventDefs;
   const actorPrefabsLookup: Record<string, ActorPrefabNormalized> =
-    evt.data.actorPrefabsLookup;
+    input.actorPrefabsLookup;
   const triggerPrefabsLookup: Record<string, TriggerPrefabNormalized> =
-    evt.data.triggerPrefabsLookup;
+    input.triggerPrefabsLookup;
   const customEventsLookup: Record<string, ScriptNormalized> =
-    evt.data.customEventsLookup;
-  const l10NData: L10NLookup = evt.data.l10NData;
+    input.customEventsLookup;
+  const l10NData = input.l10NData;
 
   setL10NData(l10NData);
 
   const uses: VariableUse[] = [];
   const useLookup: Record<string, boolean> = {};
 
-  const isVariableInArg = (
-    scriptEvent: ScriptEventNormalized,
-    arg: string,
-  ): boolean => {
-    const args = scriptEvent.args;
-    if (!args) {
-      return false;
-    }
-    const argValue = args[arg];
-    const field = scriptEventDefs[scriptEvent.command]?.fieldsLookup?.[arg];
-    if (!field) {
-      return false;
-    }
-    // If field was a script value extract used variables in value
-    // and check if any match this variable
-    if (isScriptValueField(scriptEvent.command, arg, args, scriptEventDefs)) {
-      if (
-        isScriptValue(argValue) &&
-        variableInScriptValue(variableId, argValue)
-      ) {
-        return true;
-      }
-    }
-    // If field was a variable check if it matches this variable
-    else if (isVariableField(scriptEvent.command, arg, args, scriptEventDefs)) {
-      const isVariableId =
-        argValue === variableId ||
-        (isUnionValue(argValue) &&
-          argValue.type === "variable" &&
-          argValue.value === variableId);
-
-      if (isVariableId) {
-        return true;
-      }
-    } else if (field.type === "text" || field.type === "textarea") {
-      const allText = String(
-        Array.isArray(argValue) ? argValue.join("|") : argValue,
-      );
-      if (variableInDialogueText(variableId, allText)) {
-        return true;
-      }
-    } else if (field.type === "matharea" && typeof argValue === "string") {
-      if (variableInExpressionText(variableId, argValue)) {
-        return true;
-      }
-    }
-
-    return false;
-  };
+  const isVariableInEvent = (scriptEvent: ScriptEventNormalized): boolean =>
+    extractVariableIdsFromScriptEvent(scriptEvent, scriptEventDefs).includes(
+      variableId,
+    );
 
   walkNormalizedScenesScripts(
     scenes,
@@ -174,11 +130,7 @@ workerCtx.onmessage = async (evt) => {
         return;
       }
 
-      for (const arg in scriptEvent.args) {
-        if (!isVariableInArg(scriptEvent, arg)) {
-          continue;
-        }
-
+      if (isVariableInEvent(scriptEvent)) {
         if (!useLookup[scene.id]) {
           const sceneIndex = scenes.indexOf(scene);
           uses.push({
@@ -246,11 +198,7 @@ workerCtx.onmessage = async (evt) => {
           return;
         }
 
-        for (const arg in scriptEvent.args) {
-          if (!isVariableInArg(scriptEvent, arg)) {
-            continue;
-          }
-
+        if (isVariableInEvent(scriptEvent)) {
           if (!useLookup[customEvent.id]) {
             uses.push({
               id: customEvent.id,
@@ -267,5 +215,5 @@ workerCtx.onmessage = async (evt) => {
     );
   });
 
-  workerCtx.postMessage({ id, uses } as VariableUseResult);
-};
+  return uses;
+});

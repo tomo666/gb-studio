@@ -60,7 +60,11 @@ import {
   extractScriptValueActorIds,
   extractScriptValueVariables,
 } from "shared/lib/scriptValue/helpers";
-import { ScriptValue, isScriptValue } from "shared/lib/scriptValue/types";
+import {
+  isScriptValueVariable,
+  ScriptValue,
+  isScriptValue,
+} from "shared/lib/scriptValue/types";
 import {
   Actor,
   AvatarAsset,
@@ -892,6 +896,13 @@ export const customEventName = (
   return customEvent.name || defaultLocalisedCustomEventName(customEventIndex);
 };
 
+export const variableName = (variable: NamedEntity, variableIndex: number) => {
+  if (variable.name.endsWith("/") || variable.name.endsWith("\\")) {
+    return `${variable.name}${defaultLocalisedVariableName(variableIndex)}`;
+  }
+  return variable.name || defaultLocalisedVariableName(variableIndex);
+};
+
 export const constantName = (constant: NamedEntity, constantIndex: number) => {
   if (constant.name.endsWith("/") || constant.name.endsWith("\\")) {
     return `${constant.name}${defaultLocalisedConstantName(constantIndex)}`
@@ -949,6 +960,8 @@ export const defaultLocalisedCustomEventName = (customEventIndex: number) =>
   `${l10n("CUSTOM_EVENT")} ${customEventIndex + 1}`;
 export const defaultLocalisedConstantName = (constantIndex: number) =>
   `${l10n("CONSTANT")} ${constantIndex + 1}`;
+export const defaultLocalisedVariableName = (variableIndex: number) =>
+  `${l10n("FIELD_VARIABLE")} ${variableIndex + 1}`;
 const defaultLocalisedPaletteName = (paletteIndex: number) =>
   l10n("TOOL_PALETTE_N", { number: paletteIndex + 1 });
 
@@ -1231,7 +1244,13 @@ export const updateCustomEventArgs = (
 
         if (isVariableField(scriptEvent.command, arg, args, scriptEventDefs)) {
           const variable = args[arg];
-          if (
+          if (isScriptValueVariable(variable)) {
+            for (const variableId of extractScriptValueVariables(variable)) {
+              if (isVariableCustomEvent(variableId)) {
+                addVariable(variableId);
+              }
+            }
+          } else if (
             isUnionVariableValue(variable) &&
             variable.value &&
             isVariableCustomEvent(variable.value)
@@ -1273,8 +1292,10 @@ export const updateCustomEventArgs = (
           const value = isScriptDataTable(args[arg]) ? args[arg] : undefined;
           if (value) {
             for (const variable of value.variables) {
-              if (isVariableCustomEvent(variable)) {
-                addVariable(variable);
+              for (const variableId of extractScriptValueVariables(variable)) {
+                if (isVariableCustomEvent(variableId)) {
+                  addVariable(variableId);
+                }
               }
             }
           }
@@ -1288,7 +1309,7 @@ export const updateCustomEventArgs = (
           text = args.expression;
         }
         if (text && typeof text === "string") {
-          const variablePtrs = text.match(/\$V[0-9]\$/g);
+          const variablePtrs = text.match(/\$V[0-9]\$|#V[0-9]#/g);
           if (variablePtrs) {
             variablePtrs.forEach((variablePtr: string) => {
               const variable = variablePtr[2];

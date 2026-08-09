@@ -24,14 +24,13 @@ import { Reference, ReferencesSelect } from "components/forms/ReferencesSelect";
 import { SceneSelect } from "components/forms/SceneSelect";
 import { SoundEffectSelect } from "components/forms/SoundEffectSelect";
 import { SpriteSheetSelect } from "components/forms/SpriteSheetSelect";
-import { VariableSelect } from "components/forms/VariableSelect";
 import { FontSelect } from "components/forms/FontSelect";
 import {
   castEventToBool,
   castEventToFloat,
 } from "renderer/lib/helpers/castEventValue";
 import l10n, { L10NKey } from "shared/lib/lang/l10n";
-import React, { useCallback, useContext } from "react";
+import React, { useCallback } from "react";
 import { useAppSelector } from "store/hooks";
 import {
   MovementType,
@@ -58,8 +57,6 @@ import {
 } from "ui/icons/Icons";
 import { MenuItem } from "ui/menu/Menu";
 import { OffscreenSkeletonInput } from "ui/skeleton/Skeleton";
-import { ScriptEditorContext } from "components/script/context/ScriptEditorContext";
-import { defaultVariableForContext } from "shared/lib/scripts/context";
 import ScriptEventFormMathArea from "./ScriptEventFormMatharea";
 import ScriptEventFormTextArea from "./ScriptEventFormTextarea";
 import { AngleInput } from "ui/form/AngleInput";
@@ -73,6 +70,8 @@ import ValueSelect, {
 import {
   isConstScriptValue,
   isScriptValue,
+  isScriptValueVariable,
+  isScriptVariableElement,
 } from "shared/lib/scriptValue/types";
 import { FlagField } from "ui/form/FlagField";
 import { FlagSelect } from "components/forms/FlagSelect";
@@ -83,7 +82,10 @@ import { EngineFieldType } from "store/features/engine/engineState";
 import { OverlaySpeedSelect } from "components/forms/OverlaySpeedSelect";
 import { ActorDirection, CollisionGroup } from "shared/lib/resources/types";
 import { DataTableInput } from "components/forms/DataTableInput";
+import { VariableElementSelect } from "components/forms/VariableElementSelect";
 import { isScriptDataTable } from "shared/lib/scriptDataTable/types";
+import { VariableFieldInput } from "./VariableFieldInput";
+import { defaultValueForUnionType } from "./fieldHelpers";
 
 interface ScriptEventFormInputProps {
   id: string;
@@ -95,6 +97,7 @@ interface ScriptEventFormInputProps {
   value: unknown;
   args: Record<string, unknown>;
   allowRename?: boolean;
+  defaultVariableId: string;
   onChange: (newValue: unknown, valueIndex?: number | undefined) => void;
   onInsertEventAfter: () => void;
 }
@@ -116,6 +119,16 @@ const argValue = (arg: unknown): unknown => {
     return undefined;
   }
   return arg;
+};
+
+const argVariableId = (arg: unknown): string | undefined => {
+  if (typeof arg === "string") {
+    return arg;
+  }
+  if (isScriptValueVariable(arg)) {
+    return arg.value;
+  }
+  return undefined;
 };
 
 const asValueSelectFieldType = (
@@ -144,6 +157,7 @@ const ScriptEventFormInput = ({
   defaultValue,
   onChange,
   onInsertEventAfter,
+  defaultVariableId,
   allowRename = true,
 }: ScriptEventFormInputProps) => {
   const defaultBackgroundPaletteIds = useAppSelector(
@@ -153,8 +167,6 @@ const ScriptEventFormInput = ({
     (state) => state.project.present.settings.defaultSpritePaletteIds || [],
   );
   const engineFieldsLookup = useAppSelector((state) => state.engine.lookup);
-  const context = useContext(ScriptEditorContext);
-
   const onChangeField = useCallback(
     (e: unknown) => {
       onChange(e, index);
@@ -214,18 +226,8 @@ const ScriptEventFormInput = ({
           ? (value as { type: string }).type
           : undefined;
       if (newType !== valueType) {
-        let replaceValue = null;
-        const defaultUnionValue =
-          typeof field.defaultValue === "object"
-            ? (field.defaultValue as { [key: string]: string | undefined })[
-                newType
-              ]
-            : undefined;
-        if (defaultUnionValue === "LAST_VARIABLE") {
-          replaceValue = defaultVariableForContext(context.type);
-        } else if (defaultUnionValue !== undefined) {
-          replaceValue = defaultUnionValue;
-        }
+        const replaceValue =
+          defaultValueForUnionType(field, newType, defaultVariableId) ?? null;
         onChange(
           {
             type: newType,
@@ -235,7 +237,7 @@ const ScriptEventFormInput = ({
         );
       }
     },
-    [context, field.defaultValue, index, onChange, value],
+    [defaultVariableId, field, index, onChange, value],
   );
 
   if (type === "textarea") {
@@ -321,7 +323,7 @@ const ScriptEventFormInput = ({
         bit={field.key ?? "flag1"}
         defaultLabel={String(field.checkboxLabel || field.label)}
         title={field.description}
-        variableId={argValue(args.variable) as string}
+        variableId={argVariableId(args.variable) ?? ""}
         checked={
           typeof value === "boolean" ? value : Boolean(defaultValue || false)
         }
@@ -333,7 +335,7 @@ const ScriptEventFormInput = ({
     return (
       <FlagSelect
         name={id}
-        variableId={argValue(args.variable) as string}
+        variableId={argVariableId(args.variable) ?? ""}
         entityId={entityId}
         value={Number(value ?? defaultValue)}
         onChange={onChangeField}
@@ -557,20 +559,29 @@ const ScriptEventFormInput = ({
       </OffscreenSkeletonInput>
     );
   } else if (type === "variable") {
-    let fallbackValue = defaultValue;
-    if (fallbackValue === "LAST_VARIABLE") {
-      fallbackValue = defaultVariableForContext(context.type);
-    }
     return (
-      <OffscreenSkeletonInput>
-        <VariableSelect
-          name={id}
-          value={String(value || fallbackValue || "0")}
-          entityId={entityId}
-          onChange={onChangeField}
-          allowRename={allowRename}
-        />
-      </OffscreenSkeletonInput>
+      <VariableFieldInput
+        id={id}
+        entityId={entityId}
+        field={field}
+        value={value}
+        allowRename={allowRename}
+        onChange={onChangeField}
+      />
+    );
+  } else if (type === "variableElement") {
+    const variableElementValue = isScriptVariableElement(value)
+      ? value
+      : undefined;
+    return (
+      <VariableElementSelect
+        name={id}
+        entityId={entityId}
+        value={variableElementValue}
+        allowRename={allowRename}
+        allowCustomEventParameters={field.allowCustomEventParameters}
+        onChange={onChangeField}
+      />
     );
   } else if (type === "direction") {
     if (field.allowMultiple) {
@@ -961,6 +972,7 @@ const ScriptEventFormInput = ({
             args={args}
             onChange={onChangeUnionField}
             onInsertEventAfter={onInsertEventAfter}
+            defaultVariableId={defaultVariableId}
           />
         </div>
         <ConnectButton>

@@ -34,18 +34,26 @@ import {
 } from "store/features/entities/entitiesSelectors";
 import { useDebounce } from "ui/hooks/use-debounce";
 import { ScriptEditorContext } from "components/script/context/ScriptEditorContext";
-import { defaultVariableForContext } from "shared/lib/scripts/context";
 import { EVENT_CALL_CUSTOM_EVENT, EVENT_COMMENT, EVENT_TEXT } from "consts";
 import { selectScriptEventDefsWithPresets } from "store/features/scriptEventDefs/scriptEventDefsState";
 import type { ScriptEventDef } from "lib/scriptEventsHandlers/handlerTypes";
 import { useAppDispatch, useAppSelector } from "store/hooks";
-import { mapScriptValueLeafNodes } from "shared/lib/scriptValue/helpers";
+import { mapScriptValue } from "shared/lib/scriptValue/helpers";
 import { isScriptValue } from "shared/lib/scriptValue/types";
+import { isScriptDataTable } from "shared/lib/scriptDataTable/types";
 import { HighlightWords } from "ui/util/HighlightWords";
 import { IMEUnstyledInput } from "ui/form/IMEInput";
 import { StyledButton } from "ui/buttons/style";
 import { StyledMenu, StyledMenuItem } from "ui/menu/style";
 import { ScriptEventDefs } from "shared/lib/scripts/scriptDefHelpers";
+import { useVariableFieldContext } from "components/script/fields/useVariableFieldContext";
+import { applyCustomEventArgDefaults } from "components/script/events/customEventArgs";
+import {
+  defaultVariableElementValue,
+  defaultValueForUnionType,
+  defaultVariableValueForType,
+  type VariableFieldCandidate,
+} from "components/script/fields/fieldHelpers";
 
 interface AddScriptEventMenuProps {
   parentType: ScriptEventParentType;
@@ -82,8 +90,10 @@ interface EventOptGroup {
 }
 
 interface InstanciateOptions {
+  variableCandidates: VariableFieldCandidate[];
   defaultSceneId: string;
   defaultVariableId: string;
+  defaultScalarVariableId: string;
   defaultMusicId: string;
   defaultActorId: string;
   defaultSpriteId: string;
@@ -102,8 +112,10 @@ const MENU_GROUP_SPACER = 10;
 const instanciateScriptEvent = (
   handler: ScriptEventDef,
   {
+    variableCandidates,
     defaultSceneId,
     defaultVariableId,
+    defaultScalarVariableId,
     defaultMusicId,
     defaultActorId,
     defaultSpriteId,
@@ -154,9 +166,11 @@ const instanciateScriptEvent = (
         }
 
         if (field.type === "union") {
-          defaultValue = (field?.defaultValue as Record<string, unknown>)?.[
-            field.defaultType || ""
-          ];
+          defaultValue = defaultValueForUnionType(
+            field,
+            field.defaultType || "",
+            defaultScalarVariableId,
+          );
         }
         if (defaultValue === "LAST_SCENE") {
           replaceValue = defaultSceneId;
@@ -184,7 +198,7 @@ const instanciateScriptEvent = (
 
         if (field.type === "value") {
           replaceValue = isScriptValue(defaultValue)
-            ? mapScriptValueLeafNodes(defaultValue, (node) => {
+            ? mapScriptValue(defaultValue, (node) => {
                 if (
                   node.type === "variable" &&
                   node.value === "LAST_VARIABLE"
@@ -205,6 +219,36 @@ const instanciateScriptEvent = (
                 return node;
               })
             : defaultValue;
+        }
+
+        if (field.type === "dataTable" && isScriptDataTable(defaultValue)) {
+          replaceValue = {
+            ...defaultValue,
+            variables: defaultValue.variables.map((variable) =>
+              variable.value === "LAST_VARIABLE"
+                ? { ...variable, value: defaultScalarVariableId }
+                : variable,
+            ),
+          };
+        }
+
+        if (field.type === "variableElement") {
+          replaceValue = defaultVariableElementValue(
+            defaultValue,
+            defaultVariableId,
+          );
+        }
+
+        if (
+          field.type === "variable" &&
+          field.variableType &&
+          defaultValue === "LAST_VARIABLE"
+        ) {
+          replaceValue = defaultVariableValueForType(
+            field.variableType,
+            variableCandidates,
+            defaultVariableId,
+          );
         }
 
         if (field.type === "union") {
@@ -271,7 +315,11 @@ const eventToOption =
   };
 
 const customEventToOption =
-  (scriptEventDefs: ScriptEventDefs) =>
+  (
+    scriptEventDefs: ScriptEventDefs,
+    variableCandidates: VariableFieldCandidate[],
+    preferredVariableId?: string,
+  ) =>
   (event: ScriptNormalized): EventOption => {
     return {
       label: event.name,
@@ -280,9 +328,12 @@ const customEventToOption =
       value: `call_script_${event.id}`,
       isFavorite: false,
       event: scriptEventDefs[EVENT_CALL_CUSTOM_EVENT] as ScriptEventDef,
-      defaultArgs: {
-        customEventId: event.id,
-      },
+      defaultArgs: applyCustomEventArgDefaults(
+        event,
+        { customEventId: event.id },
+        variableCandidates,
+        preferredVariableId,
+      ),
     } as EventOption;
   };
 
@@ -594,6 +645,12 @@ const AddScriptEventMenu = ({
   const customEventsLookup = useAppSelector((state) =>
     customEventSelectors.selectAll(state),
   );
+  const { candidates: variableCandidates } = useVariableFieldContext(
+    context.entityId,
+  );
+  const defaultVariableId = variableCandidates[0]?.id ?? "";
+  const defaultScalarVariableId =
+    variableCandidates.find(({ type }) => type === "number")?.id ?? "";
   const disabledSceneTypeIds = useAppSelector(
     (state) => state.project.present.settings.disabledSceneTypeIds,
   );
@@ -620,7 +677,13 @@ const AddScriptEventMenu = ({
 
     const allEvents = ([] as EventOption[]).concat(
       eventList.map(eventToOption(favoriteEvents)),
-      customEventsLookup.map(customEventToOption(scriptEventDefs)),
+      customEventsLookup.map(
+        customEventToOption(
+          scriptEventDefs,
+          variableCandidates,
+          defaultVariableId,
+        ),
+      ),
     );
 
     fuseRef.current = new Fuse(allEvents, {
@@ -715,6 +778,8 @@ const AddScriptEventMenu = ({
     favoriteEvents,
     favoritesCache,
     scriptEventDefs,
+    variableCandidates,
+    defaultVariableId,
   ]);
 
   const updateOptions = useCallback(() => {
@@ -841,8 +906,10 @@ const AddScriptEventMenu = ({
           before,
           data: [
             instanciateScriptEvent(newEvent, {
+              variableCandidates,
               defaultActorId: "player",
-              defaultVariableId: defaultVariableForContext(context.type),
+              defaultVariableId,
+              defaultScalarVariableId,
               defaultMusicId: String(lastMusicId),
               defaultSceneId: String(lastSceneId),
               defaultSpriteId: String(lastSpriteId),
@@ -871,7 +938,9 @@ const AddScriptEventMenu = ({
       parentKey,
       insertId,
       before,
-      context.type,
+      variableCandidates,
+      defaultVariableId,
+      defaultScalarVariableId,
       lastMusicId,
       lastSceneId,
       lastSpriteId,

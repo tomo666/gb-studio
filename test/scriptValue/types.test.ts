@@ -1,10 +1,68 @@
 import {
   isInfix,
   isScriptValue,
+  isScriptVariableElement,
+  isScriptValueVariable,
   isValueAtomType,
   isValueNumber,
   isValueOperatorType,
 } from "../../src/shared/lib/scriptValue/types";
+
+test("should typeguard script values with constant variable indices", () => {
+  expect(
+    isScriptValue({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: {
+        type: "constant",
+        value: "33333333-3333-3333-3333-333333333333",
+      },
+    }),
+  ).toEqual(true);
+});
+
+test("should typeguard variable values with optional indices", () => {
+  expect(
+    isScriptValueVariable({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+    }),
+  ).toEqual(true);
+  expect(
+    isScriptValueVariable({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: { type: "number", value: 2 },
+    }),
+  ).toEqual(true);
+});
+
+test("should typeguard variable elements with fixed indices", () => {
+  expect(
+    isScriptVariableElement({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: { type: "number", value: 2 },
+    }),
+  ).toEqual(true);
+  expect(
+    isScriptVariableElement({
+      type: "variable",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: { type: "variable", value: "index-variable" },
+    }),
+  ).toEqual(false);
+});
+
+test("should reject the removed indexed variable representation", () => {
+  expect(
+    isScriptValue({
+      type: "indexed",
+      value: "11111111-1111-1111-1111-111111111111",
+      index: { type: "number", value: 2 },
+    }),
+  ).toEqual(false);
+});
 
 test("should detect number as script value atom type", () => {
   expect(isValueAtomType("number")).toEqual(true);

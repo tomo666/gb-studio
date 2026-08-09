@@ -10,6 +10,7 @@ import {
   EntitiesState,
   ScriptNormalized,
 } from "shared/lib/entities/entitiesTypes";
+import type { ScriptVariable } from "shared/lib/resources/types";
 import {
   genEntitySymbol,
   updateEntitySymbol,
@@ -60,6 +61,23 @@ const editCustomEvent: CaseReducer<
     id: action.payload.customEventId,
     changes: patch,
   });
+};
+
+const editCustomEventVariablePassByReference: CaseReducer<
+  EntitiesState,
+  PayloadAction<{
+    customEventId: string;
+    variableId: string;
+    passByReference: ScriptVariable["passByReference"];
+  }>
+> = (state, action) => {
+  const customEvent = state.customEvents.entities[action.payload.customEventId];
+  const variable = customEvent?.variables[action.payload.variableId];
+  if (!customEvent || !variable) {
+    return;
+  }
+
+  variable.passByReference = action.payload.passByReference;
 };
 
 const setCustomEventSymbol: CaseReducer<
@@ -174,6 +192,7 @@ const customEventsReducers = {
   },
 
   editCustomEvent,
+  editCustomEventVariablePassByReference,
   setCustomEventSymbol,
   removeCustomEvent,
   refreshCustomEventArgs: {

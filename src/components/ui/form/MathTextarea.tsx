@@ -13,8 +13,9 @@ import { VariableSelect } from "components/forms/VariableSelect";
 import l10n from "shared/lib/lang/l10n";
 import { portalRoot } from "ui/layout/Portal";
 import { ConstantSelect } from "components/forms/ConstantSelect";
+import { normalizeVariableId } from "shared/lib/variables/variableIds";
 
-const varRegex = /\$([VLT0-9][0-9]*)\$/g;
+const varRegex = /\$([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)\$/g;
 const constRegex = /@([a-z0-9-]{36}|engine::[^@]+)@/g;
 
 const functionSymbols = [
@@ -256,12 +257,12 @@ const searchVariables =
       .filter(
         (v) =>
           v.code.indexOf(upperSearch) > -1 ||
-          v.name.toUpperCase().indexOf(upperSearch) > -1,
+          v.displayName.toUpperCase().indexOf(upperSearch) > -1,
       )
       .slice(0, 5)
       .map((v) => ({
         id: v.code,
-        display: `$${v.name}`,
+        display: `$${v.displayName}`,
       }));
   };
 
@@ -312,7 +313,7 @@ export const MathTextarea: FC<MathTextareaProps> = ({
     }
   }, []);
 
-  const variablesLookup = useMemo(() => keyBy(variables, "code"), [variables]);
+  const variablesLookup = useMemo(() => keyBy(variables, "id"), [variables]);
 
   const debouncedEvaluate = useRef<(value: string) => void>(
     debounce((val) => {
@@ -431,16 +432,18 @@ export const MathTextarea: FC<MathTextareaProps> = ({
       >
         <CustomMention
           className="Mentions__TokenVar"
-          trigger={/(\$([\p{L}0-9]+))$/u}
+          trigger={/(\$([\p{L}0-9_-]+))$/u}
           markup="$__id__$"
           data={searchVariables(variables)}
-          regex={/\$([VLT0-9][0-9]*)\$/}
-          displayTransform={(variable) =>
-            "$" + (variablesLookup[variable]?.name || variable + "$")
-          }
+          regex={/\$([VLT][0-9]|[a-z0-9-]{36}|[0-9]+)\$/}
+          displayTransform={(variable) => {
+            const namedVariable =
+              variablesLookup[normalizeVariableId(variable)];
+            return namedVariable ? `$${namedVariable.name}` : "0";
+          }}
           hoverTransform={(variable) =>
             `${l10n("FIELD_VARIABLE")}: ${
-              variablesLookup[variable]?.name || variable
+              variablesLookup[normalizeVariableId(variable)]?.name || "0"
             }`
           }
           onClick={(e, id, index) => {
@@ -453,7 +456,7 @@ export const MathTextarea: FC<MathTextareaProps> = ({
 
             setEditMode({
               type: "variable",
-              id: id.replace(/^0/, ""),
+              id: normalizeVariableId(id),
               index,
               x: rect2.left - rect.left,
               y: rect2.top - rect.top,
