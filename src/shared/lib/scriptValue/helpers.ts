@@ -11,6 +11,7 @@ import {
   ValueOperatorType,
   ValueUnaryOperatorType,
   isValueUnaryOperatorType,
+  isScriptValueVariable,
   ScriptValueAtom,
   OptimisedScriptValue,
 } from "./types";
@@ -328,6 +329,19 @@ export const rpnTokensToScriptValue = (rpnTokens: RPNToken[]): ScriptValue => {
             value,
           });
         }
+      } else if (operation.function === "len") {
+        const value = stack.pop();
+        if (isScriptValueVariable(value) && value.index === undefined) {
+          stack.push({
+            type: "len",
+            value: {
+              type: "variable",
+              value: value.value,
+            },
+          });
+        } else {
+          throw new Error("len() requires an array variable");
+        }
       } else if (operation.function === "rnd") {
         const value = stack.pop();
         if (value) {
@@ -403,6 +417,9 @@ export const walkScriptValue = (
   if ("valueB" in input && input.valueB) {
     walkScriptValue(input.valueB, fn);
   }
+  if (input.type === "len") {
+    walkScriptValue(input.value, fn);
+  }
   if ("value" in input && input.value && isUnaryOperation(input)) {
     walkScriptValue(input.value, fn);
   }
@@ -427,6 +444,8 @@ export const someInScriptValue = (
       stack.push(currentNode.index);
     } else if ("valueA" in currentNode && "valueB" in currentNode) {
       stack.push(currentNode.valueB, currentNode.valueA);
+    } else if (currentNode.type === "len") {
+      stack.push(currentNode.value);
     } else if ("value" in currentNode && isUnaryOperation(currentNode)) {
       stack.push(currentNode.value);
     }
@@ -452,6 +471,15 @@ export const mapScriptValue = (
       value: mapScriptValue(input.value, fn),
     };
   }
+  if (input.type === "len") {
+    const value = fn(input.value);
+    return value.type === "variable" && !("index" in value)
+      ? {
+          type: "len",
+          value,
+        }
+      : value;
+  }
   if (input.type === "variable" && input.index) {
     return fn({
       ...input,
@@ -471,27 +499,55 @@ export const extractScriptValueActorIds = (input: ScriptValue): string[] => {
   return actorIds;
 };
 
-export const extractScriptValueVariables = (input: ScriptValue): string[] => {
-  const variables: string[] = [];
-  walkScriptValue(input, (val) => {
-    if (val.type === "variable" && !variables.includes(val.value)) {
-      variables.push(val.value);
-    } else if (val.type === "expression") {
-      const text = val.value;
-      if (text && typeof text === "string") {
-        const expressionValue = expressionToScriptValue(text);
-        const expressionVariables =
-          extractScriptValueVariables(expressionValue);
-        for (const expressionVariable of expressionVariables) {
-          if (!variables.includes(expressionVariable)) {
-            variables.push(expressionVariable);
-          }
-        }
-      }
-    }
-  });
-  return variables;
+export type ScriptValueVariableUse = {
+  id: string;
+  type: "number" | "array";
 };
+
+export const extractScriptValueVariableUses = (
+  input: ScriptValue,
+): ScriptValueVariableUse[] => {
+  const uses: ScriptValueVariableUse[] = [];
+
+  const addUse = (id: string, type: ScriptValueVariableUse["type"]) => {
+    const existingUse = uses.find((use) => use.id === id);
+    if (existingUse) {
+      if (type === "array") {
+        existingUse.type = "array";
+      }
+      return;
+    }
+    uses.push({ id, type });
+  };
+
+  const visit = (value: ScriptValue) => {
+    if (value.type === "len") {
+      addUse(value.value.value, "array");
+    } else if (value.type === "variable") {
+      addUse(value.value, value.index ? "array" : "number");
+      if (value.index) {
+        visit(value.index);
+      }
+    } else if (value.type === "expression") {
+      for (const variable of extractScriptValueVariables(
+        expressionToScriptValue(value.value),
+      )) {
+        addUse(variable, "number");
+      }
+    } else if (isValueOperation(value)) {
+      visit(value.valueA);
+      visit(value.valueB);
+    } else if (isUnaryOperation(value)) {
+      visit(value.value);
+    }
+  };
+
+  visit(input);
+  return uses;
+};
+
+export const extractScriptValueVariables = (input: ScriptValue): string[] =>
+  extractScriptValueVariableUses(input).map((use) => use.id);
 
 // recursively search script value for node containing variable, stop iterating on first match
 export const variableInScriptValue = (
@@ -719,6 +775,11 @@ export const precompileOptimisedScriptValue = (
     }
     rpnOperations.push({
       type: input.type,
+    });
+  } else if (input.type === "len") {
+    rpnOperations.push({
+      type: "len",
+      value: input.value.value,
     });
   } else if (isUnaryOperation(input)) {
     if (input.value) {

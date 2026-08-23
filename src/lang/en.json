@@ -1475,6 +1475,9 @@
   "FIELD_MERGE_DOWN": "Merge Down",
   "FIELD_INFO": "Info",
   "FIELD_UNIQUE_TILES": "Unique Tiles",
+  "FIELD_IN_ARRAY": "In Array",
+  "FIELD_IN_ARRAY_DESC": "The array to loop through.",
+  "FIELD_ARRAY_LENGTH": "Array Length",
 
   "// 7": "Asset Viewer ---------------------------------------------",
   "ASSET_SEARCH": "Search...",
@@ -1828,6 +1831,7 @@
   "EVENT_IDLE": "Idle",
   "EVENT_IDLE_DESC": "Pause the script for a single frame.",
   "EVENT_LOOP_FOR_LABEL": "For ({variable} = {from}; {variable} {comparison} {to}; {variable} {operation} {val})",
+  "EVENT_ARRAY_FOR_EACH_LABEL": "For Each {variable} In {array}",
   "EVENT_LOOP_WHILE_LABEL": "While ({expression})",
   "EVENT_IF_CURRENT_SCENE_IS": "If Current Scene Is",
   "EVENT_IF_CURRENT_SCENE_IS_LABEL": "If Current Scene Is {scene}",
@@ -1923,6 +1927,8 @@
   "EVENT_GROUP_DATA_TABLE": "Data Table",
   "EVENT_DATA_TABLE": "Data Table Lookup",
   "EVENT_DATA_TABLE_DESC": "Define a 2D array of static values that can be looked up by index, with each column loaded into a variable.",
+  "EVENT_ARRAY_FOR_EACH": "For Each Array Element",
+  "EVENT_ARRAY_FOR_EACH_DESC": "Run part of the script once for each element of an array, storing the current element in a variable.",
 
   "// 10": "Menu -----------------------------------------------------",
 
@@ -2119,6 +2125,7 @@
   "WARNING_PLUGIN_OVERWROTE_FILE": "Plugin \"{pluginName}\" overwrote \"{filename}\" which was already written by \"{previousPlugin}\"",
   "WARNING_PLUGIN_PATCH_CONFLICT_OVERWRITTEN": "Plugin \"{pluginName}\" could not patch \"{filename}\" because it was already overwritten by plugin \"{previousPlugin}\"",
   "WARNING_TILEMAP_TOO_MANY_TILES": "Tilemap contains too many unique 8x8px tiles ({tilesetLength} where limit is {maxTilesetLength}) meaning it may not display correctly.",
+  "WARNING_ARRAY_TOO_SMALL": "Selected array is too short. This field requires at least {expectedLength} elements, but the selected array has {actualLength}.",
 
   "// 12": "Errors -------------------------------------------------------",
 

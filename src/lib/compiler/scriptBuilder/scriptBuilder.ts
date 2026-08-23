@@ -1967,6 +1967,7 @@ class ScriptBuilder extends ScriptBuilderBase {
   _resolveArrayReferenceArgument = (
     variable: string | ScriptValue | ScriptBuilderFunctionArg,
     argumentId: string,
+    requiredLength: number,
   ): { alias: string; indirect: boolean } => {
     let rootVariable: ScriptBuilderVariable;
     if (typeof variable === "string" || this._isFunctionArg(variable)) {
@@ -1989,6 +1990,14 @@ class ScriptBuilder extends ScriptBuilderBase {
       if (!resolvedVariable.indirect || !resolvedVariable.array) {
         throw new Error(
           `Array reference argument "${argumentId}" must be an array variable`,
+        );
+      }
+      if (
+        resolvedVariable.length === undefined ||
+        resolvedVariable.length < requiredLength
+      ) {
+        throw new Error(
+          `Array reference argument "${argumentId}" requires at least ${requiredLength} elements, but the provided array has ${resolvedVariable.length ?? "unknown"}`,
         );
       }
       return {
@@ -2014,6 +2023,11 @@ class ScriptBuilder extends ScriptBuilderBase {
     if (variableDefinition?.type !== "array") {
       throw new Error(
         `Array reference argument "${argumentId}" must be an array variable`,
+      );
+    }
+    if (variableDefinition.length < requiredLength) {
+      throw new Error(
+        `Array reference argument "${argumentId}" requires at least ${requiredLength} elements, but the provided array has ${variableDefinition.length}`,
       );
     }
 
@@ -2118,6 +2132,7 @@ class ScriptBuilder extends ScriptBuilderBase {
             const arrayReference = this._resolveArrayReferenceArgument(
               variableValue,
               variableArg.id,
+              variableArg.length,
             );
             if (arrayReference.indirect) {
               this._stackPush(arrayReference.alias);
@@ -2247,6 +2262,7 @@ class ScriptBuilder extends ScriptBuilderBase {
       indirect: boolean,
       value: string,
       array = false,
+      length?: number,
     ) => {
       if (!argLookup[type].get(value)) {
         const newArg = `.SCRIPT_ARG_${
@@ -2256,6 +2272,7 @@ class ScriptBuilder extends ScriptBuilderBase {
           type: "argument",
           indirect,
           array,
+          length,
           symbol: newArg,
         });
         numArgs--;
@@ -2300,6 +2317,9 @@ class ScriptBuilder extends ScriptBuilderBase {
             variableArg.passByReference !== false,
             variableArg.id,
             variableArg.passByReference === "array",
+            variableArg.passByReference === "array"
+              ? variableArg.length
+              : undefined,
           );
         }
       }
@@ -3697,8 +3717,8 @@ class ScriptBuilder extends ScriptBuilderBase {
     packetSize: number,
   ) => {
     if (packetSize > 1) {
-      this._assertVariableIsArrayOfMinimumSize(sendVariable, packetSize);
-      this._assertVariableIsArrayOfMinimumSize(receiveVariable, packetSize);
+      this._assertArrayLengthAtLeast(sendVariable, packetSize);
+      this._assertArrayLengthAtLeast(receiveVariable, packetSize);
     }
     this._sioExchangeVariables(
       this._resolveVariableAddress(sendVariable),
@@ -3766,6 +3786,39 @@ class ScriptBuilder extends ScriptBuilderBase {
 
   // --------------------------------------------------------------------------
   // Control Flow
+
+  arrayForEach = (
+    variable: ScriptBuilderVariable,
+    array: ScriptBuilderVariable,
+    truePath: ScriptEvent[] | ScriptBuilderPathFunction = [],
+  ) => {
+    const length = this._getArrayLength(array);
+    const rootVariable = this._isVariableReference(array) ? array.value : array;
+    const loopId = this.getNextLabel();
+    const indexRef = this._declareLocal("array_index", 1, true);
+    const arrayElement: ScriptBuilderVariable = {
+      type: "variable",
+      value: rootVariable,
+      index: {
+        type: "variable",
+        value: indexRef,
+      },
+    };
+
+    this._addComment("Array For Each");
+    this._setConst(indexRef, 0);
+    this._label(loopId);
+    this._setVariableToVariable(variable, arrayElement);
+    this._compilePath(truePath);
+    this._rpn() //
+      .ref(indexRef)
+      .int8(1)
+      .operator(".ADD")
+      .refSet(indexRef)
+      .stop();
+    this._ifConst(".LT", indexRef, length, loopId, 0);
+    this._addNL();
+  };
 
   whileScriptValue = (
     value: ScriptValue,

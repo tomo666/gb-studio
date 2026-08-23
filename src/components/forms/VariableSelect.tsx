@@ -26,6 +26,7 @@ import { UnitType } from "shared/lib/entities/entitiesTypes";
 import { useAppDispatch, useAppSelector } from "store/hooks";
 import { SingleValue } from "react-select";
 import type { VariableType } from "shared/lib/resources/types";
+import { isVariableCustomEvent } from "shared/lib/entities/entitiesHelpers";
 
 type VariableOption = Option & {
   variableName: string;
@@ -172,6 +173,14 @@ const VariableSelectComponent = ({
       namedVariablesByContext(context, allVariables, customEvent).filter(
         (variable) => {
           if (!allowedVariableTypes) {
+            return true;
+          }
+          if (
+            allowedVariableTypes.includes("array") &&
+            customEvent &&
+            isVariableCustomEvent(variable.id) &&
+            !customEvent.variables[variable.id]
+          ) {
             return true;
           }
           const variableType =

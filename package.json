@@ -98,7 +98,7 @@
     "react-redux": "^9.3.0",
     "react-select": "^5.10.2",
     "react-simple-code-editor": "^0.14.1",
-    "react-window": "^2.2.7",
+    "react-window": "^2.3.0",
     "redux": "^5.0.1",
     "redux-thunk": "^3.1.0",
     "redux-undo": "1.1.0",
@@ -183,7 +183,7 @@
     "tsconfig-paths-webpack-plugin": "^4.1.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "webpack": "^5.108.4",
-    "webpack-bundle-analyzer": "^4.4.2",
+    "webpack-bundle-analyzer": "^5.3.1",
     "webpack-cli": "^7.2.1",
     "webpack-dev-server": "5.2.6",
     "workbox-webpack-plugin": "^7.4.0"

@@ -20,6 +20,7 @@ test("Should be able to extract named variables from custom event", () => {
           V0: {
             name: "First",
             passByReference: "array",
+            length: 3,
           },
           V1: {
             name: "Second",
@@ -33,7 +34,7 @@ test("Should be able to extract named variables from custom event", () => {
       id: "V0",
       code: "V0",
       name: "First",
-      displayName: "First[]",
+      displayName: "First[3]",
       group: "SIDEBAR_PARAMETERS",
     },
     {
@@ -113,7 +114,7 @@ test("Should keep array capacity separate from the variable name", () => {
         name: "Inventory",
         symbol: "var_inventory",
         type: "array",
-        size: 5,
+        length: 5,
       },
     ],
   ).find(({ id }) => id === "array1");

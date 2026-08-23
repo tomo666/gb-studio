@@ -36,11 +36,13 @@ describe("Custom Events", () => {
                   id: "V0",
                   name: "Variable A",
                   passByReference: "array",
+                  length: 2,
                 },
                 V1: {
                   id: "V1",
                   name: "Variable B",
                   passByReference: "array",
+                  length: 2,
                 },
               },
               script: ["scriptEvent1"],
@@ -166,6 +168,118 @@ describe("Custom Events", () => {
       expect(newState.scriptEvents.entities.scriptEvent1?.args?.variable).toBe(
         "V0",
       );
+    });
+  });
+
+  describe("editCustomEventVariableLength", () => {
+    test("sets length when changing an array arg", () => {
+      const state: EntitiesState = {
+        ...initialState,
+        customEvents: {
+          entities: {
+            customEvent1: {
+              ...dummyCustomEventNormalized,
+              id: "customEvent1",
+              variables: {
+                V0: {
+                  id: "V0",
+                  name: "Variable A",
+                  passByReference: "array",
+                  length: 2,
+                },
+              },
+              script: ["scriptEvent1"],
+            },
+          },
+          ids: ["customEvent1"],
+        },
+      };
+
+      const newState = reducer(
+        state,
+        entitiesActions.editCustomEventVariableLength({
+          customEventId: "customEvent1",
+          variableId: "V0",
+          length: 10,
+        }),
+      );
+
+      expect(
+        newState.customEvents.entities.customEvent1?.variables.V0
+          ?.passByReference,
+      ).toEqual("array");
+
+      expect(
+        newState.customEvents.entities.customEvent1?.variables.V0
+          ?.passByReference === "array" &&
+          newState.customEvents.entities.customEvent1?.variables.V0?.length,
+      ).toEqual(10);
+    });
+
+    test("not set length when changing a non-array arg", () => {
+      const state: EntitiesState = {
+        ...initialState,
+        customEvents: {
+          entities: {
+            customEvent1: {
+              ...dummyCustomEventNormalized,
+              id: "customEvent1",
+              variables: {
+                V0: {
+                  id: "V0",
+                  name: "Variable A",
+                  passByReference: false,
+                },
+                V1: {
+                  id: "V1",
+                  name: "Variable B",
+                  passByReference: true,
+                },
+              },
+              script: ["scriptEvent1"],
+            },
+          },
+          ids: ["customEvent1"],
+        },
+      };
+
+      const newState1 = reducer(
+        state,
+        entitiesActions.editCustomEventVariableLength({
+          customEventId: "customEvent1",
+          variableId: "V0",
+          length: 10,
+        }),
+      );
+
+      const newState2 = reducer(
+        state,
+        entitiesActions.editCustomEventVariableLength({
+          customEventId: "customEvent1",
+          variableId: "V1",
+          length: 10,
+        }),
+      );
+
+      expect(
+        newState1.customEvents.entities.customEvent1?.variables.V0
+          ?.passByReference,
+      ).not.toEqual("array");
+
+      expect(
+        newState2.customEvents.entities.customEvent1?.variables.V1
+          ?.passByReference,
+      ).not.toEqual("array");
+
+      expect(
+        newState1.customEvents.entities.customEvent1?.variables.V0 &&
+          "length" in newState1.customEvents.entities.customEvent1.variables.V0,
+      ).toEqual(false);
+
+      expect(
+        newState2.customEvents.entities.customEvent1?.variables.V1 &&
+          "length" in newState2.customEvents.entities.customEvent1.variables.V1,
+      ).toEqual(false);
     });
   });
 

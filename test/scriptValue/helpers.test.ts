@@ -2,12 +2,14 @@ import {
   PrecompiledValueFetch,
   ScriptValue,
   ScriptValueAtom,
+  isScriptValue,
 } from "../../src/shared/lib/scriptValue/types";
 import {
   addScriptValueConst,
   addScriptValueToScriptValue,
   constantInScriptValue,
   expressionToScriptValue,
+  extractScriptValueVariableUses,
   extractScriptValueVariables,
   mapScriptValue,
   multiplyScriptValueConst,
@@ -906,6 +908,46 @@ test("should precompile to list of required operations", () => {
   ]);
 });
 
+test("should precompile array length as a compile-time lookup", () => {
+  const input: ScriptValue = {
+    type: "len",
+    value: {
+      type: "variable",
+      value: "array",
+    },
+  };
+  expect(precompileScriptValue(input)).toEqual([
+    [{ type: "len", value: "array" }],
+    [],
+  ]);
+});
+
+test("should reject an indexed array element as an array length value", () => {
+  expect(
+    isScriptValue({
+      type: "len",
+      value: {
+        type: "variable",
+        value: "array",
+        index: { type: "number", value: 0 },
+      },
+    }),
+  ).toBe(false);
+});
+
+test("should reject an explicit undefined array index", () => {
+  expect(
+    isScriptValue({
+      type: "len",
+      value: {
+        type: "variable",
+        value: "array",
+        index: undefined,
+      },
+    }),
+  ).toBe(false);
+});
+
 test("should precompile to list of required operations", () => {
   const input: ScriptValue = {
     type: "add",
@@ -1219,6 +1261,17 @@ test("should convert expression (abs($L0$)) to script value", () => {
   });
 });
 
+test("should convert expression (len($L0$)) to script value", () => {
+  const input = "len($L0$)";
+  expect(expressionToScriptValue(input)).toEqual({
+    type: "len",
+    value: {
+      type: "variable",
+      value: "L0",
+    },
+  });
+});
+
 test("should convert expression (rnd($L0$)) to script value", () => {
   const input = "rnd($L0$)";
   expect(expressionToScriptValue(input)).toEqual({
@@ -1461,6 +1514,28 @@ test("should sort fetch operations so that properties on same target/prop are gr
 });
 
 describe("mapScriptValue", () => {
+  test("maps the array reference used by an array length value", () => {
+    const input: ScriptValue = {
+      type: "len",
+      value: {
+        type: "variable",
+        value: "array",
+      },
+    };
+
+    const result = mapScriptValue(input, (value): ScriptValueAtom =>
+      value.type === "variable" ? { ...value, value: "mappedArray" } : value,
+    );
+
+    expect(result).toEqual({
+      type: "len",
+      value: {
+        type: "variable",
+        value: "mappedArray",
+      },
+    });
+  });
+
   test("maps variable references used as array indices", () => {
     const input: ScriptValue = {
       type: "variable",
@@ -1550,6 +1625,18 @@ describe("walkScriptValue", () => {
       },
     };
     expect(logValues(input)).toEqual(["add", "number", "number"]);
+  });
+
+  test("should walk through an array length value", () => {
+    const input: ScriptValue = {
+      type: "len",
+      value: {
+        type: "variable",
+        value: "array",
+      },
+    };
+
+    expect(logValues(input)).toEqual(["len", "variable"]);
   });
 
   test("should walk through nested operations", () => {
@@ -1666,6 +1753,34 @@ describe("walkScriptValue", () => {
 });
 
 describe("extractScriptValueVariables", () => {
+  test("should treat textual expression references as ordinary variables", () => {
+    const input: ScriptValue = {
+      type: "expression",
+      value: "len($V0$) + $V1$",
+    };
+
+    expect(extractScriptValueVariableUses(input)).toEqual([
+      { id: "V0", type: "number" },
+      { id: "V1", type: "number" },
+    ]);
+  });
+
+  test("should resolve indexed roots separately from index dependencies", () => {
+    const input: ScriptValue = {
+      type: "variable",
+      value: "V0",
+      index: {
+        type: "variable",
+        value: "V1",
+      },
+    };
+
+    expect(extractScriptValueVariableUses(input)).toEqual([
+      { id: "V0", type: "array" },
+      { id: "V1", type: "number" },
+    ]);
+  });
+
   test("should extract single variable from a simple add operation", () => {
     const input: ScriptValue = {
       type: "add",

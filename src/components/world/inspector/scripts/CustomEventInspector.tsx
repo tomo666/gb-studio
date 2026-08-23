@@ -37,6 +37,8 @@ import { SplitPaneHeader } from "ui/splitpane/SplitPaneHeader";
 import { customEventName } from "shared/lib/entities/entitiesHelpers";
 import styled from "styled-components";
 import type { ScriptVariable } from "shared/lib/resources/types";
+import { NumberInput } from "ui/form/NumberInput";
+import { VariableIndexBracket } from "components/forms/VariableIndexInput";
 
 interface CustomEventInspectorProps {
   id: string;
@@ -54,6 +56,10 @@ const UsesCollapsedWrapper = styled.div`
   left: 0;
   right: 17px;
   border-top: 1px solid ${(props) => props.theme.colors.input.border};
+`;
+
+const ArrayLengthDivider = styled.div<{ $closing?: boolean }>`
+  border-right: 1px solid ${(props) => props.theme.colors.input.border};
 `;
 
 export const CustomEventInspector = ({ id }: CustomEventInspectorProps) => {
@@ -146,6 +152,30 @@ export const CustomEventInspector = ({ id }: CustomEventInspectorProps) => {
         }),
       );
     },
+    [customEvent, dispatch, id],
+  );
+
+  const onEditVariableLength = useCallback(
+    (key: string): React.ChangeEventHandler<HTMLInputElement> =>
+      (e) => {
+        if (!customEvent) {
+          return;
+        }
+        const variable = customEvent.variables[key];
+        if (!variable) {
+          return;
+        }
+        const parsedLength = e.currentTarget.valueAsNumber;
+        const length =
+          Number.isInteger(parsedLength) && parsedLength > 0 ? parsedLength : 1;
+        dispatch(
+          entitiesActions.editCustomEventVariableLength({
+            customEventId: id,
+            variableId: key,
+            length,
+          }),
+        );
+      },
     [customEvent, dispatch, id],
   );
 
@@ -366,9 +396,25 @@ export const CustomEventInspector = ({ id }: CustomEventInspectorProps) => {
                                   <Input
                                     id={`variable[${i}]`}
                                     value={variable.name}
-                                    placeholder="Variable Name"
+                                    placeholder={l10n("FIELD_VARIABLE_NAME")}
                                     onChange={onEditVariableName(variable.id)}
                                   />
+                                  {variable.passByReference === "array" && (
+                                    <>
+                                      <VariableIndexBracket $type="open" />
+                                      <NumberInput
+                                        id={`variable[${i}].length`}
+                                        value={variable.length}
+                                        placeholder={l10n("FIELD_LENGTH")}
+                                        onChange={onEditVariableLength(
+                                          variable.id,
+                                        )}
+                                        min={1}
+                                      />
+                                      <VariableIndexBracket $type="close" />
+                                      <ArrayLengthDivider />
+                                    </>
+                                  )}
                                   <InputGroupAppend>
                                     <DropdownButton
                                       label={

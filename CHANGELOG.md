@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add ability to create variables directly from variable select inputs by entering a new name
 - Add ability to use array elements in script events and expressions
 - Add ability to set script parameters as "Array Reference", allowing parameters to be treated as arrays within the script
+- Add "For Each Array Element" event to loop through array contents
+- Add "len" function to script values and expressions to get the size of an array
 
 ### Changed
 
@@ -32,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Polish localisation. [@ReptiIe](https://github.com/ReptiIe)
 - Updated Japanese localisation. [@tomo666](https://github.com/tomo666)
 - Updated Ukrainian localisation. [@AmakerGame](https://github.com/AmakerGame)
+- Updated Brazilian Portuguese localisation. [@Italo-Soares-Tradutor](https://github.com/Italo-Soares-Tradutor)
 
 ### Fixed
 
