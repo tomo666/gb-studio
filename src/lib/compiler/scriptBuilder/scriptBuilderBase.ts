@@ -1033,6 +1033,8 @@ abstract class ScriptBuilderBase {
     const output: string[] = [];
     let rpnStackSize = 0;
     const variableAliases = new Map<ScriptBuilderVariable, string>();
+    const indexedVariablePointers = new Map<string, string>();
+    const referencedLocals = new Set<string>();
 
     const variableAlias = (variable: ScriptBuilderVariable) => {
       const cachedAlias = variableAliases.get(variable);
@@ -1044,18 +1046,73 @@ abstract class ScriptBuilderBase {
       return alias;
     };
 
+    const indexedVariableKey = (
+      variable: ScriptBuilderVariableReference,
+    ): string => {
+      const rootAlias = variableAlias(variable.value);
+      return `${rootAlias}:${JSON.stringify(variable.index)}`;
+    };
+
+    const rpnVariableAlias = (variable: ScriptBuilderVariable) => {
+      const isIndirect = this._isIndirectVariable(variable);
+
+      // regular, non-array variable, just use alias as address
+      if (
+        !isIndirect ||
+        !this._isVariableReference(variable) ||
+        variable.index === undefined
+      ) {
+        return variableAlias(variable);
+      }
+
+      const staticIndex = this._getVariableIndexValue(variable.index);
+
+      // array[0], just use array address
+      if (staticIndex === 0) {
+        return variableAlias(variable.value);
+      }
+
+      if (staticIndex !== undefined) {
+        this._assertArrayIndexValid(variable.value, staticIndex);
+      }
+
+      const key = indexedVariableKey(variable);
+      const cachedPointer = indexedVariablePointers.get(key);
+
+      // address already calculated, use cached pointer
+      if (cachedPointer !== undefined) {
+        return cachedPointer;
+      }
+
+      // calculate array element address, store in temp pointer
+      const variablePtr = this._declareLocal("array_ptr", 1, true);
+
+      rpn.addrVariable(variable.value);
+
+      if (staticIndex !== undefined) {
+        rpn.int16(staticIndex);
+      } else {
+        this._performScriptValueRPN(rpn, variable.index);
+      }
+
+      rpn.operator(".ADD").refSet(variablePtr);
+
+      indexedVariablePointers.set(key, variablePtr);
+
+      return variablePtr;
+    };
+
     const rpnCmd = (
       cmd: string,
       ...args: Array<ScriptBuilderStackVariable>
     ) => {
-      output.push(
-        this._padCmd(
-          cmd,
-          args.map((d) => this._offsetStackAddr(d)).join(", "),
-          12,
-          12,
-        ),
-      );
+      const formattedArgs = args.map((arg) => {
+        const formatted = this._offsetStackAddr(arg);
+        const localSymbols = formatted.match(/\.LOCAL_[A-Z0-9_]+/g) ?? [];
+        localSymbols.forEach((symbol) => referencedLocals.add(symbol));
+        return formatted;
+      });
+      output.push(this._padCmd(cmd, formattedArgs.join(", "), 12, 12));
     };
 
     const rpn = {
@@ -1070,7 +1127,7 @@ abstract class ScriptBuilderBase {
         return rpn;
       },
       refVariable: (variable: ScriptBuilderVariable) => {
-        const alias = variableAlias(variable);
+        const alias = rpnVariableAlias(variable);
         if (this._isIndirectVariable(variable)) {
           return rpn.refInd(alias);
         } else {
@@ -1088,7 +1145,7 @@ abstract class ScriptBuilderBase {
         return rpn;
       },
       refSetVariable: (variable: ScriptBuilderVariable) => {
-        const alias = variableAlias(variable);
+        const alias = rpnVariableAlias(variable);
         if (this._isIndirectVariable(variable)) {
           return rpn.refSetInd(alias);
         } else {
@@ -1104,6 +1161,14 @@ abstract class ScriptBuilderBase {
         rpnCmd(".R_REF_MEM_IND", type, pointerAddress);
         rpnStackSize++;
         return rpn;
+      },
+      addrVariable: (variable: ScriptBuilderVariable) => {
+        const alias = variableAlias(variable);
+        if (this._isIndirectVariable(variable)) {
+          return rpn.ref(alias);
+        } else {
+          return rpn.int16(alias);
+        }
       },
       actorId: (id: ScriptBuilderVariable) => {
         const actorId = this.resolveActorId(id);
@@ -1151,9 +1216,18 @@ abstract class ScriptBuilderBase {
         }
         return rpn;
       },
+      comment: (text: string) => {
+        output.push(`            ; ${text}`);
+        return rpn;
+      },
       stop: () => {
         rpnCmd(".R_STOP");
         this._addCmd("VM_RPN");
+
+        referencedLocals.forEach((symbol) => {
+          this._markLocalUse(symbol);
+        });
+
         output.forEach((cmd: string) => {
           this.output.push(cmd);
         });
@@ -2604,6 +2678,18 @@ extern void __mute_mask_${symbol};
     if (length < minimumLength) {
       throw new Error(
         `Array with length ${length} is too short for required length ${minimumLength}`,
+      );
+    }
+  };
+
+  _assertArrayIndexValid = (variable: ScriptBuilderVariable, index: number) => {
+    if (index < 0) {
+      throw new Error(`Array index ${index} cannot be negative`);
+    }
+    const length = this._getArrayLength(variable);
+    if (index >= length) {
+      throw new Error(
+        `Index access ${index} is beyond size of array with length ${length}`,
       );
     }
   };
